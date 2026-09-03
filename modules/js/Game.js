@@ -173,11 +173,17 @@ class BoardView {
 }
 
 /**
- * The Empire stages a raise and any number of marches, then commits.
+ * The Empire raises a troop, marches, and may resolve — in that order, because
+ * that is the order the rules apply them and a resolution is judged against
+ * where troops end up, not where they started (Decision 4).
  *
- * Looking is not staged and never appears here: every troop that did not move
- * peeks, there is no decision in it, and the server does it at the end of the
- * move step.
+ * The turn is presented as that sequence rather than as free-form modes. With
+ * modes, a player looking at the board on turn one sees a single faintly
+ * highlighted town and no indication that raising is a thing they may do.
+ *
+ * Looking never appears here. Every troop that did not move peeks, there is no
+ * decision in it, and the server does it when the turn is committed. The panel
+ * says so, because a player who does not know that will go hunting for a button.
  */
 class EmpireTurn {
     constructor(game, bga) {
@@ -187,15 +193,13 @@ class EmpireTurn {
         this.moves = [];
         this.source = null;
         this.resolveTarget = null;
-        this.mode = 'move';
+        this.step = 'raise';
     }
     onEnteringState(args, isCurrentPlayerActive) {
         this.args = args;
         this.reset();
-        this.bga.statusBar.setTitle(isCurrentPlayerActive
-            ? _('${you} may raise a troop and move, and may then resolve one town')
-            : _('${actplayer} must move'));
         if (!isCurrentPlayerActive) {
+            this.bga.statusBar.setTitle(_('${actplayer} must move'));
             return;
         }
         this.game.board.onTownClick(townId => this.onTownClick(townId));
@@ -211,20 +215,21 @@ class EmpireTurn {
         this.moves = [];
         this.source = null;
         this.resolveTarget = null;
-        this.mode = 'move';
+        // Skip straight to marching if there is nowhere legal to raise.
+        this.step = (this.args?.generationTowns.length ?? 0) > 0 ? 'raise' : 'move';
     }
     // -- staging ------------------------------------------------------------
     onTownClick(townId) {
-        if (this.mode === 'generate') {
+        if (this.step === 'raise') {
             if (this.args.generationTowns.includes(townId)) {
                 this.generateAt = townId;
-                this.mode = 'move';
+                this.step = 'move';
             }
             this.refresh();
             return;
         }
-        if (this.mode === 'resolve') {
-            if (this.projected(townId) > 0 && !this.game.board.getTown(townId).resolved) {
+        if (this.step === 'resolve') {
+            if (this.canResolve(townId)) {
                 this.resolveTarget = townId;
             }
             this.refresh();
@@ -242,8 +247,8 @@ class EmpireTurn {
             this.refresh();
             return;
         }
-        // Clicking a neighbour marches one more troop into it, so a stack is
-        // moved by clicking the same town repeatedly.
+        // Clicking a neighbour marches one more troop into it, so a stack moves
+        // by clicking the same town repeatedly.
         if (this.game.board.neighborsOf(this.source).includes(townId) && this.projected(this.source) > 0) {
             this.addMove(this.source, townId);
         }
@@ -258,10 +263,11 @@ class EmpireTurn {
             this.moves.push({ from, to, count: 1 });
         }
     }
+    canResolve(townId) {
+        return this.projected(townId) > 0 && !this.game.board.getTown(townId).resolved;
+    }
     /**
-     * Troops as they will stand after this turn's raise and marches. Every
-     * decision — what may move, what may resolve — is judged against this rather
-     * than against the board as it looks now (Decision 4).
+     * Troops as they will stand once this turn is committed.
      */
     projected(townId) {
         let troops = this.game.board.getTown(townId).troops;
@@ -278,8 +284,22 @@ class EmpireTurn {
         });
         return troops;
     }
+    /** Towns that will hold a stationary troop, and so will read a card. */
+    willLook() {
+        return Object.keys(this.game.board.allTowns()).filter(townId => {
+            const town = this.game.board.getTown(townId);
+            if (town.resolved || town.pileSize === 0) {
+                return false;
+            }
+            const arriving = this.moves
+                .filter(move => move.to === townId)
+                .reduce((total, move) => total + move.count, 0);
+            return this.projected(townId) - arriving > 0;
+        });
+    }
     // -- display ------------------------------------------------------------
     refresh() {
+        this.bga.statusBar.setTitle(this.title());
         const pending = {};
         Object.keys(this.game.board.allTowns()).forEach(townId => {
             const projected = this.projected(townId);
@@ -288,22 +308,33 @@ class EmpireTurn {
             }
         });
         if (this.generateAt) {
-            pending[this.generateAt] = (pending[this.generateAt] ?? '') + ' ⚑';
+            pending[this.generateAt] = `${pending[this.generateAt] ?? ''} ⚑`.trim();
         }
         this.game.board.setPending(pending);
         this.game.board.setSelectable(this.selectableTowns());
-        this.game.board.setSelected(this.mode === 'resolve' && this.resolveTarget ? [this.resolveTarget]
+        this.game.board.setSelected(this.step === 'resolve' && this.resolveTarget ? [this.resolveTarget]
             : this.source ? [this.source] : []);
         this.game.setStagingText(this.stagingHtml());
         this.buttons();
     }
+    title() {
+        if (this.step === 'raise') {
+            return _('${you} may raise a troop: click a highlighted town');
+        }
+        if (this.step === 'resolve') {
+            return _('${you} must choose a town to resolve');
+        }
+        return this.source === null
+            ? _('${you} may march: click a town with troops')
+            : _('${you} may march: click a neighbouring town');
+    }
     selectableTowns() {
         const all = Object.keys(this.game.board.allTowns());
-        if (this.mode === 'generate') {
+        if (this.step === 'raise') {
             return this.args.generationTowns;
         }
-        if (this.mode === 'resolve') {
-            return all.filter(townId => this.projected(townId) > 0 && !this.game.board.getTown(townId).resolved);
+        if (this.step === 'resolve') {
+            return all.filter(townId => this.canResolve(townId));
         }
         if (this.source !== null) {
             return this.game.board.neighborsOf(this.source);
@@ -312,49 +343,59 @@ class EmpireTurn {
     }
     stagingHtml() {
         const lines = [];
-        if (this.generateAt) {
-            lines.push(`<div>${_('Raising at')} ${this.townLabel(this.generateAt)}</div>`);
-        }
+        lines.push(this.generateAt
+            ? `<div>${_('Raising at')} <b>${this.townLabel(this.generateAt)}</b></div>`
+            : `<div>${_('No troop raised')}</div>`);
         this.moves.forEach(move => {
-            lines.push(`<div>${move.count} → ${this.townLabel(move.from)} ⇒ ${this.townLabel(move.to)}</div>`);
+            lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
+                        ${_('to')} <b>${this.townLabel(move.to)}</b></div>`);
         });
-        if (this.source) {
-            lines.push(`<div>${_('Marching from')} ${this.townLabel(this.source)}</div>`);
+        if (!this.moves.length) {
+            lines.push(`<div>${_('No marches')}</div>`);
         }
-        return lines.join('') || `<div>${_('Standing fast.')}</div>`;
+        const looking = this.willLook();
+        lines.push(`<div class="iaw-hint">${_('Troops that do not march read one card each, automatically, when you confirm.')}
+                    ${looking.length
+            ? _('This turn they will read in') + ': ' + looking.map(id => this.townLabel(id)).join(', ')
+            : _('None of them are standing over a pile this turn.')}</div>`);
+        if (this.step === 'move') {
+            lines.push(`<div class="iaw-hint">${_('Click a town with troops, then a neighbour. Click the same neighbour again to send another troop.')}</div>`);
+        }
+        return lines.join('');
     }
     buttons() {
         this.bga.statusBar.removeActionButtons();
-        if (this.mode === 'resolve') {
+        if (this.step === 'raise') {
+            this.bga.statusBar.addActionButton(_('Raise nothing this turn'), () => {
+                this.step = 'move';
+                this.refresh();
+            }, { color: 'secondary' });
+            return;
+        }
+        if (this.step === 'resolve') {
             this.bga.statusBar.addActionButton(this.resolveTarget
                 ? _('Confirm and resolve') + ' ' + this.townLabel(this.resolveTarget)
                 : _('Pick a town to resolve'), () => this.commit(), { disabled: this.resolveTarget === null });
             this.bga.statusBar.addActionButton(_('Back'), () => {
-                this.mode = 'move';
+                this.step = 'move';
                 this.resolveTarget = null;
                 this.refresh();
             }, { color: 'secondary' });
             return;
         }
-        this.bga.statusBar.addActionButton(_('Confirm'), () => this.commit());
-        if (this.mode === 'generate') {
-            this.bga.statusBar.addActionButton(_('Cancel raise'), () => {
-                this.mode = 'move';
-                this.refresh();
-            }, { color: 'secondary' });
-        }
-        else {
+        this.bga.statusBar.addActionButton(_('Confirm turn'), () => this.commit());
+        this.bga.statusBar.addActionButton(_('Resolve a town…'), () => {
+            this.step = 'resolve';
+            this.source = null;
+            this.refresh();
+        }, { color: 'secondary' });
+        if (this.args.generationTowns.length) {
             this.bga.statusBar.addActionButton(this.generateAt ? _('Raise somewhere else…') : _('Raise a troop…'), () => {
-                this.mode = 'generate';
+                this.step = 'raise';
                 this.source = null;
                 this.refresh();
             }, { color: 'secondary' });
         }
-        this.bga.statusBar.addActionButton(_('Resolve a town…'), () => {
-            this.mode = 'resolve';
-            this.source = null;
-            this.refresh();
-        }, { color: 'secondary' });
         this.bga.statusBar.addActionButton(_('Reset'), () => {
             this.reset();
             this.refresh();

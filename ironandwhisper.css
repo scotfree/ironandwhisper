@@ -46,8 +46,9 @@
 }
 .iaw-town.selectable {
   border-color: #2e7d32;
+  background: #eaf5ea;
   cursor: pointer;
-  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.25);
+  box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.28);
 }
 .iaw-town.selected {
   border-color: #1565c0;
