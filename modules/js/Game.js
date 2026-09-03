@@ -196,7 +196,6 @@ class EmpireTurn {
         this.step = 'raise';
     }
     onEnteringState(args, isCurrentPlayerActive) {
-        console.log('EmpireTurn.onEnteringState', { args, isCurrentPlayerActive, you: this.game.side });
         // Defensive: a throw in here takes the whole handler with it, and the
         // symptom is a board where nothing is clickable and no buttons appear.
         this.args = {
@@ -448,7 +447,6 @@ class InsurgencyTurn {
         this.choosingResolution = false;
     }
     onEnteringState(args, isCurrentPlayerActive) {
-        console.log('InsurgencyTurn.onEnteringState', { args, isCurrentPlayerActive, you: this.game.side });
         this.args = {
             openTowns: args?.openTowns ?? [],
             resolvable: args?.resolvable ?? [],

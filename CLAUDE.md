@@ -57,6 +57,9 @@ Not done:
 - No stats defined in `stats.jsonc`.
 - No game-end statistics or tie-breaker.
 - No animations; the client redraws towns rather than moving anything.
+- The Empire's known cards are drawn face up in place in the pile. A separate "seen here"
+  row beside each town was agreed in principle — display only, the cards stay in the pile
+  and still count at resolution — but is not built.
 
 ## Deploying
 
@@ -239,11 +242,17 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
    towns the Empire will not contest. Not dominant, and it costs real troops — but it means
    the Empire's best play involves many zero-point resolutions. The natural counter is
    intrinsic town values, already on the deferred list.
-2. **Pile order within one placement.** The Insurgency places several cards into a town at
-   once, and they go on one at a time, so the last one listed ends up on top — which is the
-   order the Empire will read them in. The simulator's order was an artifact of iterating
-   hand indices; the client now sends a deliberate order. Whether the Insurgency *should*
-   control that ordering is a design question nobody has answered.
+2. **Dropping troop movement**, considered and parked 2026-09-03. The Empire would place
+   only, never march, making both sides pure placement games. Notes so the analysis is not
+   re-derived: it is a *swap*, not a deletion — generation currently requires presence and
+   presence is only obtainable by marching, so the Empire would be welded to its starting
+   town; generation would have to become "any town you occupy or are adjacent to". Troop
+   consumption must stay, and gets *more* load-bearing: with no movement, resolving a town
+   costs your frontier, not just material. The cost is the move-or-look tradeoff — every
+   troop would peek every turn, so Empire information rate rises with the army. The risk is
+   that board-shrinking (question 1) becomes the Empire's only line rather than its best
+   one. Test it in `sim/` behind a scenario flag before any PHP changes; nothing known
+   about peeking or shrinking survives the change automatically.
 3. **Side-swap matches.** A full match is arguably two games with the sides traded. The
    groundwork is there — sides live in `player.player_side`, set from game option 100 — but
    nothing implements it.

@@ -28,8 +28,6 @@ export class EmpireTurn {
     }
 
     onEnteringState(args: EmpireTurnArgs, isCurrentPlayerActive: boolean) {
-        console.log('EmpireTurn.onEnteringState', { args, isCurrentPlayerActive, you: this.game.side });
-
         // Defensive: a throw in here takes the whole handler with it, and the
         // symptom is a board where nothing is clickable and no buttons appear.
         this.args = {

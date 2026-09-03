@@ -24,8 +24,6 @@ export class InsurgencyTurn {
     }
 
     onEnteringState(args: InsurgencyTurnArgs, isCurrentPlayerActive: boolean) {
-        console.log('InsurgencyTurn.onEnteringState', { args, isCurrentPlayerActive, you: this.game.side });
-
         this.args = {
             openTowns: args?.openTowns ?? [],
             resolvable: args?.resolvable ?? [],
