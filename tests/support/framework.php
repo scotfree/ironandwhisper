@@ -241,6 +241,13 @@ namespace Bga\GameFramework {
                 )'
             );
 
+            // BGA's database template already contains a `card` table. Its exact
+            // shape is not documented here — what matters is that it exists, so
+            // a CREATE TABLE IF NOT EXISTS against a generic name is a silent
+            // no-op and the first INSERT fails on an unknown column. That cost a
+            // deploy to find; this decoy makes it cost a test run instead.
+            self::query('CREATE TABLE `card` (`card_id` INTEGER PRIMARY KEY, `reserved` INTEGER)');
+
             $sql = file_get_contents($path);
             $sql = preg_replace('/^\s*--.*$/m', '', $sql);
 

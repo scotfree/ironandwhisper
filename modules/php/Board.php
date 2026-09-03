@@ -2,7 +2,7 @@
 /**
  * Iron and Whisper — persistence.
  *
- * Everything that reads or writes the `town` and `card` tables lives here, and
+ * Everything that reads or writes the `iaw_town` and `iaw_card` tables lives here, and
  * nothing else does. Board hands the rest of the game plain arrays in the shape
  * Rules expects, and takes plans back from Rules to write down. Keeping the two
  * apart is what lets the rules be tested without a database.
@@ -41,7 +41,7 @@ final class Board
             $townValues[] = sprintf("('%s', %d)", $townId, $troops);
         }
         Game::DbQuery(
-            'INSERT INTO `town` (`town_id`, `troops`) VALUES ' . implode(',', $townValues)
+            'INSERT INTO `iaw_town` (`town_id`, `troops`) VALUES ' . implode(',', $townValues)
         );
 
         $types = [];
@@ -57,7 +57,7 @@ final class Board
             $cardValues[] = sprintf("('%s', '%s', %d)", $typeId, self::DECK, $order);
         }
         Game::DbQuery(
-            'INSERT INTO `card` (`card_type`, `card_location`, `location_order`) VALUES '
+            'INSERT INTO `iaw_card` (`card_type`, `card_location`, `location_order`) VALUES '
             . implode(',', $cardValues)
         );
     }
@@ -74,7 +74,7 @@ final class Board
     {
         $rows = Game::getCollectionFromDB(
             'SELECT `town_id`, `troops`, `resolved`, `winner`, `resolved_influence`, `resolved_strength`
-             FROM `town`'
+             FROM `iaw_town`'
         );
 
         $piles = [];
@@ -111,7 +111,7 @@ final class Board
     {
         $rows = Game::getObjectListFromDB(
             "SELECT `card_id`, `card_type`, `card_location`, `empire_seen`
-             FROM `card` WHERE `card_location` LIKE 'town:%'
+             FROM `iaw_card` WHERE `card_location` LIKE 'town:%'
              ORDER BY `card_location`, `location_order`"
         );
 
@@ -132,7 +132,7 @@ final class Board
     public function hand(): array
     {
         $rows = Game::getObjectListFromDB(
-            "SELECT `card_id`, `card_type` FROM `card`
+            "SELECT `card_id`, `card_type` FROM `iaw_card`
              WHERE `card_location` = '" . self::HAND . "' ORDER BY `location_order`"
         );
 
@@ -152,7 +152,7 @@ final class Board
     public function deckCount(): int
     {
         return (int) Game::getUniqueValueFromDB(
-            "SELECT COUNT(*) FROM `card` WHERE `card_location` = '" . self::DECK . "'"
+            "SELECT COUNT(*) FROM `iaw_card` WHERE `card_location` = '" . self::DECK . "'"
         );
     }
 
@@ -171,7 +171,7 @@ final class Board
         }
 
         $ids = Game::getObjectListFromDB(
-            "SELECT `card_id` FROM `card` WHERE `card_location` = '" . self::DECK . "'
+            "SELECT `card_id` FROM `iaw_card` WHERE `card_location` = '" . self::DECK . "'
              ORDER BY `location_order` LIMIT " . $count,
             true
         );
@@ -182,7 +182,7 @@ final class Board
         $handSize = count($this->handCardIds());
         foreach (array_values($ids) as $offset => $cardId) {
             Game::DbQuery(sprintf(
-                "UPDATE `card` SET `card_location` = '%s', `location_order` = %d WHERE `card_id` = %d",
+                "UPDATE `iaw_card` SET `card_location` = '%s', `location_order` = %d WHERE `card_id` = %d",
                 self::HAND,
                 $handSize + $offset,
                 (int) $cardId,
@@ -210,7 +210,7 @@ final class Board
         $count = count($cardIds);
 
         Game::DbQuery(sprintf(
-            "UPDATE `card` SET `location_order` = `location_order` + %d WHERE `card_location` = '%s'",
+            "UPDATE `iaw_card` SET `location_order` = `location_order` + %d WHERE `card_location` = '%s'",
             $count,
             $location,
         ));
@@ -218,7 +218,7 @@ final class Board
         // Last placed is topmost, so positions run backwards over the list.
         foreach (array_values($cardIds) as $offset => $cardId) {
             Game::DbQuery(sprintf(
-                "UPDATE `card` SET `card_location` = '%s', `location_order` = %d WHERE `card_id` = %d",
+                "UPDATE `iaw_card` SET `card_location` = '%s', `location_order` = %d WHERE `card_id` = %d",
                 $location,
                 $count - 1 - $offset,
                 (int) $cardId,
@@ -236,7 +236,7 @@ final class Board
         $location = self::pileLocation($townId);
         foreach (array_values($pile) as $order => $card) {
             Game::DbQuery(sprintf(
-                "UPDATE `card` SET `location_order` = %d WHERE `card_id` = %d AND `card_location` = '%s'",
+                "UPDATE `iaw_card` SET `location_order` = %d WHERE `card_id` = %d AND `card_location` = '%s'",
                 $order,
                 (int) $card['id'],
                 $location,
@@ -251,7 +251,7 @@ final class Board
             return;
         }
         Game::DbQuery(sprintf(
-            'UPDATE `card` SET `empire_seen` = 1 WHERE `card_id` IN (%s)',
+            'UPDATE `iaw_card` SET `empire_seen` = 1 WHERE `card_id` IN (%s)',
             implode(',', array_map('intval', $cardIds)),
         ));
     }
@@ -264,7 +264,7 @@ final class Board
                 continue;
             }
             Game::DbQuery(sprintf(
-                "UPDATE `town` SET `troops` = `troops` + (%d) WHERE `town_id` = '%s'",
+                "UPDATE `iaw_town` SET `troops` = `troops` + (%d) WHERE `town_id` = '%s'",
                 $change,
                 $townId,
             ));
@@ -283,7 +283,7 @@ final class Board
     public function markResolved(string $townId, array $outcome): void
     {
         Game::DbQuery(sprintf(
-            "UPDATE `town` SET `resolved` = 1, `winner` = '%s', `resolved_influence` = %d,
+            "UPDATE `iaw_town` SET `resolved` = 1, `winner` = '%s', `resolved_influence` = %d,
              `resolved_strength` = %d, `troops` = 0 WHERE `town_id` = '%s'",
             $outcome['winner'],
             $outcome['influence'],
@@ -292,7 +292,7 @@ final class Board
         ));
 
         Game::DbQuery(sprintf(
-            "UPDATE `card` SET `empire_seen` = 1 WHERE `card_location` = '%s'",
+            "UPDATE `iaw_card` SET `empire_seen` = 1 WHERE `card_location` = '%s'",
             self::pileLocation($townId),
         ));
     }
