@@ -220,3 +220,29 @@
   padding-top: 0;
   margin-top: 0;
 }
+
+.iaw-troop-delta {
+  margin-left: 2px;
+  font-size: 10px;
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+#iaw-move-arrows .iaw-move-arrow {
+  stroke: #6b3fa0;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+#iaw-move-arrows .iaw-move-count {
+  fill: #6b3fa0;
+  font-size: 13px;
+  font-weight: bold;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+#iaw-arrowhead path {
+  fill: #6b3fa0;
+}

@@ -162,17 +162,17 @@ export class EmpireTurn {
     private refresh(): void {
         this.bga.statusBar.setTitle(this.title());
 
-        const pending: Record<string, string> = {};
+        // Show the change, not the result: a town with two troops that is
+        // raising reads "2+1", and the marches are drawn on the roads.
+        const delta: Record<string, number> = {};
         Object.keys(this.game.board.allTowns()).forEach(townId => {
-            const projected = this.projected(townId);
-            if (projected !== this.game.board.getTown(townId).troops) {
-                pending[townId] = `→ ${projected}`;
+            const change = this.projected(townId) - this.game.board.getTown(townId).troops;
+            if (change !== 0) {
+                delta[townId] = change;
             }
         });
-        if (this.generateAt) {
-            pending[this.generateAt] = `${pending[this.generateAt] ?? ''} ⚑`.trim();
-        }
-        this.game.board.setPending(pending);
+        this.game.board.setTroopDelta(delta);
+        this.game.board.setMoveArrows(this.moves);
 
         this.game.board.setSelectable(this.selectableTowns());
         this.game.board.setSelected(

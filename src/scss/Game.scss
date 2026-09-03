@@ -256,3 +256,34 @@ $paper: #efe7d7;
     padding-top: 0;
     margin-top: 0;
 }
+
+// What this turn would change, shown against what is already there.
+.iaw-troop-delta {
+    margin-left: 2px;
+    font-size: 10px;
+    font-weight: normal;
+    opacity: 0.9;
+}
+
+// Marches being staged, drawn along the roads they follow.
+#iaw-move-arrows {
+    .iaw-move-arrow {
+        stroke: $empire;
+        stroke-width: 6;
+        stroke-linecap: round;
+    }
+
+    .iaw-move-count {
+        fill: $empire;
+        font-size: 13px;
+        font-weight: bold;
+        text-anchor: middle;
+        paint-order: stroke;
+        stroke: #fff;
+        stroke-width: 3;
+    }
+}
+
+#iaw-arrowhead path {
+    fill: $empire;
+}

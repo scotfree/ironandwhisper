@@ -16,6 +16,8 @@ class BoardView {
         this.dropHandler = null;
         /** Extra text shown on a town while a turn is being staged. */
         this.pending = {};
+        /** Signed troop changes being staged, shown on the troop badge as 2+1. */
+        this.troopDelta = {};
         this.towns = towns;
     }
     // -- building -----------------------------------------------------------
@@ -66,7 +68,29 @@ class BoardView {
             return `<line x1="${this.px(from.x)}" y1="${this.px(from.y)}"
                           x2="${this.px(to.x)}" y2="${this.px(to.y)}" />`;
         }).join('');
-        return `<svg id="iaw-roads" width="${width}" height="${height}">${lines}</svg>`;
+        return `<svg id="iaw-roads" width="${width}" height="${height}">
+            <defs>
+                <marker id="iaw-arrowhead" viewBox="0 0 10 10" refX="9" refY="5"
+                        markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+            </defs>
+            <g id="iaw-roads-edges">${lines}</g>
+            <g id="iaw-move-arrows"></g>
+        </svg>`;
+    }
+    /**
+     * Where a line from one town to another should start, so it emerges from
+     * the edge of the town's box rather than from under it.
+     */
+    boxExit(from, to) {
+        const x = this.px(from.x);
+        const y = this.px(from.y);
+        const dx = this.px(to.x) - x;
+        const dy = this.px(to.y) - y;
+        // Half the town box, plus a little air.
+        const scale = Math.min(dx === 0 ? Infinity : 60 / Math.abs(dx), dy === 0 ? Infinity : 44 / Math.abs(dy));
+        return { x: x + dx * scale, y: y + dy * scale };
     }
     townHtml(town) {
         return `
@@ -110,9 +134,13 @@ class BoardView {
         element.classList.toggle('resolved', town.resolved);
         element.classList.toggle('empire-held', town.resolved && town.winner === 'empire');
         element.classList.toggle('insurgency-held', town.resolved && town.winner === 'insurgency');
+        // The badge shows what is there and what this turn would add or take
+        // away, as "2+1", rather than quietly showing the result.
+        const delta = this.troopDelta[townId] ?? 0;
         const troops = element.querySelector('.iaw-town-troops');
-        troops.innerHTML = town.troops > 0
-            ? `<span class="iaw-troops">${town.troops}</span>`
+        troops.innerHTML = (town.troops > 0 || delta !== 0)
+            ? `<span class="iaw-troops">${town.troops}${delta === 0 ? ''
+                : `<span class="iaw-troop-delta">${delta > 0 ? '+' : '-'}${Math.abs(delta)}</span>`}</span>`
             : '';
         // Two areas, as on a table: the face-down stack, and the cards a
         // garrison has turned over lying face up beside it.
@@ -164,9 +192,39 @@ class BoardView {
         this.pending = pending;
         this.updateAll();
     }
+    /** @param delta town id => signed troop change being staged this turn */
+    setTroopDelta(delta) {
+        this.troopDelta = delta;
+        this.updateAll();
+    }
+    /**
+     * Draw the marches being staged as arrows along the roads they follow, so
+     * the plan is visible on the map rather than only in a list.
+     */
+    setMoveArrows(moves) {
+        const layer = document.getElementById('iaw-move-arrows');
+        if (!layer) {
+            return;
+        }
+        layer.innerHTML = moves.map(move => {
+            const from = this.scenario.towns[move.from];
+            const to = this.scenario.towns[move.to];
+            const start = this.boxExit(from, to);
+            const end = this.boxExit(to, from);
+            const label = move.count > 1
+                ? `<text class="iaw-move-count" x="${(start.x + end.x) / 2}"
+                         y="${(start.y + end.y) / 2 - 4}">${move.count}</text>`
+                : '';
+            return `<line class="iaw-move-arrow" x1="${start.x}" y1="${start.y}"
+                          x2="${end.x}" y2="${end.y}"
+                          marker-end="url(#iaw-arrowhead)" />${label}`;
+        }).join('');
+    }
     clearInteraction() {
         this.dropHandler = null;
         this.pending = {};
+        this.troopDelta = {};
+        this.setMoveArrows([]);
         this.setSelectable([]);
         this.setSelected([]);
         this.updateAll();
@@ -317,17 +375,17 @@ class EmpireTurn {
     // -- display ------------------------------------------------------------
     refresh() {
         this.bga.statusBar.setTitle(this.title());
-        const pending = {};
+        // Show the change, not the result: a town with two troops that is
+        // raising reads "2+1", and the marches are drawn on the roads.
+        const delta = {};
         Object.keys(this.game.board.allTowns()).forEach(townId => {
-            const projected = this.projected(townId);
-            if (projected !== this.game.board.getTown(townId).troops) {
-                pending[townId] = `→ ${projected}`;
+            const change = this.projected(townId) - this.game.board.getTown(townId).troops;
+            if (change !== 0) {
+                delta[townId] = change;
             }
         });
-        if (this.generateAt) {
-            pending[this.generateAt] = `${pending[this.generateAt] ?? ''} ⚑`.trim();
-        }
-        this.game.board.setPending(pending);
+        this.game.board.setTroopDelta(delta);
+        this.game.board.setMoveArrows(this.moves);
         this.game.board.setSelectable(this.selectableTowns());
         this.game.board.setSelected(this.step === 'resolve' && this.resolveTarget ? [this.resolveTarget]
             : this.source ? [this.source] : []);
