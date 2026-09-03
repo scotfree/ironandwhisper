@@ -125,21 +125,23 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 | Infantry — Peek | 1 | Cards a stationary troop may secretly view. |
 | Rebel hand size | 5 | Drawn and fully placed each Insurgency turn. |
 | Rebel deck size | 60 | Finite, no reshuffle. Sets game length. |
-| Deck influence : dummy | 30 : 30 | Influence cards are worth 1 each. |
+| Deck influence : dummy | 36 : 24 | Influence cards are worth 1 each. See the note below. |
 | Influence card value | 1 | |
 | Town point values | none (MVP) | Capture-only scoring; intrinsic values are deferred. |
 
 **Derived quantities**, which is where the tuning pressure actually lives:
 
 - **Game length** = `deck_size / hand_size` = **12 Insurgency turns**. Deterministic, because the whole hand must be placed every turn.
-- **Total Insurgency influence** = `deck_size × influence_ratio` = **30**.
+- **Total Insurgency influence** = `deck_size × influence_ratio` = **36**.
 - **Total Empire strength** = `(starting_troops + turns × generation_rate) × strength` = `(3 + 12) × 3` = **45**.
 
-The Empire commands about 1.5× the Insurgency's total force, which is deliberate — it moves at one edge per turn and has to cover twelve towns, while the Insurgency can place anywhere instantly.
+The Empire commands about 1.25× the Insurgency's total force, which is deliberate — it moves at one edge per turn and has to cover twelve towns, while the Insurgency can place anywhere instantly.
 
 > **Simulation says this premium is the wrong thing to tune.** See `notebooks/exploration.ipynb`. Bringing the premium to exactly 1.00 by lowering troop strength moves the win rate almost not at all, because capture-only scoring makes troop strength self-cancelling: weaker troops win fewer fights, but each fight the Insurgency wins is also worth fewer points, and the two effects nearly cancel.
 >
-> The knob that actually moves the game is **influence density** — the share of the deck that is real. At the 50:50 starting values the Empire wins about 73% of games; balance against the current bots lands near **36 influence : 24 dummy**, roughly 60% density. These parameters have not been changed in the table above, because picking the real numbers is a design decision rather than a simulator output — but 50:50 is not close.
+> The knob that actually moves the game is **influence density** — the share of the deck that is real. At the original 50:50 the Empire won about 73% of games; balance against the current bots lands near **36 influence : 24 dummy**, roughly 60% density, and the table above now carries that.
+>
+> **Nobody has played it.** 36:24 is a simulator output adopted as a starting point, not a playtested number, and it was measured against bots that are not good players. Treat it as the next thing to test rather than as settled.
 
 ---
 
@@ -198,6 +200,7 @@ Alternative considered: ties go to whoever did *not* declare, which makes specul
 **Why:** this self-bookkeeps. A pile `[A B C]` peeked at 1/turn shows A, then B, then C, then cycles — full discovery in as many turns as the pile is tall, with no positions to track and no choices to agonize over. New cards go on top.
 
 Fine print:
+- Several cards placed into the same town on the same turn go on **one at a time, in the order the Insurgency chooses**, so the last one placed is the first one read. This is a real lever, not bookkeeping: it decides which of this turn's cards a garrison sees first, and it is the Insurgency's to set.
 - Multiple stationary troops in one town **stack their Peek**.
 - A troop must start *and* end the turn in the town without moving. Troops arriving this turn cannot look until next turn.
 - A look is a private snapshot. The Insurgency is not notified — though since stationary troops are public, it can infer that looks happened.
@@ -209,7 +212,7 @@ Two consequences worth knowing:
 
 ### 9. Everything in a resolved town stays, face up, out of play
 
-**Why:** simpler than removing pieces to a discard pile, and the board becomes a record of the game. Troops remain as generation anchors (Decision 3); cards do nothing after scoring.
+**Why:** simpler than removing pieces to a discard pile, and the board becomes a record of the game. Cards stay where they are and do nothing further. Troops do **not** stay: they are spent (Decision 3), so a resolved town ends up holding a face-up pile and no garrison, and stops anchoring generation.
 
 The significant side effect: **face-up resolved piles make the finite deck countable.** By mid-game both players can count revealed influence and infer how much real strength remains in the deck and in hand. The fog thins on its own as the game progresses, so early play is pure guessing and the endgame is sharp and calculable — and dummies get weaker precisely when the stakes are highest. Card counting becomes a genuine skill without a single extra rule.
 
@@ -221,7 +224,7 @@ The significant side effect: **face-up resolved piles make the finite deck count
 
 ## Implementation Notes
 
-Rules content is **data, not code**, so the numbers above can be tuned without touching game logic:
+Rules content is **data, not code**, so the numbers above can be tuned without touching game logic. The Python simulator and the PHP game both read these same files, which is what makes tuning transfer:
 
 - `data/units.json` — unit types: strength, movement, peek.
 - `data/cards.json` — card types: influence value, share of deck.
