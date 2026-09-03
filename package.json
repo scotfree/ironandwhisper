@@ -1,0 +1,23 @@
+ {
+   "name": "ironandwhisper",
+   "version": "1.0.0",
+   "description": "",
+   "main": "modules/js/Game.js",
+   "scripts": {
+     "build:ts": "rollup -c",
+     "build:scss": "sass --no-source-map src/scss/Game.scss ironandwhisper.css",
+     "watch:ts": "rollup -c -w",
+     "watch:scss": "sass --watch src/scss/Game.scss ironandwhisper.css",
+     "watch": "npm run watch:ts & npm run watch:scss",
+     "build": "npm run build:ts && npm run build:scss"
+   },
+   "author": "yourname",
+   "license": "MIT",
+   "devDependencies": {
+    "@rollup/plugin-typescript": "^12.3.0",
+    "rollup": "^4.53.3",
+    "sass": "^1.71.0",
+    "tslib": "^2.8.1",
+    "typescript": "^6.0.3"
+   }
+ }

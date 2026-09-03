@@ -1,0 +1,26 @@
+{
+  // user preferences ids should be between 100 and 199
+  // See https://en.doc.boardgamearena.com/Options_and_preferences:_gameoptions.json,_gamepreferences.json for more details
+  /*
+  EXAMPLE:
+
+  "100": {
+    "name": "Colorblind Support",
+    "values": {
+      "0": {
+        "name": "None",
+        "cssPref": "colorblind_off"
+      },
+      "1": {
+        "name": "Numbers",
+        "cssPref": "colorblind_on"
+      },
+      "2": {
+        "name": "Shapes",
+        "cssPref": "colorblind_shapes"
+      }
+    },
+    "default": 0
+  }
+  */
+}

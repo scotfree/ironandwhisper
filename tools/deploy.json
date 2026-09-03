@@ -1,0 +1,23 @@
+{
+  "host": "1.studio.boardgamearena.com",
+  "port": 2022,
+  "user": "scotfree",
+  "remote_dir": "ironandwhisper",
+
+  "keychain_service": "bga-studio-sftp",
+  "keychain_account": "scotfree",
+
+  "exclude": [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    "tools",
+    "misc",
+    "src",
+    "src-disabled",
+    ".DS_Store",
+    "*.md",
+    "*.pyc"
+  ]
+}

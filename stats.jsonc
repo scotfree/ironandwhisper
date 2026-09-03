@@ -1,0 +1,28 @@
+{    
+    // Statistics for the table
+    "table": {},
+    
+    // Statistics for each player
+    "player": {
+      /* 
+      EXAMPLE:
+
+      "turns_number": {
+        "id": 10,
+        "name": "Number of turns",
+        "type": "int"
+      },
+      "player_teststat1": {
+        "id": 11,
+        "name": "player test stat 1",
+        "type": "int"
+      },
+      "player_teststat2": {
+        "id": 12,
+        "name": "player test stat 2",
+        "type": "float"
+      }
+      */
+
+    }
+}

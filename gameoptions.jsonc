@@ -1,0 +1,23 @@
+{
+  // option ids should be between 100 and 199
+  // See https://en.doc.boardgamearena.com/Options_and_preferences:_gameoptions.json,_gamepreferences.json for more details
+  /*
+  EXAMPLE:
+
+  "101": {
+    "name": "Draft variant",
+    "values": {
+      "0": {
+        "name": "No draft"
+      },
+      "1": {
+        "name": "Draft",
+        "description": "Add a draft at the beginning of the game"
+        "tmdisplay": "Draft",
+        "nobeginner": true
+      }
+    },
+    "default": 0
+  }
+  */
+}
