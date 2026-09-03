@@ -1,23 +1,27 @@
 {
   // option ids should be between 100 and 199
   // See https://en.doc.boardgamearena.com/Options_and_preferences:_gameoptions.json,_gamepreferences.json for more details
-  /*
-  EXAMPLE:
 
-  "101": {
-    "name": "Draft variant",
+  // Which player takes which side. The sides are deeply asymmetric, so this is
+  // not a cosmetic choice: the Empire moves visible troops, the Insurgency
+  // seeds hidden cards. Stored per player in `player.player_side` at setup.
+  "100": {
+    "name": "Side assignment",
     "values": {
       "0": {
-        "name": "No draft"
+        "name": "Random"
       },
       "1": {
-        "name": "Draft",
-        "description": "Add a draft at the beginning of the game"
-        "tmdisplay": "Draft",
-        "nobeginner": true
+        "name": "First player is the Empire",
+        "description": "The player in the first seat commands the Empire.",
+        "tmdisplay": "First player is the Empire"
+      },
+      "2": {
+        "name": "First player is the Insurgency",
+        "description": "The player in the first seat leads the Insurgency.",
+        "tmdisplay": "First player is the Insurgency"
       }
     },
     "default": 0
   }
-  */
 }

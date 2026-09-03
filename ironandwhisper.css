@@ -1,65 +1,184 @@
 /**
- *------
- * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
- * IronAndWhisper implementation : © <Your name here> <Your email address here>
+ * Iron and Whisper.
  *
- * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
- * See http://en.boardgamearena.com/#!doc/Studio for more information.
- * -----
+ * The board is drawn from the map's coordinates rather than from a background
+ * image, so a new map in maps/*.json needs no art and no CSS.
  */
+#iaw-table {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
 
-/*
-    This is the CSS stylesheet of your game User Interface.
-    
-    Styles defined on this file will be applied to HTML elements you create (in Game.js).
-    
-    Usually, you are using CSS to:
-    
-    1°) define the overall layout of your game
-        (ex: place the board on the top left, place player's hand beside, place the deck on the right, ...).
+/********* the board *********/
+#iaw-board {
+  position: relative;
+  background: #efe7d7;
+  border: 1px solid rgb(79.4397759104%, 69.1596638655%, 48.5994397759%);
+  border-radius: 6px;
+}
 
-    2°) create your CSS-sprites:
-        All images of your games should be gathered into a small number of image files. Then, using
-        background-image and background-position CSS properties, you create HTML blocks that can 
-        display these images correctly (see example below).
-    
-    3°) ... anything else:
-        It is really easy to add and remove CSS classes dynamically from your Javascript with
-        dojo.addClass and dojo.removeClass. It is also easy to check if an element has a class
-        (dojo.hasClass) or to get all elements with a specific class (dojo.query). This is why,
-        very often, using CSS classes for the logic of your user interface allow you to do complex
-        thing easily.
-        
-        
-     Note: on the production platform, this file will be compressed and comments will be removed.
-           Consequently, don't hesitate to put as many comments as necessary.
-*/
+#iaw-roads {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#iaw-roads line {
+  stroke: rgb(81.1540616246%, 71.731092437%, 52.8851540616%);
+  stroke-width: 3;
+}
 
+.iaw-town {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 108px;
+  min-height: 74px;
+  padding: 4px;
+  box-sizing: border-box;
+  background: #fff;
+  border: 2px solid rgb(76.5826330532%, 64.8739495798%, 41.4565826331%);
+  border-radius: 6px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: default;
+}
+.iaw-town.selectable {
+  border-color: #2e7d32;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.25);
+}
+.iaw-town.selected {
+  border-color: #1565c0;
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.35);
+}
+.iaw-town.resolved {
+  opacity: 0.75;
+  background: rgb(91.4397759104%, 87.1596638655%, 78.5994397759%);
+}
+.iaw-town.empire-held {
+  border-color: #7a3b2e;
+}
+.iaw-town.insurgency-held {
+  border-color: #2f4858;
+}
 
-/* Note: you must not use any @import directive */
+.iaw-town-name {
+  font-weight: bold;
+  color: #2b2b2b;
+}
 
+.iaw-town-troops {
+  min-height: 16px;
+}
 
-/********* You can start writing your CSS below this line: **********/
+.iaw-troops {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 4px;
+  background: #7a3b2e;
+  color: #fff;
+  border-radius: 9px;
+  font-weight: bold;
+}
 
+.iaw-town-pile {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 3px;
+}
 
-/*
-    Example of CSS sprites (a black token and a white token, 20x20px each, embedded in the same "tokens.png" 40x20px image):
+.iaw-town-result {
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  color: #2b2b2b;
+}
 
-    .white_token {
-        background-image: url('img/tokens.png');
-        background-position: 0px 0px;
-    }
-    .black_token {
-        background-image: url('img/tokens.png');
-        background-position: -20px 0px;
-    }
-    .token {
-        width: 20px;
-        height: 20px;
-        background-repeat: none;
-    }
-*/
+.iaw-town-pending {
+  color: #1565c0;
+  font-weight: bold;
+  min-height: 14px;
+}
 
+/********* cards *********/
+.iaw-card {
+  display: inline-block;
+  width: 14px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  font-size: 10px;
+  text-align: center;
+  background: #fff;
+}
+.iaw-card.face-down {
+  background: repeating-linear-gradient(45deg, #2f4858, #2f4858 3px, #3d5a6c 3px, #3d5a6c 6px);
+  border-color: #2f4858;
+}
+.iaw-card.influence {
+  background: #d9e8f5;
+  border-color: #2f4858;
+  font-weight: bold;
+}
+.iaw-card.dummy {
+  background: #eee;
+  color: #999;
+}
+.iaw-card.hand {
+  width: 26px;
+  height: 34px;
+  line-height: 34px;
+  font-size: 14px;
+  margin-right: 4px;
+  cursor: pointer;
+}
+.iaw-card.staged {
+  opacity: 0.35;
+}
 
+/********* side panel *********/
+#iaw-side-area {
+  min-width: 190px;
+  font-size: 13px;
+}
 
+.iaw-heading {
+  font-weight: bold;
+  margin: 12px 0 4px;
+}
 
+#iaw-clock {
+  padding: 8px;
+  background: #efe7d7;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+#iaw-hand {
+  min-height: 38px;
+}
+
+.iaw-hidden-hand {
+  color: #777;
+  font-style: italic;
+}
+
+#iaw-staging {
+  margin-top: 10px;
+  padding: 8px;
+  background: #fff;
+  border: 1px dashed #bbb;
+  border-radius: 4px;
+  min-height: 40px;
+}
+
+.iaw-player-side {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}

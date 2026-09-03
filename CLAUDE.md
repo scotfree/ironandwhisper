@@ -11,7 +11,8 @@ reasoning behind every decision.
 **The rules are settled and encoded in `sim/`. Port from the simulator, not from memory.**
 `sim/engine.py` is the executable specification and `sim/test_engine.py` has 33 tests, each
 named for the design decision it pins down. If the PHP disagrees with the simulator, the
-PHP is wrong.
+PHP is wrong. `tests/test_rules.php` mirrors those cases in PHP — when you change a rule,
+change it in both places and in `ironandwhisper.md`.
 
 **Do not "simplify" troop consumption.** Troops committed to a town are removed from play
 when it resolves. This was tried the other way, measured, and it destroys the game — the
@@ -27,46 +28,60 @@ but its framework idioms are obsolete.
 PHP.** Changing their shape means changing both. That sharing is the whole reason the
 tuning work transfers.
 
-**Balance numbers are not settled.** The simulator says balance sits near 36 influence : 24
-dummy, but `scenarios/baseline.json` still holds the original 30:30. Picking the real
-numbers is a design decision, deliberately left to a human.
+**Balance numbers are the simulator's, not a playtest's.** `scenarios/baseline.json` now
+holds 36 influence : 24 dummy, the balance point the simulator indicated. Nobody has
+played it. Re-measure before trusting it, and change it in the JSON — both the simulator
+and the PHP read that file, so neither needs code changes to retune.
 
 ---
 
 ## Current state
 
+The port is written and tested locally, and has not yet run on the Studio.
+
 Done:
 - BGA Studio project `ironandwhisper` exists; skeleton downloaded, committed unmodified,
   and successfully round-tripped back up.
-- `tools/deploy.sh` works — incremental SFTP sync, verified.
+- `tools/deploy.sh` works — incremental SFTP sync, now with a client build in front of it.
 - Design doc is an implementable draft; all ten decisions resolved with reasoning.
 - Full rules simulator, bots, 33 tests, and an exploration notebook.
+- **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Board`, `View`, `Game`, and the
+  three game states. See *How the port is put together* below.
+- **TypeScript client**: board drawn from the map JSON, staged turns for both sides.
+- **49 PHP tests** running locally against SQLite, including whole games end to end.
+- `gameinfos.jsonc` is Iron and Whisper, two players. Side assignment is game option 100.
 
 Not done:
-- **No game code written yet.** The skeleton is still BGA's boilerplate.
-- `gameinfos.jsonc` still says `"game_name": "My Great Game"` and `"players": [2, 3, 4]`.
-  Must become Iron and Whisper, 2 players only.
-- `dbmodel.sql` is still all commented-out examples.
-- TypeScript not activated — `src-disabled/` has not been renamed.
-- Which BGA player is the Empire and which the Insurgency is undecided.
-
----
+- **Nothing has been deployed or played yet.** The first deploy must be
+  `./tools/deploy.sh --delete` — see below.
+- No stats defined in `stats.jsonc`.
+- No game-end statistics or tie-breaker.
+- No animations; the client redraws towns rather than moving anything.
 
 ## Deploying
 
 ```bash
-./tools/deploy.sh              # sync changed files
-./tools/deploy.sh --dry-run    # show what would transfer
-./tools/deploy.sh --watch      # re-sync on save, for the edit/reload loop
+./tools/deploy.sh              # build the client, then sync changed files
+./tools/deploy.sh --dry-run    # show what would transfer (skips the build)
+./tools/deploy.sh --watch      # re-sync on save; run `npm run watch` alongside
 ./tools/deploy.sh --delete     # prune server files that no longer exist locally
+./tools/deploy.sh --no-build   # skip the client build, for PHP-only changes
 ```
+
+**The first deploy of the port must use `--delete`.** The skeleton's `PlayerTurn.php` and
+`NextPlayer.php` are still on the server, and BGA discovers state classes by scanning
+`modules/php/States/`. They declare state ids 10 and 90, which are now `InsurgencyTurn`
+and `NextTurn` — leaving them there means duplicate state ids.
+
+`./tools/deploy.sh` runs `npm run build` first, because `src/` is excluded from the upload
+and what actually ships is the compiled `modules/js/Game.js` and `ironandwhisper.css`.
 
 - Host `1.studio.boardgamearena.com`, port **2022**, user `scotfree`, remote dir
   `/ironandwhisper`.
 - **Password lives in the macOS Keychain**, service `bga-studio-sftp`, account `scotfree`.
   Never in a file. `tools/deploy.py` reads it via `security find-generic-password`.
 - Config and exclude list: `tools/deploy.json`. Only the game files and the shared JSON
-  reach BGA — `sim/`, `notebooks/`, `tools/`, `misc/`, `src*/` and `*.md` are excluded.
+  reach BGA — `sim/`, `tests/`, `notebooks/`, `tools/`, `misc/`, `src/` and `*.md` are excluded.
 - First run creates `tools/.venv` (paramiko) automatically.
 
 Password auth was chosen over an SSH key deliberately, for now. Uploading a key to the
@@ -93,15 +108,15 @@ Specifics:
 - Namespace is `Bga\Games\IronAndWhisper`; `Game extends \Bga\GameFramework\Table`.
 - State classes live in `modules/php/States/`, extend `GameState`, declare `id:` and
   `type:` via constructor named arguments, mark handlers `#[PossibleAction]`, and
-  **return the next state's class** (`return NextPlayer::class;`).
+  **return the next state's class** (`return NextTurn::class;`).
 - `setupNewGame()` returns the starting state class.
 - Services are injected: `$this->bga->notify`, `->playerScore`, `->counterFactory`,
   `->debug`.
 - `bga-framework.d.ts` (58KB) ships in the repo — real type definitions for the client
   API, which is otherwise thinly documented. The main practical argument for TypeScript.
-- `src-disabled/` → rename to `src/`, then `npm install && npm run build` compiles
-  TS → `modules/js/Game.js` and SCSS → `ironandwhisper.css`. **If TS is activated, the
-  build must run before deploy** or stale compiled output ships.
+- `src/` holds the client source; `npm run build` compiles TS → `modules/js/Game.js` and
+  SCSS → `ironandwhisper.css`. **Never edit those two by hand** — `tools/deploy.sh` rebuilds
+  them before every sync, so edits there are silently overwritten.
 - `misc/` is BGA's designated non-deployed directory.
 
 ---
@@ -115,16 +130,16 @@ data/cards.json        influence value per card type
 maps/*.json            geography: towns with x/y, edges
 scenarios/*.json       references a map, sets the knobs
 sim/                   Python rules engine, bots, tests, human play interface
+tests/                 PHP tests, and a stub of the BGA framework to run them against
 notebooks/             exploration.ipynb + build_notebook.py that generates it
 tools/                 deploy script and config
-modules/php/           BGA game logic (still boilerplate)
-modules/js/            compiled client (still boilerplate)
+modules/php/           BGA game logic
+modules/js/Game.js     compiled client — build output, do not edit
+src/ts, src/scss       client source
 ```
 
 Map and scenario are split so the same board can run at many parameter settings without
 duplicating the graph.
-
----
 
 ## The simulator
 
@@ -143,47 +158,97 @@ constantly; `sim/.venv` carries the scientific stack.
 
 ---
 
-## What the PHP port still has to design
+## How the port is put together
 
-**`dbmodel.sql`** — the state model. From `sim/engine.py`:
-- Per town: `troops` (int), `resolved`, `winner`, `resolved_influence`, `resolved_strength`.
-  Town ids and adjacency come from the map JSON, not the database.
-- Per card: type, and **its position in the pile**. Pile order is load-bearing — index 0 is
-  the top, new cards are placed on top, and peeking draws from the top and returns to the
-  bottom. BGA's `Deck` component may not model an ordered rotating pile cleanly; check
-  before committing to it.
-- Which cards the Empire has peeked at. In the simulator this is a set of card uids.
+The layering exists so the rules can be tested without a database and the hidden
+information has exactly one gate.
 
-**Hidden information is the thing most likely to go wrong.** `getAllDatas(int $currentPlayerId)`
-must filter per player, and the asymmetry is unusual:
-- The **Insurgency** placed every card, so it legitimately sees every pile in full.
-- The **Empire** may see only pile *heights*, plus cards it has peeked at, plus resolved
-  piles (which are face up to everyone).
+| file | job | knows about |
+|---|---|---|
+| `modules/php/Rules.php` | the rules, as pure functions over plain arrays | nothing |
+| `modules/php/Scenario.php` | loads `data/`, `maps/`, `scenarios/` | the JSON |
+| `modules/php/Board.php` | every read and write of `town` and `card` | the database |
+| `modules/php/View.php` | what each side may see | Rules' shape |
+| `modules/php/Game.php` | setup, sides, scoring, `getAllDatas` | all of the above |
+| `modules/php/States/` | turn structure and notifications | all of the above |
 
-Peek results must go out via a private notification to the Empire, never `notify->all`.
-`sim/bots.py::EmpireBelief` is the reference for exactly what the Empire is entitled to
-know — it was written to read only Empire-legal information.
+`Rules.php` is a direct port of the pure logic in `sim/engine.py`. It returns *plans* —
+`planMoves` gives departures and arrivals, `peekPlan` gives look counts, `rotatePile`
+gives the new order — and the state classes persist them. If the two disagree, the PHP is
+wrong.
 
-**Automatic peeking.** In the rules, every troop that did not move peeks; there is no
-decision in it, so the simulator applies it automatically rather than making it an action.
-The PHP should do the same — it is server-side computation at end of the move step, not a
-player prompt.
+**The state machine** is three states plus the framework's own:
 
----
+- `InsurgencyTurn` (10) — `actCommitTurn(placements, resolve)`. The whole hand goes out in
+  one action, because placement is one simultaneous decision.
+- `EmpireTurn` (11) — `actCommitTurn(generateAt, moves, resolve)`. Generation, movement,
+  automatic peeking, then the optional resolution, in that order.
+- `NextTurn` (90) — upkeep: refill the hand, detect the end, hand over to the other side.
+  This is `prepare_turn()`; it runs *before* a player is asked for anything, which is why
+  the hand refill and the end of the game both live here.
+
+`Game::toMove()` is a global mirroring `GameState.to_move`, set by each turn state before
+it returns to `NextTurn`. Seat order does not decide who starts; the scenario does.
+
+**Data model.** Town geography is never stored — ids, labels, coordinates and adjacency
+come from the map JSON. The `card` table carries `card_location` (`deck`, `hand`, or
+`town:<id>`), `location_order` (**0 is the top of a pile**), and `empire_seen`, which is
+the simulator's `empire_known_uids`. BGA's `Deck` component is deliberately not used: it
+models a deck plus hands, and this game needs a dozen ordered piles that rotate under
+peeking while card identity stays stable.
+
+**Hidden information** goes through `View::forSide` and nowhere else.
+
+- The **Insurgency** placed every card, so it sees every pile in full. Rotation follows
+  from troop positions, which are public, so true order leaks nothing.
+- The **Empire** sees pile heights, the cards it has peeked at, and resolved piles. It also
+  sees *where* unknown cards sit, which it could derive anyway.
+- A **spectator** sees resolved piles and nothing else.
+
+Card **ids** are public: they reveal nothing about type, the Empire already gets them from
+`getAllDatas`, and the client needs them to match a peek result to a card on screen. The
+public placement notification therefore carries ids and no types; the Insurgency's client
+fills the faces in from the hand it already holds.
+
+## Testing the PHP
+
+```bash
+php tests/run.php              # all of it
+php tests/run.php rules        # only files matching "rules"
+```
+
+`tests/support/framework.php` is a small stand-in for the parts of the BGA framework this
+game touches, backed by in-memory SQLite. It is not an attempt to reimplement BGA — it
+exists so the real `Game`, `Board` and state classes can be run without deploying. It
+loads the actual `dbmodel.sql`, rewriting the MySQL-isms, so a schema change that breaks a
+query breaks a test rather than a table on the Studio.
+
+`tests/test_rules.php` mirrors `sim/test_engine.py` case for case. `tests/test_game.php`
+drives whole games and checks the invariants that matter: every town resolves, the deck is
+an exact twelve-turn clock, all 36 influence is accounted for, scoring conserves what was
+committed, and no public notification ever carries a hidden card.
+
+**PHP is not installed system-wide.** `~/.local/bin/php` is a standalone static build
+(static-php-cli, PHP 8.4.23, single file, no Homebrew). If it goes missing, fetch another
+from `https://dl.static-php.dev/static-php-cli/common/`.
 
 ## Open questions for a human
 
-1. **Final parameters.** Simulator says ~36:24; `scenarios/baseline.json` still has 30:30.
-2. **Side assignment.** How does a BGA player become the Empire or the Insurgency — game
-   option, random, or seat order?
-3. **Board-shrinking.** Freezing towns cheaply is currently the *stronger* Empire line
+1. **Board-shrinking.** Freezing towns cheaply is currently the *stronger* Empire line
    (62% vs 46%), because mandatory placement forces the Insurgency to waste influence in
    towns the Empire will not contest. Not dominant, and it costs real troops — but it means
    the Empire's best play involves many zero-point resolutions. The natural counter is
    intrinsic town values, already on the deferred list.
-4. **TypeScript.** Agreed in principle, not yet activated.
-
----
+2. **Pile order within one placement.** The Insurgency places several cards into a town at
+   once, and they go on one at a time, so the last one listed ends up on top — which is the
+   order the Empire will read them in. The simulator's order was an artifact of iterating
+   hand indices; the client now sends a deliberate order. Whether the Insurgency *should*
+   control that ordering is a design question nobody has answered.
+3. **Side-swap matches.** A full match is arguably two games with the sides traded. The
+   groundwork is there — sides live in `player.player_side`, set from game option 100 — but
+   nothing implements it.
+4. **Playtest the 36:24 numbers.** They come from the simulator and no human has played
+   them.
 
 ## Decisions & Constraints
 
@@ -207,6 +272,22 @@ ones a PHP port is most likely to break:
   movement — so judge resolutions against where troops *will be*, not where they are.
 - **Deck exhaustion ends the game and resolves every remaining town at once** (Decision 1).
   Unresolved towns are deferred, never safe.
+
+Constraints the port itself introduced:
+
+- **`Rules.php` stays free of the framework.** No `$this->bga`, no database, no
+  notifications. That is what lets `tests/` run at all, and it is the only reason a rules
+  bug can be reproduced in a second rather than a deploy cycle.
+- **All player-visible filtering goes through `View::forSide`.** One function to get right
+  and one function to test. Nothing else may assemble a payload for a client.
+- **Peek results go out by `notify->player` to the Empire, never `notify->all`.** There is
+  a test that walks every notification of a whole game and fails if a public one carries a
+  card face.
+- **The client sends an empty string where it means null.** BGA action parameters travel as
+  strings, so both turn actions normalise `''` to `null` before anything else happens.
+  Without that, "resolve nothing" looks like a request to resolve a town named `""`.
+- **Don't change state ids casually.** BGA discovers state classes by scanning
+  `modules/php/States/`, so a stale file on the server is a live state class.
 
 Two methodological notes worth keeping:
 

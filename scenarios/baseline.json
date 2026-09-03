@@ -1,13 +1,13 @@
 {
   "id": "baseline",
   "label": "Baseline MVP",
-  "notes": "Starting values from the design doc. Empire total strength 45 vs Insurgency total influence 30; game runs 12 Insurgency turns.",
+  "notes": "Balance point indicated by the simulator: 36 influence : 24 dummy. Empire total strength 45 vs Insurgency total influence 36; game runs 12 Insurgency turns.",
 
   "map": "grid12",
   "unit": "infantry",
 
   "hand_size": 5,
-  "deck": { "influence": 30, "dummy": 30 },
+  "deck": { "influence": 36, "dummy": 24 },
 
   "generation_rate": 1,
   "empire_start": { "everlan": 3 },
