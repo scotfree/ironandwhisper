@@ -13,6 +13,7 @@ class BoardView {
         this.scenario = scenario;
         this.viewerSide = viewerSide;
         this.clickHandler = () => { };
+        this.dropHandler = null;
         /** Extra text shown on a town while a turn is being staged. */
         this.pending = {};
         this.towns = towns;
@@ -30,7 +31,31 @@ class BoardView {
         `;
         definitions.forEach(town => {
             const element = document.getElementById(this.townElementId(town.id));
-            element?.addEventListener('click', () => this.clickHandler(town.id));
+            if (!element) {
+                return;
+            }
+            element.addEventListener('click', () => this.clickHandler(town.id));
+            // Cards can be dragged onto a town as well as clicked into one.
+            // Dragging is what people expect of a hand; clicking is what works
+            // on a touchscreen, so both are supported.
+            element.addEventListener('dragover', event => {
+                if (this.dropHandler && element.classList.contains('selectable')) {
+                    event.preventDefault();
+                    element.classList.add('drag-over');
+                }
+            });
+            element.addEventListener('dragleave', () => element.classList.remove('drag-over'));
+            element.addEventListener('drop', event => {
+                element.classList.remove('drag-over');
+                if (!this.dropHandler || !element.classList.contains('selectable')) {
+                    return;
+                }
+                event.preventDefault();
+                const cardId = Number(event.dataTransfer?.getData('text/plain'));
+                if (!Number.isNaN(cardId)) {
+                    this.dropHandler(town.id, cardId);
+                }
+            });
         });
         this.updateAll();
     }
@@ -114,6 +139,10 @@ class BoardView {
     onTownClick(handler) {
         this.clickHandler = handler;
     }
+    /** Accept cards dragged from the hand. Pass null to stop accepting them. */
+    onTownDrop(handler) {
+        this.dropHandler = handler;
+    }
     /** Highlight the towns a player may click right now. */
     setSelectable(townIds) {
         Object.keys(this.scenario.towns).forEach(townId => {
@@ -132,6 +161,7 @@ class BoardView {
         this.updateAll();
     }
     clearInteraction() {
+        this.dropHandler = null;
         this.pending = {};
         this.setSelectable([]);
         this.setSelected([]);
@@ -373,6 +403,7 @@ class InsurgencyTurn {
         }
         this.game.onHandClick(cardId => this.onCardClick(cardId));
         this.game.board.onTownClick(townId => this.onTownClick(townId));
+        this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
         this.refresh();
     }
     onLeavingState() {
@@ -413,6 +444,15 @@ class InsurgencyTurn {
         if (cardId === undefined) {
             return;
         }
+        this.assign(cardId, townId);
+    }
+    onCardDropped(townId, cardId) {
+        if (this.choosingResolution || !this.args.openTowns.includes(townId)) {
+            return;
+        }
+        this.assign(cardId, townId);
+    }
+    assign(cardId, townId) {
         this.assigned[cardId] = townId;
         this.order = this.order.filter(id => id !== cardId).concat(cardId);
         this.selectedCard = null;
@@ -446,8 +486,10 @@ class InsurgencyTurn {
         }
         const remaining = this.unassigned().length;
         this.game.setStagingText(remaining > 0
-            ? `<div>${_('Cards still to place')}: ${remaining}</div>`
-            : `<div>${_('The whole hand is placed.')}</div>`);
+            ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
+               <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
+            : `<div><b>${_('The whole hand is placed.')}</b></div>
+               <div class="iaw-hint">${_('Confirm, or choose a town to resolve first.')}</div>`);
         this.buttons(remaining);
     }
     buttons(remaining) {
@@ -513,7 +555,10 @@ class Game {
     }
     setup(gamedatas) {
         this.gamedatas = gamedatas;
-        this.side = gamedatas.sides[String(this.bga.gameui.player_id)] ?? null;
+        // The server says who you are. Working it back from a player id is how
+        // the hand ended up invisible: one lookup miss and the Insurgency was
+        // treated as a spectator.
+        this.side = gamedatas.you;
         this.hand = gamedatas.hand ?? [];
         this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
             <div id="iaw-table">
@@ -567,19 +612,27 @@ class Game {
         if (!element) {
             return;
         }
-        if (this.side !== 'insurgency') {
+        // If the server sent a hand, it is yours. Deciding that here would only
+        // be a second opinion, and a second opinion can disagree.
+        if (this.gamedatas.hand === null) {
             element.innerHTML = `<div class="iaw-hidden-hand">${this.gamedatas.handCount} ${_('cards')}</div>`;
             return;
         }
         element.innerHTML = this.hand.map(card => {
             const label = card.influence && card.influence > 0 ? String(card.influence) : '·';
             const staged = assigned[card.id] ? ' staged' : '';
-            return `<span class="iaw-card hand ${card.type}${staged}" data-card-id="${card.id}">${label}</span>`;
+            const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
+            return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
+                          data-card-id="${card.id}"${where}>${label}</span>`;
         }).join('');
         element.querySelectorAll('.iaw-card').forEach(node => {
-            node.addEventListener('click', () => {
-                this.handClickHandler(Number(node.dataset.cardId));
+            const cardId = Number(node.dataset.cardId);
+            node.addEventListener('click', () => this.handClickHandler(cardId));
+            node.addEventListener('dragstart', event => {
+                event.dataTransfer?.setData('text/plain', String(cardId));
+                node.classList.add('dragging');
             });
+            node.addEventListener('dragend', () => node.classList.remove('dragging'));
         });
     }
     setStagingText(html) {
@@ -612,6 +665,9 @@ class Game {
             this.board.updateTown(townId);
         });
         this.hand = [];
+        if (this.gamedatas.hand !== null) {
+            this.gamedatas.hand = [];
+        }
         this.renderHand();
     }
     async notif_empireMoved(args) {
@@ -663,6 +719,7 @@ class Game {
     }
     async notif_handDrawn(args) {
         this.hand = args.hand;
+        this.gamedatas.hand = args.hand;
         this.renderHand();
     }
     async notif_gameEnding(args) {

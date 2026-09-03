@@ -44,6 +44,10 @@ final class View
         ?string $viewerSide,
     ): array {
         return [
+            // Who the recipient is, decided here rather than left for the
+            // client to work out from a player id. The client must never
+            // re-derive entitlement: it can only draw what it was sent.
+            'you' => $viewerSide,
             'sides' => $sides,
             'scenario' => self::scenarioView($scenario),
             'towns' => self::townsView($towns, $viewerSide),

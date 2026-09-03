@@ -32,7 +32,10 @@ export class Game {
 
     setup(gamedatas: IronAndWhisperGamedatas) {
         this.gamedatas = gamedatas;
-        this.side = gamedatas.sides[String(this.bga.gameui.player_id)] ?? null;
+        // The server says who you are. Working it back from a player id is how
+        // the hand ended up invisible: one lookup miss and the Insurgency was
+        // treated as a spectator.
+        this.side = gamedatas.you;
         this.hand = gamedatas.hand ?? [];
 
         this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
@@ -100,7 +103,9 @@ export class Game {
             return;
         }
 
-        if (this.side !== 'insurgency') {
+        // If the server sent a hand, it is yours. Deciding that here would only
+        // be a second opinion, and a second opinion can disagree.
+        if (this.gamedatas.hand === null) {
             element.innerHTML = `<div class="iaw-hidden-hand">${this.gamedatas.handCount} ${_('cards')}</div>`;
             return;
         }
@@ -108,13 +113,19 @@ export class Game {
         element.innerHTML = this.hand.map(card => {
             const label = card.influence && card.influence > 0 ? String(card.influence) : '·';
             const staged = assigned[card.id] ? ' staged' : '';
-            return `<span class="iaw-card hand ${card.type}${staged}" data-card-id="${card.id}">${label}</span>`;
+            const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
+            return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
+                          data-card-id="${card.id}"${where}>${label}</span>`;
         }).join('');
 
         element.querySelectorAll<HTMLElement>('.iaw-card').forEach(node => {
-            node.addEventListener('click', () => {
-                this.handClickHandler(Number(node.dataset.cardId));
+            const cardId = Number(node.dataset.cardId);
+            node.addEventListener('click', () => this.handClickHandler(cardId));
+            node.addEventListener('dragstart', event => {
+                (event as DragEvent).dataTransfer?.setData('text/plain', String(cardId));
+                node.classList.add('dragging');
             });
+            node.addEventListener('dragend', () => node.classList.remove('dragging'));
         });
     }
 
@@ -153,6 +164,9 @@ export class Game {
         });
 
         this.hand = [];
+        if (this.gamedatas.hand !== null) {
+            this.gamedatas.hand = [];
+        }
         this.renderHand();
     }
 
@@ -216,6 +230,7 @@ export class Game {
 
     async notif_handDrawn(args: { hand: CardView[] }) {
         this.hand = args.hand;
+        this.gamedatas.hand = args.hand;
         this.renderHand();
     }
 

@@ -495,3 +495,15 @@ function test_a_spectator_sees_only_what_has_been_resolved(): void
         assertSame(null, $card['type'], 'everything else stays face down');
     }
 }
+
+function test_the_payload_says_which_side_it_was_built_for(): void
+{
+    // The client must not work this out from a player id. It did, once, and an
+    // Insurgency that failed the lookup was shown a spectator's view of its own
+    // hand.
+    $game = newGame(Game::SIDES_FIRST_IS_EMPIRE);
+
+    assertSame(Rules::EMPIRE, datasFor($game, P_ONE)['you']);
+    assertSame(Rules::INSURGENCY, datasFor($game, P_TWO)['you']);
+    assertSame(null, datasFor($game, 999999)['you'], 'a spectator is nobody');
+}

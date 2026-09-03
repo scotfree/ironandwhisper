@@ -262,8 +262,11 @@ class Game extends \Bga\GameFramework\Table
         $this->setToMove($this->scenario->firstPlayer);
         $this->bga->globals->set(self::G_ROUND, 1);
 
-        // Seat order does not decide who starts: the scenario does. NextTurn
-        // draws the opening hand and activates whoever is to move.
+        // Seat order does not decide who starts: the scenario does, and NextTurn
+        // activates whoever is to move. BGA still wants an active player to
+        // exist before the first state is entered.
+        $this->activeNextPlayer();
+
         return NextTurn::class;
     }
 

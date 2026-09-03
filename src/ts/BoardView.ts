@@ -12,6 +12,7 @@ const PADDING = 70;
 export class BoardView {
     private towns: Record<string, TownView>;
     private clickHandler: (townId: string) => void = () => {};
+    private dropHandler: ((townId: string, cardId: number) => void) | null = null;
 
     /** Extra text shown on a town while a turn is being staged. */
     private pending: Record<string, string> = {};
@@ -41,7 +42,33 @@ export class BoardView {
 
         definitions.forEach(town => {
             const element = document.getElementById(this.townElementId(town.id));
-            element?.addEventListener('click', () => this.clickHandler(town.id));
+            if (!element) {
+                return;
+            }
+
+            element.addEventListener('click', () => this.clickHandler(town.id));
+
+            // Cards can be dragged onto a town as well as clicked into one.
+            // Dragging is what people expect of a hand; clicking is what works
+            // on a touchscreen, so both are supported.
+            element.addEventListener('dragover', event => {
+                if (this.dropHandler && element.classList.contains('selectable')) {
+                    event.preventDefault();
+                    element.classList.add('drag-over');
+                }
+            });
+            element.addEventListener('dragleave', () => element.classList.remove('drag-over'));
+            element.addEventListener('drop', event => {
+                element.classList.remove('drag-over');
+                if (!this.dropHandler || !element.classList.contains('selectable')) {
+                    return;
+                }
+                event.preventDefault();
+                const cardId = Number((event as DragEvent).dataTransfer?.getData('text/plain'));
+                if (!Number.isNaN(cardId)) {
+                    this.dropHandler(town.id, cardId);
+                }
+            });
         });
 
         this.updateAll();
@@ -146,6 +173,11 @@ export class BoardView {
         this.clickHandler = handler;
     }
 
+    /** Accept cards dragged from the hand. Pass null to stop accepting them. */
+    onTownDrop(handler: ((townId: string, cardId: number) => void) | null): void {
+        this.dropHandler = handler;
+    }
+
     /** Highlight the towns a player may click right now. */
     setSelectable(townIds: string[]): void {
         Object.keys(this.scenario.towns).forEach(townId => {
@@ -167,6 +199,7 @@ export class BoardView {
     }
 
     clearInteraction(): void {
+        this.dropHandler = null;
         this.pending = {};
         this.setSelectable([]);
         this.setSelected([]);

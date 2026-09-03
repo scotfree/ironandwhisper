@@ -50,6 +50,8 @@ interface IronAndWhisperPlayer extends Player {
 }
 
 interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
+    /** The side of whoever this payload was built for. Null for a spectator. */
+    you: Side | null;
     sides: Record<string, Side>;
     scenario: ScenarioView;
     towns: Record<string, TownView>;

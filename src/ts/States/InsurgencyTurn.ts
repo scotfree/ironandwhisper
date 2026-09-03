@@ -37,6 +37,7 @@ export class InsurgencyTurn {
 
         this.game.onHandClick(cardId => this.onCardClick(cardId));
         this.game.board.onTownClick(townId => this.onTownClick(townId));
+        this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
         this.refresh();
     }
 
@@ -85,6 +86,17 @@ export class InsurgencyTurn {
             return;
         }
 
+        this.assign(cardId, townId);
+    }
+
+    private onCardDropped(townId: string, cardId: number): void {
+        if (this.choosingResolution || !this.args.openTowns.includes(townId)) {
+            return;
+        }
+        this.assign(cardId, townId);
+    }
+
+    private assign(cardId: number, townId: string): void {
         this.assigned[cardId] = townId;
         this.order = this.order.filter(id => id !== cardId).concat(cardId);
         this.selectedCard = null;
@@ -124,8 +136,10 @@ export class InsurgencyTurn {
 
         const remaining = this.unassigned().length;
         this.game.setStagingText(remaining > 0
-            ? `<div>${_('Cards still to place')}: ${remaining}</div>`
-            : `<div>${_('The whole hand is placed.')}</div>`);
+            ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
+               <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
+            : `<div><b>${_('The whole hand is placed.')}</b></div>
+               <div class="iaw-hint">${_('Confirm, or choose a town to resolve first.')}</div>`);
 
         this.buttons(remaining);
     }

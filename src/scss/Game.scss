@@ -208,3 +208,19 @@ $paper: #efe7d7;
     font-size: 11px;
     letter-spacing: 0.5px;
 }
+
+.iaw-town.drag-over {
+    border-color: #1565c0;
+    background: #e8f1fb;
+}
+
+.iaw-card.dragging {
+    opacity: 0.4;
+}
+
+.iaw-hint {
+    margin-top: 6px;
+    color: #666;
+    font-size: 12px;
+    line-height: 1.4;
+}
