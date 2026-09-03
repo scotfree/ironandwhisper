@@ -1,0 +1,10 @@
+{
+  "influence": {
+    "label": "Influence",
+    "influence": 1
+  },
+  "dummy": {
+    "label": "Dummy",
+    "influence": 0
+  }
+}

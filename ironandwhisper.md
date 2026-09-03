@@ -93,7 +93,10 @@ Consequences that fall straight out of this one rule:
 Everything in the town stays where it is, face up, for the rest of the game:
 
 - **Cards** are out of play. They score at the moment of the flip and do nothing afterward.
-- **Troops** are out of play for movement and for future resolutions — but they still count as Empire presence for **generation**. A resolved town is a permanent recruitment anchor for the Empire, whoever won it.
+- **Troops present at the moment of resolution** are frozen there permanently. They never move again and never count toward another resolution — but they *do* count as Empire presence for **generation**. A resolved town is a permanent recruitment anchor for the Empire, whoever won it.
+- **Troops generated into a resolved town afterwards are not frozen.** They may march out normally on a later turn. A pacified town is a barracks, not a grave.
+
+No troops may *move into* a resolved town; the only way a troop arrives there after resolution is by being raised there.
 
 Because commitment is permanent, waiting costs resources: the longer a town goes unresolved, the more both sides have sunk into it, and the more the eventual resolution consumes.
 
@@ -133,7 +136,11 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 - **Total Insurgency influence** = `deck_size × influence_ratio` = **30**.
 - **Total Empire strength** = `(starting_troops + turns × generation_rate) × strength` = `(3 + 12) × 3` = **45**.
 
-The Empire commands about 1.5× the Insurgency's total force, which is deliberate — it moves at one edge per turn and has to cover twelve towns, while the Insurgency can place anywhere instantly. Whether 1.5× is the right premium for that mobility gap is the **first thing to tune**, and generation rate is the knob to turn.
+The Empire commands about 1.5× the Insurgency's total force, which is deliberate — it moves at one edge per turn and has to cover twelve towns, while the Insurgency can place anywhere instantly.
+
+> **Simulation says this premium is the wrong thing to tune.** See `notebooks/exploration.ipynb`. Bringing the premium to exactly 1.00 by lowering troop strength moves the win rate almost not at all, because capture-only scoring makes troop strength self-cancelling: weaker troops win fewer fights, but each fight the Insurgency wins is also worth fewer points, and the two effects nearly cancel.
+>
+> The knob that actually moves the game is **influence density** — the share of the deck that is real. At the 50:50 starting values the Empire wins about 83% of games; balance against the current bots lands near **38 influence : 22 dummy**, roughly 63% density. These parameters have not been changed in the table above, because picking the real numbers is a design decision rather than a simulator output — but 50:50 is not close.
 
 ---
 
@@ -154,6 +161,8 @@ Settled rules and the reasoning behind them. Recorded so they aren't silently re
 ### 3. Frozen troops still count as generation anchors
 
 **Why:** chosen for simplicity over thematic tidiness (the Empire can recruit in a town the Insurgency won). It pays for itself by making an Empire wipeout impossible — the starting town becomes a permanent anchor the moment it resolves — which **deletes a rule** we would otherwise have needed as a fallback.
+
+> **Found while implementing.** Troops raised in a resolved town must be able to march out again. If every troop in a resolved town were immobile, the anchor would produce troops that are born stuck, the Empire would still be effectively dead after committing its whole force, and Decision 3 would buy nothing. So "frozen" applies to the garrison that was present *at* resolution, not to the town. See the `test_troops_raised_in_a_resolved_town_can_march_out` test.
 
 This is safe *only because* generation is one per turn total (Decision 2). Extra anchors buy placement flexibility, not extra income. **If generation ever becomes per-anchor, this decision must be revisited at the same time**, or the degenerate spread strategy returns.
 

@@ -1,0 +1,29 @@
+{
+  "id": "grid12",
+  "label": "Twelve Towns",
+  "notes": "3x4 lattice. 17 edges, average degree 2.83, diameter 5. Deliberately regular so early tuning runs are easy to reason about; irregular maps come later.",
+  "towns": [
+    { "id": "ashford",    "label": "Ashford",    "x": 0, "y": 0 },
+    { "id": "belmar",     "label": "Belmar",     "x": 1, "y": 0 },
+    { "id": "coldwater",  "label": "Coldwater",  "x": 2, "y": 0 },
+    { "id": "draymoor",   "label": "Draymoor",   "x": 0, "y": 1 },
+    { "id": "everlan",    "label": "Everlan",    "x": 1, "y": 1 },
+    { "id": "fenn",       "label": "Fenn",       "x": 2, "y": 1 },
+    { "id": "gallow",     "label": "Gallow",     "x": 0, "y": 2 },
+    { "id": "harrow",     "label": "Harrow",     "x": 1, "y": 2 },
+    { "id": "ilmen",      "label": "Ilmen",      "x": 2, "y": 2 },
+    { "id": "joss",       "label": "Joss",       "x": 0, "y": 3 },
+    { "id": "kirn",       "label": "Kirn",       "x": 1, "y": 3 },
+    { "id": "larrow",     "label": "Larrow",     "x": 2, "y": 3 }
+  ],
+  "edges": [
+    ["ashford", "belmar"], ["belmar", "coldwater"],
+    ["draymoor", "everlan"], ["everlan", "fenn"],
+    ["gallow", "harrow"], ["harrow", "ilmen"],
+    ["joss", "kirn"], ["kirn", "larrow"],
+
+    ["ashford", "draymoor"], ["draymoor", "gallow"], ["gallow", "joss"],
+    ["belmar", "everlan"], ["everlan", "harrow"], ["harrow", "kirn"],
+    ["coldwater", "fenn"], ["fenn", "ilmen"], ["ilmen", "larrow"]
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "infantry": {
+    "label": "Imperial Infantry",
+    "strength": 3,
+    "movement": 1,
+    "peek": 1
+  }
+}

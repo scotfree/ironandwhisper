@@ -3,3 +3,6 @@ tools/.venv/
 node_modules/
 __pycache__/
 *.pyc
+sim/.venv/
+.ipynb_checkpoints/
+.pytest_cache/
