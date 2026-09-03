@@ -22,6 +22,7 @@ from .engine import (
     Side,
     apply_empire_turn,
     apply_insurgency_turn,
+    legal_generation_towns,
     new_game,
     prepare_turn,
     resolve_town,
@@ -129,8 +130,6 @@ def test_resolved_towns_freeze_and_cannot_be_resolved_twice():
     st.towns["a"].troops = 1
     resolve_town(st, "a", Side.EMPIRE)
     assert st.towns["a"].resolved
-    assert st.towns["a"].troops == 0
-    assert st.towns["a"].frozen_troops == 1
     with pytest.raises(IllegalMove):
         resolve_town(st, "a", Side.EMPIRE)
 
@@ -268,39 +267,51 @@ def test_generation_requires_existing_presence():
         apply_empire_turn(st, EmpireTurn(generate_at="c"))
 
 
-def test_frozen_troops_still_anchor_generation():
-    """Decision 3: this is what makes an Empire wipeout impossible."""
-    st = state()
-    st.towns["a"].troops = 1
-    resolve_town(st, "a", Side.EMPIRE)
-    assert st.towns["a"].troops == 0 and st.towns["a"].frozen_troops == 1
-
-    st.to_move = Side.EMPIRE
-    apply_empire_turn(st, EmpireTurn(generate_at="a"))
-    assert st.towns["a"].troops == 1
-
-
-def test_troops_raised_in_a_resolved_town_can_march_out():
-    """The point of Decision 3: a pacified town is a barracks, not a grave."""
-    st = state()
-    st.towns["a"].troops = 1
-    resolve_town(st, "a", Side.EMPIRE)
-    st.to_move = Side.EMPIRE
-    apply_empire_turn(st, EmpireTurn(generate_at="a"))
-
-    st.to_move = Side.EMPIRE
-    apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
-    assert st.towns["b"].troops == 1
-    assert st.towns["a"].frozen_troops == 1  # the original garrison stays put
-
-
-def test_frozen_troops_themselves_never_move():
+def test_resolution_spends_the_troops_committed_to_it():
+    """Decision 3: commitment costs something, which is what makes waiting risky."""
     st = state()
     st.towns["a"].troops = 2
     resolve_town(st, "a", Side.EMPIRE)
+    assert st.towns["a"].troops == 0
+
+
+def test_troop_consumption_can_be_disabled_for_experiments():
+    st = state(consume_troops=False)
+    st.towns["a"].troops = 2
+    resolve_town(st, "a", Side.EMPIRE)
+    assert st.towns["a"].troops == 2   # the counterfactual in Decision 3
+
+
+def test_resolved_towns_do_not_anchor_generation():
+    st = state()
+    st.towns["a"].troops = 1
+    st.towns["b"].troops = 1
+    resolve_town(st, "a", Side.EMPIRE)
+    assert "a" not in legal_generation_towns(st)
+    assert "b" in legal_generation_towns(st)
+
+
+def test_generation_falls_back_when_the_empire_is_swept_off_the_board():
+    """Without this, spending your last troops ends the game early."""
+    st = state()
+    st.towns["a"].troops = 1
+    resolve_town(st, "a", Side.EMPIRE)
+    assert st.total_troops() == 0
+
+    assert "a" not in legal_generation_towns(st)        # resolved
+    assert set(legal_generation_towns(st)) == {"b", "c"}  # anywhere still live
+
     st.to_move = Side.EMPIRE
-    with pytest.raises(IllegalMove, match="tried to move"):
-        apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
+    apply_empire_turn(st, EmpireTurn(generate_at="c"))
+    assert st.towns["c"].troops == 1
+
+
+def test_generation_normally_requires_standing_somewhere():
+    st = state()
+    st.towns["a"].troops = 1
+    st.to_move = Side.EMPIRE
+    with pytest.raises(IllegalMove, match="no Empire presence"):
+        apply_empire_turn(st, EmpireTurn(generate_at="c"))
 
 
 def test_movement_must_follow_an_edge():
@@ -319,14 +330,14 @@ def test_cannot_move_more_troops_than_are_present():
         apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 2)]))
 
 
-def test_cannot_move_into_a_resolved_town():
+def test_resolved_towns_are_passable_terrain():
+    """Resolved towns are pacified, not walls: troops move in and out freely."""
     st = state()
-    st.towns["b"].troops = 1
     resolve_town(st, "b", Side.EMPIRE)
     st.towns["a"].troops = 1
     st.to_move = Side.EMPIRE
-    with pytest.raises(IllegalMove, match="cannot move into resolved"):
-        apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
+    apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
+    assert st.towns["b"].troops == 1
 
 
 def test_movement_is_simultaneous():

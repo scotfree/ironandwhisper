@@ -27,6 +27,7 @@ from .engine import (
     Side,
     apply_empire_turn,
     apply_insurgency_turn,
+    legal_generation_towns,
     new_game,
     prepare_turn,
     winner,
@@ -66,8 +67,6 @@ def render_board(state: GameState, view: Side | None = None) -> str:
 
     for town in state.towns.values():
         troops = str(town.troops) if town.troops else "·"
-        if town.frozen_troops:
-            troops += f" (+{town.frozen_troops})"
 
         pile_size = len(town.pile)
         intel = ""
@@ -275,7 +274,7 @@ class Table:
     def generate(self, town: str) -> None:
         self._require(Side.EMPIRE)
         town_id = self._town_id(town)
-        if not self.state.towns[town_id].has_empire_presence:
+        if town_id not in legal_generation_towns(self.state):
             raise IllegalMove(f"no Empire presence at {town}")
         self._pending_empire.generate_at = town_id
 

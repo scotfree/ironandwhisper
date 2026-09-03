@@ -18,6 +18,7 @@ from .engine import (
     GameState,
     InsurgencyTurn,
     Side,
+    legal_generation_towns,
     legal_resolutions,
 )
 
@@ -120,7 +121,7 @@ class RandomEmpire:
         self.resolve_chance = resolve_chance
 
     def choose(self, state: GameState) -> EmpireTurn:
-        anchors = [t.id for t in state.towns.values() if t.has_empire_presence]
+        anchors = legal_generation_towns(state)
         generate_at = self.rng.choice(anchors) if anchors else None
 
         moves = []
@@ -129,9 +130,7 @@ class RandomEmpire:
             # are free to march out, and stranding them is a bot bug, not a rule.
             if town.troops == 0:
                 continue
-            open_neighbors = [
-                n for n in town.neighbors if not state.towns[n].resolved
-            ]
+            open_neighbors = list(town.neighbors)
             if open_neighbors and self.rng.random() < self.move_chance:
                 quantity = self.rng.randint(1, town.troops)
                 moves.append((town.id, self.rng.choice(open_neighbors), quantity))
@@ -256,17 +255,15 @@ class HeuristicEmpire:
             return belief.estimated_influence(town.id)
 
         # Generate where the fighting is: the anchor nearest a fat pile.
-        anchors = [t for t in state.towns.values() if t.has_empire_presence]
+        anchors = legal_generation_towns(state)
         generate_at = None
         if anchors:
             hot = max(open_towns, key=attractiveness, default=None)
             if hot is not None:
                 distances = state.scenario.map.distances_from(hot.id)
-                generate_at = min(
-                    anchors, key=lambda t: distances.get(t.id, 99)
-                ).id
+                generate_at = min(anchors, key=lambda tid: distances.get(tid, 99))
             else:
-                generate_at = self.rng.choice(anchors).id
+                generate_at = self.rng.choice(anchors)
 
         # March toward the most attractive reachable unresolved town, but leave
         # a garrison anywhere we already look like we are winning.
@@ -274,15 +271,13 @@ class HeuristicEmpire:
         for town in state.towns.values():
             if town.troops == 0:
                 continue
-            open_neighbors = [
-                n for n in town.neighbors if not state.towns[n].resolved
-            ]
-            if not open_neighbors:
+            neighbors = list(town.neighbors)
+            if not neighbors:
                 continue
-            best = max(open_neighbors, key=lambda n: belief.estimated_influence(n))
+            best = max(neighbors, key=lambda n: belief.estimated_influence(n))
 
             if town.resolved:
-                # A pacified town is a barracks, not a garrison. March out.
+                # Nothing left to win here. March toward whatever is still live.
                 moves.append((town.id, best, town.troops))
                 continue
 

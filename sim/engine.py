@@ -57,13 +57,9 @@ class Town:
     # top, and peeking draws from the top and returns to the bottom.
     pile: list[Card] = field(default_factory=list)
 
-    # Troops that can still act.
+    # Empire troops standing here. Resolution spends them: they are removed
+    # from play, which is what makes committing to a town cost something.
     troops: int = 0
-
-    # Troops that were present when this town resolved. They are permanently
-    # immobile and score nothing further, but they still count as Empire
-    # presence for generation (design doc, Decision 3).
-    frozen_troops: int = 0
 
     resolved: bool = False
     winner: Side | None = None
@@ -75,7 +71,7 @@ class Town:
     @property
     def has_empire_presence(self) -> bool:
         """Whether the Empire may generate here."""
-        return self.troops > 0 or self.frozen_troops > 0
+        return self.troops > 0
 
 
 @dataclass
@@ -126,8 +122,7 @@ class GameState:
             towns={
                 tid: Town(
                     id=t.id, label=t.label, neighbors=t.neighbors,
-                    pile=list(t.pile), troops=t.troops,
-                    frozen_troops=t.frozen_troops, resolved=t.resolved,
+                    pile=list(t.pile), troops=t.troops, resolved=t.resolved,
                     winner=t.winner, resolved_influence=t.resolved_influence,
                     resolved_strength=t.resolved_strength,
                 )
@@ -235,11 +230,10 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     town.resolved_influence = influence
     town.resolved_strength = strength
 
-    # Everything committed stays on the board, face up, out of play. Troops
-    # present at this moment are frozen forever; troops generated here later
-    # are free to march out again.
-    town.frozen_troops += town.troops
-    town.troops = 0
+    # Everything committed here is spent. The pile stays face up as a public
+    # record of the fight; the troops are removed from play entirely.
+    if state.scenario.consume_troops:
+        town.troops = 0
 
     # The flip is public, so both players now know these cards.
     state.empire_known_uids.update(c.uid for c in town.pile)
@@ -251,6 +245,21 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
         f"scoring {influence if winner is Side.EMPIRE else strength}"
     )
     return winner
+
+
+def legal_generation_towns(state: GameState) -> list[str]:
+    """Where the Empire may raise troops.
+
+    Normally: any town it already stands in. Resolved towns do not qualify —
+    the garrison there was spent, so the Empire no longer holds the place.
+
+    The fallback exists because troops are consumed by resolution: an Empire
+    that commits its last troops would otherwise have no legal generation site
+    and be eliminated with turns still on the clock. With nothing on the board
+    it may raise troops anywhere still contested.
+    """
+    held = [t.id for t in state.towns.values() if t.has_empire_presence]
+    return held if held else [t.id for t in state.unresolved]
 
 
 def _can_declare(state: GameState, town_id: str, side: Side) -> bool:
@@ -329,7 +338,7 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         town = state.towns.get(turn.generate_at)
         if town is None:
             raise IllegalMove(f"unknown town {turn.generate_at!r}")
-        if not town.has_empire_presence:
+        if turn.generate_at not in legal_generation_towns(state):
             raise IllegalMove(
                 f"cannot generate at {turn.generate_at}: no Empire presence"
             )
@@ -347,12 +356,8 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         if src not in state.towns or dst not in state.towns:
             raise IllegalMove(f"unknown town in move {src!r} -> {dst!r}")
         source, dest = state.towns[src], state.towns[dst]
-        # Troops MAY march out of a resolved town. Only `frozen_troops` are
-        # stuck there; `troops` in a resolved town were generated after it was
-        # resolved, and marching them out is the entire point of Decision 3 —
-        # otherwise a resolved anchor produces troops that are born immobile.
-        if dest.resolved:
-            raise IllegalMove(f"cannot move into resolved town {dst}")
+        # Resolved towns are ordinary terrain for movement: pacified, passable,
+        # simply no longer contestable. Troops move freely in and out.
         if dst not in source.neighbors:
             raise IllegalMove(f"{dst} is not adjacent to {src}")
         departed[src] = departed.get(src, 0) + quantity

@@ -99,6 +99,11 @@ class Scenario:
     first_player: "Side"  # noqa: F821 - avoids a circular import at module load
     empire_wins_ties: bool
 
+    # Whether resolution spends the troops committed to it. True is the real
+    # rule; False exists so the notebook can reproduce the experiment that
+    # established why it has to be True. See Decision 3 in the design doc.
+    consume_troops: bool = True
+
     # -- derived quantities, where the tuning pressure lives ---------------
 
     @property
@@ -205,6 +210,7 @@ def load_scenario(scenario_id: str, **overrides) -> Scenario:
         empire_start=dict(raw["empire_start"]),
         first_player=Side(raw["first_player"]),
         empire_wins_ties=raw["empire_wins_ties"],
+        consume_troops=raw.get("consume_troops", True),
     )
 
     for key, value in overrides.items():

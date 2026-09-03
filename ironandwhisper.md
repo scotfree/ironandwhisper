@@ -59,8 +59,8 @@ The **Insurgency takes the first turn.** Players then alternate. On a turn, a pl
 3. Optionally declare a **resolution** on one town where the Insurgency has at least one card.
 
 ### Empire turn
-1. **Generate**: add one new troop to any unresolved *or resolved* town that already contains at least one Empire troop.
-2. **Move troops**: any or all troops in unresolved towns may move up to their Movement in edges. Troops are not required to move. Troops in resolved towns can never move.
+1. **Generate**: add one new troop to any town that already contains at least one Empire troop. If the Empire has no troops left anywhere, it may instead raise the troop in any unresolved town.
+2. **Move troops**: any or all troops may move up to their Movement in edges. Troops are not required to move. Resolved towns are ordinary terrain — pacified and passable, simply no longer contestable.
 3. **Look**: any troop that did *not* move this turn may spend its Peek to secretly examine cards in its town.
 4. Optionally declare a **resolution** on one town where the Empire has at least one troop.
 
@@ -92,11 +92,10 @@ Consequences that fall straight out of this one rule:
 
 Everything in the town stays where it is, face up, for the rest of the game:
 
-- **Cards** are out of play. They score at the moment of the flip and do nothing afterward.
-- **Troops present at the moment of resolution** are frozen there permanently. They never move again and never count toward another resolution — but they *do* count as Empire presence for **generation**. A resolved town is a permanent recruitment anchor for the Empire, whoever won it.
-- **Troops generated into a resolved town afterwards are not frozen.** They may march out normally on a later turn. A pacified town is a barracks, not a grave.
+- **Cards** stay on the board face up, as a permanent public record of the fight. They score at the moment of the flip and do nothing afterward.
+- **Troops committed to the town are spent.** They are removed from play entirely.
 
-No troops may *move into* a resolved town; the only way a troop arrives there after resolution is by being raised there.
+This is what makes commitment cost something. A resolved town is not a base, a garrison or an anchor — it is a hole in the ground where some of your army used to be.
 
 Because commitment is permanent, waiting costs resources: the longer a town goes unresolved, the more both sides have sunk into it, and the more the eventual resolution consumes.
 
@@ -140,7 +139,7 @@ The Empire commands about 1.5× the Insurgency's total force, which is deliberat
 
 > **Simulation says this premium is the wrong thing to tune.** See `notebooks/exploration.ipynb`. Bringing the premium to exactly 1.00 by lowering troop strength moves the win rate almost not at all, because capture-only scoring makes troop strength self-cancelling: weaker troops win fewer fights, but each fight the Insurgency wins is also worth fewer points, and the two effects nearly cancel.
 >
-> The knob that actually moves the game is **influence density** — the share of the deck that is real. At the 50:50 starting values the Empire wins about 83% of games; balance against the current bots lands near **38 influence : 22 dummy**, roughly 63% density. These parameters have not been changed in the table above, because picking the real numbers is a design decision rather than a simulator output — but 50:50 is not close.
+> The knob that actually moves the game is **influence density** — the share of the deck that is real. At the 50:50 starting values the Empire wins about 73% of games; balance against the current bots lands near **36 influence : 24 dummy**, roughly 60% density. These parameters have not been changed in the table above, because picking the real numbers is a design decision rather than a simulator output — but 50:50 is not close.
 
 ---
 
@@ -158,15 +157,17 @@ Settled rules and the reasoning behind them. Recorded so they aren't silently re
 
 > **Coupling warning.** The rate is **one troop per turn in total**, not one per occupied town. The per-town reading is degenerate: the Empire splits up to occupy more towns, occupies more towns to generate more troops, and by mid-game out-produces the entire Insurgency deck every turn. Dilution becomes strictly correct and there is no counterplay. **This rule and Decision 3 are only safe as a pair** — see below.
 
-### 3. Frozen troops still count as generation anchors
+### 3. Troops committed to a resolved town are spent
 
-**Why:** chosen for simplicity over thematic tidiness (the Empire can recruit in a town the Insurgency won). It pays for itself by making an Empire wipeout impossible — the starting town becomes a permanent anchor the moment it resolves — which **deletes a rule** we would otherwise have needed as a fallback.
+**Why:** this is the load-bearing rule of the whole economy, and simulation proved it. Without it the game collapses: see the note below.
 
-> **Found while implementing.** Troops raised in a resolved town must be able to march out again. If every troop in a resolved town were immobile, the anchor would produce troops that are born stuck, the Empire would still be effectively dead after committing its whole force, and Decision 3 would buy nothing. So "frozen" applies to the garrison that was present *at* resolution, not to the town. See the `test_troops_raised_in_a_resolved_town_can_march_out` test.
+Resolved towns therefore do **not** anchor generation — the garrison there is gone, so the Empire no longer holds the place. Because troops are consumed, the Empire can in principle spend its last troop and have nowhere legal to generate, so one fallback clause is needed: **if the Empire has no troops anywhere, it may raise its next troop in any unresolved town.** That is the entire cost of the rule.
 
-This is safe *only because* generation is one per turn total (Decision 2). Extra anchors buy placement flexibility, not extra income. **If generation ever becomes per-anchor, this decision must be revisited at the same time**, or the degenerate spread strategy returns.
-
-Emergent effect worth watching: the Empire has a non-scoring reason to resolve early, since each resolved town is a permanent unloseable reinforcement point *and* shrinks the board, forcing the Insurgency to overstack its mandatory hand into fewer towns. This "board-shrinking" strategy costs real troops and scores nothing, so it probably doesn't dominate — but it is the first thing simulation should check.
+> **Simulation result, and a corrected earlier decision.** We first tried the opposite — troops survive resolution — on the grounds that it removes a field from the state. It makes the game degenerate. The Empire wins **99.7%** at the starting parameters, **96.7%** even at 83% influence density, and **90.8%** with a fixed force of only two troops and no generation at all. Across every configuration, under 4% of Empire strength was ever overcome.
+>
+> The mechanism: consumption is the only thing that makes Empire commitment cost anything. Without it the Empire fights only battles it expects to win, keeps its army afterwards, and marches on. Since the Insurgency can score *only* by beating a committed garrison, an Empire that never has to accept a bad fight closes the Insurgency's only scoring route entirely. No parameter reopens it — which is why a two-troop Empire still wins 91%.
+>
+> The complexity that motivated the experiment came from an earlier version of this decision in which frozen troops still anchored generation, forcing two categories of troop. Dropping *that* gives the same simplicity — one integer per town, set to zero on resolution — while keeping the budget game.
 
 ### 4. Resolution is a free action, once per turn
 
