@@ -20,6 +20,9 @@ export class Game {
     /** The Insurgency's hand. Empty for anyone else — they are never sent it. */
     public hand: CardView[] = [];
 
+    /** The solo opponent, or null in a two-player game. */
+    private bot: BotView | null = null;
+
     private gamedatas: IronAndWhisperGamedatas;
     private handClickHandler: (cardId: number) => void = () => {};
 
@@ -60,12 +63,29 @@ export class Game {
         );
         this.board.render();
 
+        // The bot has no player record, so it gets a panel of its own rather
+        // than a row in gamedatas.players.
+        this.bot = gamedatas.bot;
+        if (this.bot) {
+            this.bga.playerPanels.addAutomataPlayerPanel(this.bot.id, this.bot.name, {
+                color: this.bot.side === 'empire' ? '6b3fa0' : '2e7d4f',
+                score: this.bot.score,
+            });
+        }
+
+        const sideLabel = (side: Side) => side === 'empire' ? _('Empire') : _('Insurgency');
+
         Object.entries(gamedatas.players).forEach(([playerId, player]) => {
-            const label = player.side === 'empire' ? _('Empire') : _('Insurgency');
             this.bga.playerPanels.getElement(Number(playerId)).insertAdjacentHTML('beforeend', `
-                <div class="iaw-player-side">${label}</div>
+                <div class="iaw-player-side">${sideLabel(player.side)}</div>
             `);
         });
+
+        if (this.bot) {
+            this.bga.playerPanels.getElement(this.bot.id).insertAdjacentHTML('beforeend', `
+                <div class="iaw-player-side">${sideLabel(this.bot.side)}</div>
+            `);
+        }
 
         this.renderHand();
         this.updateClock(gamedatas.deckCount, gamedatas.handCount, gamedatas.round);
@@ -199,8 +219,17 @@ export class Game {
         winner: Side;
         influence: number;
         strength: number;
+        points: number;
+        player_id: number;
         pile: CardView[];
     }) {
+        // A real player's score is kept by the framework's counter, which
+        // updates itself. The bot's is ours to move.
+        if (this.bot && args.player_id === this.bot.id) {
+            this.bot.score += args.points;
+            this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
+        }
+
         const town = this.board.getTown(args.town_id);
         town.resolved = true;
         town.winner = args.winner;

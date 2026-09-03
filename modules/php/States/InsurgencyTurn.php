@@ -12,9 +12,7 @@ use Bga\GameFramework\Actions\Types\JsonParam;
 use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\GameState;
 use Bga\GameFramework\States\PossibleAction;
-use Bga\GameFramework\UserException;
 use Bga\Games\IronAndWhisper\Game;
-use Bga\Games\IronAndWhisper\IllegalMove;
 use Bga\Games\IronAndWhisper\Rules;
 
 class InsurgencyTurn extends GameState
@@ -48,6 +46,9 @@ class InsurgencyTurn extends GameState
      * decision, and the optional resolution is judged against the board as it
      * stands after the cards land.
      *
+     * The work is in Game::applyInsurgencyTurn, so that a bot takes its turn
+     * through the same code and the same validation as a person.
+     *
      * @param array<string, int[]> $placements town id => card ids, in the order
      *                                         they go onto the pile (last on top)
      */
@@ -57,54 +58,7 @@ class InsurgencyTurn extends GameState
         ?string $resolve,
         int $activePlayerId,
     ) {
-        // The client sends an empty string for "no resolution": BGA action
-        // parameters travel as strings, and there is no null on the wire.
-        $resolve = $resolve === '' ? null : $resolve;
-
-        $board = $this->game->board;
-        $towns = $board->towns();
-        $hand = $board->handCardIds();
-
-        try {
-            Rules::validatePlacements($towns, $hand, $placements);
-        } catch (IllegalMove $e) {
-            throw new UserException($e->getMessage());
-        }
-
-        $placed = [];
-        foreach ($placements as $townId => $cardIds) {
-            $cardIds = array_map('intval', $cardIds);
-            if (!$cardIds) {
-                continue;
-            }
-            $board->placeOnPile($townId, $cardIds);
-            $placed[$townId] = $cardIds;
-        }
-
-        // Pile heights are public — that is the whole point of forcing the
-        // entire hand out every turn — and so is which card sits where, since
-        // the Empire watches the heights change. What the cards *are* is not,
-        // so this carries ids and no types. The Insurgency's client already
-        // holds its own hand and fills the faces in from that; the Empire's
-        // client leaves them face down.
-        $this->notify->all('cardsPlaced', clienttranslate('${player_name} seeds ${count} cards'), [
-            'player_id' => $activePlayerId,
-            'player_name' => $this->game->getPlayerNameById($activePlayerId),
-            'count' => count($hand),
-            'cards' => $placed,
-        ]);
-
-        if ($resolve !== null) {
-            // Checked after placement: a town seeded a moment ago is a legal
-            // target, even though it was empty at the start of the turn.
-            $towns = $board->towns();
-            if (!Rules::canDeclare($towns, $resolve, Rules::INSURGENCY)) {
-                throw new UserException(clienttranslate('You have no cards in that town, or it is already resolved'));
-            }
-            $this->game->resolveTown($resolve, Rules::INSURGENCY);
-        }
-
-        $this->game->setToMove(Rules::EMPIRE);
+        $this->game->applyInsurgencyTurn($placements, $resolve, $activePlayerId);
 
         return NextTurn::class;
     }

@@ -53,7 +53,16 @@ interface IronAndWhisperPlayer extends Player {
     side: Side;
 }
 
+/** The solo opponent. Null in a two-player game. */
+interface BotView {
+    id: number;
+    side: Side;
+    name: string;
+    score: number;
+}
+
 interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
+    bot: BotView | null;
     /** The side of whoever this payload was built for. Null for a spectator. */
     you: Side | null;
     sides: Record<string, Side>;

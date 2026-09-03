@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace Bga\Games\IronAndWhisper;
 
+use Bga\GameFramework\UserException;
 use Bga\Games\IronAndWhisper\States\NextTurn;
 
 class Game extends \Bga\GameFramework\Table
@@ -38,6 +39,18 @@ class Game extends \Bga\GameFramework\Table
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
+    public const G_BOT_SCORE = 'bot_score';
+
+    /**
+     * The bot's stand-in player id in a solo game.
+     *
+     * It is not a row in the `player` table — the framework creates those, and
+     * only for real people. It exists so that everything keyed by player id
+     * (sides, scoring, notifications) keeps working with one code path instead
+     * of two. BGA recommends 0 or negative for an automata, to avoid colliding
+     * with real ids.
+     */
+    public const BOT_PLAYER_ID = 0;
 
     public readonly Scenario $scenario;
     public readonly Board $board;
@@ -67,6 +80,11 @@ class Game extends \Bga\GameFramework\Table
             foreach ($rows as $playerId => $side) {
                 $this->sides[(int) $playerId] = (string) $side;
             }
+
+            // Solo: the bot takes whichever side the human did not.
+            if (count($this->sides) === 1) {
+                $this->sides[self::BOT_PLAYER_ID] = Rules::otherSide(reset($this->sides));
+            }
         }
         return $this->sides;
     }
@@ -89,6 +107,44 @@ class Game extends \Bga\GameFramework\Table
     public function sideForViewer(int $playerId): ?string
     {
         return $this->sides()[$playerId] ?? null;
+    }
+
+    public function isSolo(): bool
+    {
+        return isset($this->sides()[self::BOT_PLAYER_ID]);
+    }
+
+    public function isBot(int $playerId): bool
+    {
+        return $playerId === self::BOT_PLAYER_ID;
+    }
+
+    /**
+     * The bot has no row in the `player` table, so its score lives in a global
+     * and its name comes from the side it is playing.
+     */
+    public function botScore(): int
+    {
+        return (int) $this->bga->globals->get(self::G_BOT_SCORE, 0);
+    }
+
+    public function addScore(int $playerId, int $points): void
+    {
+        if ($this->isBot($playerId)) {
+            $this->bga->globals->inc(self::G_BOT_SCORE, $points);
+            return;
+        }
+        $this->bga->playerScore->inc($playerId, $points);
+    }
+
+    public function playerNameFor(int $playerId): string
+    {
+        if (!$this->isBot($playerId)) {
+            return $this->getPlayerNameById($playerId);
+        }
+        return $this->sides()[$playerId] === Rules::EMPIRE
+            ? clienttranslate('The Empire')
+            : clienttranslate('The Insurgency');
     }
 
     public function playerIdForSide(string $side): int
@@ -172,7 +228,7 @@ class Game extends \Bga\GameFramework\Table
         $this->board->markResolved($townId, $outcome);
 
         $winnerPlayerId = $this->playerIdForSide($outcome['winner']);
-        $this->bga->playerScore->inc($winnerPlayerId, $outcome['points']);
+        $this->addScore($winnerPlayerId, $outcome['points']);
 
         $this->bga->notify->all(
             'townResolved',
@@ -187,7 +243,7 @@ class Game extends \Bga\GameFramework\Table
                 'winner' => $outcome['winner'],
                 'declaredBy' => $declaredBy,
                 'player_id' => $winnerPlayerId,
-                'player_name' => $this->getPlayerNameById($winnerPlayerId),
+                'player_name' => $this->playerNameFor($winnerPlayerId),
                 // Resolution turns whatever was still face down face up, so
                 // this carries the town's whole contents to both players.
                 'pile' => array_map(
@@ -200,6 +256,237 @@ class Game extends \Bga\GameFramework\Table
         );
 
         return $outcome;
+    }
+
+    // -- playing a turn -----------------------------------------------------
+    //
+    // Both turns are applied here rather than inside their state classes, so a
+    // bot can take a turn through exactly the same code a person does. A state
+    // class is a thin adapter over these: it validates that the framework is
+    // in the right state and hands off.
+
+    /**
+     * The Insurgency seeds its whole hand, then optionally resolves.
+     *
+     * Ported from apply_insurgency_turn() in sim/engine.py.
+     *
+     * @param array<string, int[]> $placements town id => card ids, in the order
+     *                                         they go onto the pile (last on top)
+     */
+    public function applyInsurgencyTurn(array $placements, ?string $resolve, int $actorId): void
+    {
+        // The client sends an empty string for "no resolution": BGA action
+        // parameters travel as strings, and there is no null on the wire.
+        $resolve = $resolve === '' ? null : $resolve;
+
+        $towns = $this->board->towns();
+        $hand = $this->board->handCardIds();
+
+        try {
+            Rules::validatePlacements($towns, $hand, $placements);
+        } catch (IllegalMove $e) {
+            throw new UserException($e->getMessage());
+        }
+
+        $placed = [];
+        foreach ($placements as $townId => $cardIds) {
+            $cardIds = array_map('intval', $cardIds);
+            if (!$cardIds) {
+                continue;
+            }
+            $this->board->placeOnPile($townId, $cardIds);
+            $placed[$townId] = $cardIds;
+        }
+
+        // Pile heights are public — that is the whole point of forcing the
+        // entire hand out every turn — and so is which card sits where, since
+        // the Empire watches the heights change. What the cards *are* is not,
+        // so this carries ids and no types.
+        $this->bga->notify->all('cardsPlaced', clienttranslate('${player_name} seeds ${count} cards'), [
+            'player_id' => $actorId,
+            'player_name' => $this->playerNameFor($actorId),
+            'count' => count($hand),
+            'cards' => $placed,
+        ]);
+
+        if ($resolve !== null) {
+            // Checked after placement: a town seeded a moment ago is a legal
+            // target, even though it was empty at the start of the turn.
+            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::INSURGENCY)) {
+                throw new UserException(clienttranslate('You have no cards in that town, or it is already resolved'));
+            }
+            $this->resolveTown($resolve, Rules::INSURGENCY);
+        }
+
+        $this->setToMove(Rules::EMPIRE);
+    }
+
+    /**
+     * The Empire raises, marches, looks, then optionally resolves — in that
+     * order, because a resolution is judged against where troops end up
+     * (Decision 4).
+     *
+     * Ported from apply_empire_turn() in sim/engine.py.
+     *
+     * @param array<int, array{from: string, to: string, count: int}> $moves
+     */
+    public function applyEmpireTurn(?string $generateAt, array $moves, ?string $resolve, int $actorId): void
+    {
+        $generateAt = $generateAt === '' ? null : $generateAt;
+        $resolve = $resolve === '' ? null : $resolve;
+
+        $towns = $this->board->towns();
+        $moves = $this->normalizeMoves($moves);
+
+        // Troop changes accumulate here and are written once, so a troop that
+        // is raised and then marched in the same turn costs one update.
+        $delta = [];
+
+        try {
+            Rules::validateGeneration($towns, $generateAt);
+        } catch (IllegalMove $e) {
+            throw new UserException($e->getMessage());
+        }
+        if ($generateAt !== null) {
+            $delta[$generateAt] = ($delta[$generateAt] ?? 0) + $this->scenario->generationRate;
+            $towns[$generateAt]['troops'] += $this->scenario->generationRate;
+        }
+
+        try {
+            $plan = Rules::planMoves($towns, $moves);
+        } catch (IllegalMove $e) {
+            throw new UserException($e->getMessage());
+        }
+        foreach ($plan['departures'] as $townId => $count) {
+            $delta[$townId] = ($delta[$townId] ?? 0) - $count;
+            $towns[$townId]['troops'] -= $count;
+        }
+        foreach ($plan['arrivals'] as $townId => $count) {
+            $delta[$townId] = ($delta[$townId] ?? 0) + $count;
+            $towns[$townId]['troops'] += $count;
+        }
+
+        $this->board->adjustTroops($delta);
+
+        $this->bga->notify->all('empireMoved', clienttranslate('${player_name} manoeuvres'), [
+            'player_id' => $actorId,
+            'player_name' => $this->playerNameFor($actorId),
+            'generateAt' => $generateAt,
+            'generated' => $generateAt === null ? 0 : $this->scenario->generationRate,
+            'moves' => array_map(
+                fn(array $move) => ['from' => $move[0], 'to' => $move[1], 'count' => $move[2]],
+                $moves,
+            ),
+            'troops' => array_map(fn(array $town) => $town['troops'], $towns),
+        ]);
+
+        $this->empireLooks($towns, $plan['arrivals'], $actorId);
+
+        if ($resolve !== null) {
+            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::EMPIRE)) {
+                throw new UserException(
+                    clienttranslate('You have no troops in that town, or it is already resolved')
+                );
+            }
+            $this->resolveTown($resolve, Rules::EMPIRE);
+        }
+
+        $this->incRound();
+        $this->setToMove(Rules::INSURGENCY);
+    }
+
+    /**
+     * Turn the top card of each watched pile face up.
+     *
+     * This is public. The cards physically sit face up beside their town, and
+     * the Insurgency could always work out exactly what the Empire had seen —
+     * it knows what it placed and troop positions are visible — so putting them
+     * on the table costs it nothing and spares both players the bookkeeping.
+     *
+     * @param array<string, array> $towns    board after generation and movement
+     * @param array<string, int> $arrivals
+     */
+    private function empireLooks(array $towns, array $arrivals, int $actorId): void
+    {
+        $looks = Rules::peekPlan($towns, $arrivals, $this->scenario->unitPeek());
+        if (!$looks) {
+            return;
+        }
+
+        $revealed = [];
+        foreach ($looks as $townId => $lookCount) {
+            $cardIds = Rules::revealFromPile($towns[$townId]['pile'], $lookCount);
+            if (!$cardIds) {
+                continue;
+            }
+
+            $this->board->reveal($cardIds);
+
+            $byId = [];
+            foreach ($towns[$townId]['pile'] as $card) {
+                $byId[$card['id']] = $card;
+            }
+            $revealed[$townId] = array_map(
+                fn(int $cardId) => [
+                    'id' => $cardId,
+                    'type' => $byId[$cardId]['type'],
+                    'influence' => $byId[$cardId]['influence'],
+                ],
+                $cardIds,
+            );
+        }
+
+        if (!$revealed) {
+            return;
+        }
+
+        $this->bga->notify->all(
+            'cardsRevealed',
+            clienttranslate('${player_name} turns ${count} cards face up'),
+            [
+                'player_id' => $actorId,
+                'player_name' => $this->playerNameFor($actorId),
+                'count' => array_sum(array_map('count', $revealed)),
+                'revealed' => $revealed,
+            ],
+        );
+    }
+
+    /**
+     * @param array<int, mixed> $moves
+     * @return array<int, array{0: string, 1: string, 2: int}>
+     */
+    private function normalizeMoves(array $moves): array
+    {
+        $normalized = [];
+        foreach ($moves as $move) {
+            if (!is_array($move) || !isset($move['from'], $move['to'], $move['count'])) {
+                throw new UserException(clienttranslate('Malformed move'));
+            }
+            $normalized[] = [(string) $move['from'], (string) $move['to'], (int) $move['count']];
+        }
+        return $normalized;
+    }
+
+    /**
+     * Take the bot's turn for whichever side it is playing.
+     *
+     * It goes through the same apply* methods a person's turn does, so it is
+     * held to the same validation and produces the same notifications. The
+     * Empire bot reads only Empire-legal information — see Bots::belief().
+     */
+    public function playBotTurn(string $side): void
+    {
+        $botId = $this->playerIdForSide($side);
+
+        if ($side === Rules::INSURGENCY) {
+            $turn = Bots::insurgencyTurn($this->scenario, $this->board->towns(), $this->board->hand());
+            $this->applyInsurgencyTurn($turn['placements'], $turn['resolve'], $botId);
+            return;
+        }
+
+        $turn = Bots::empireTurn($this->scenario, $this->board->towns());
+        $this->applyEmpireTurn($turn['generateAt'], $turn['moves'], $turn['resolve'], $botId);
     }
 
     // -- data feed ----------------------------------------------------------
@@ -225,6 +512,16 @@ class Game extends \Bga\GameFramework\Table
         $result['players'] = static::getCollectionFromDB(
             'SELECT `player_id` AS `id`, `player_score` AS `score`, `player_side` AS `side` FROM `player`'
         );
+
+        // Deliberately not added to `players`: that array is the framework's,
+        // and a row in it for somebody with no player record invites trouble.
+        // The client draws the bot with addAutomataPlayerPanel instead.
+        $result['bot'] = $this->isSolo() ? [
+            'id' => self::BOT_PLAYER_ID,
+            'side' => $this->sides()[self::BOT_PLAYER_ID],
+            'name' => $this->playerNameFor(self::BOT_PLAYER_ID),
+            'score' => $this->botScore(),
+        ] : null;
 
         return $result;
     }
@@ -284,6 +581,17 @@ class Game extends \Bga\GameFramework\Table
     private function assignSides(array $playerIds): array
     {
         $option = $this->bga->tableOptions->get(self::OPT_SIDE_ASSIGNMENT) ?? self::SIDES_RANDOM;
+
+        // Solo: only the human gets a row, and the bot takes what is left over
+        // (see sides()). "First player" is the human.
+        if (count($playerIds) === 1) {
+            $side = match ($option) {
+                self::SIDES_FIRST_IS_EMPIRE => Rules::EMPIRE,
+                self::SIDES_FIRST_IS_INSURGENCY => Rules::INSURGENCY,
+                default => mt_rand(0, 1) === 0 ? Rules::EMPIRE : Rules::INSURGENCY,
+            };
+            return [$playerIds[0] => $side];
+        }
 
         $order = $playerIds;
         if ($option === self::SIDES_FIRST_IS_INSURGENCY) {

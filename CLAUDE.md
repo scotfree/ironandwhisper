@@ -48,8 +48,9 @@ Done:
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Board`, `View`, `Game`, and the
   three game states. See *How the port is put together* below.
 - **TypeScript client**: board drawn from the map JSON, staged turns for both sides.
-- **49 PHP tests** running locally against SQLite, including whole games end to end.
-- `gameinfos.jsonc` is Iron and Whisper, two players. Side assignment is game option 100.
+- **60 PHP tests** running locally against SQLite, including whole games end to end.
+- `gameinfos.jsonc` is Iron and Whisper, one or two players. Side assignment is option 100.
+- **Heuristic bots**, ported from `sim/bots.py`, and a solo mode that uses one.
 
 Not done:
 - **Nothing has been deployed or played yet.** The first deploy must be
@@ -167,6 +168,7 @@ information has exactly one gate.
 | file | job | knows about |
 |---|---|---|
 | `modules/php/Rules.php` | the rules, as pure functions over plain arrays | nothing |
+| `modules/php/Bots.php` | the heuristics, also pure | Rules and Scenario |
 | `modules/php/Scenario.php` | loads `data/`, `maps/`, `scenarios/` | the JSON |
 | `modules/php/Board.php` | every read and write of `iaw_town` and `iaw_card` | the database |
 | `modules/php/View.php` | what each side may see | Rules' shape |
@@ -178,6 +180,13 @@ information has exactly one gate.
 names the cards to turn over — and the state classes persist them. If the two disagree, the PHP is
 wrong.
 
+**Turn application lives in `Game`, not in the state classes.** `applyInsurgencyTurn` and
+`applyEmpireTurn` do the work; the state classes are thin adapters that call them and
+return `NextTurn::class`. That is deliberate: a bot takes its turn by calling the same
+methods, so it is held to the same validation and emits the same notifications as a person.
+It also sidesteps the question of whether a hand-constructed state object gets the
+framework's services injected — it does not have to, because nothing hand-constructs one.
+
 **The state machine** is three states plus the framework's own:
 
 - `InsurgencyTurn` (10) — `actCommitTurn(placements, resolve)`. The whole hand goes out in
@@ -186,7 +195,9 @@ wrong.
   automatic peeking, then the optional resolution, in that order.
 - `NextTurn` (90) — upkeep: refill the hand, detect the end, hand over to the other side.
   This is `prepare_turn()`; it runs *before* a player is asked for anything, which is why
-  the hand refill and the end of the game both live here.
+  the hand refill and the end of the game both live here. **A bot's turn happens inside
+  this state**, in a loop: only a human needs a state of their own, because only a human
+  has to be asked.
 
 `Game::toMove()` is a global mirroring `GameState.to_move`, set by each turn state before
 it returns to `NextTurn`. Seat order does not decide who starts; the scenario does.
@@ -219,7 +230,21 @@ fills the faces in from the hand it already holds.
 ```bash
 php tests/run.php              # all of it
 php tests/run.php rules        # only files matching "rules"
+php tests/selfplay.php 1000    # bots against each other, for the win rate
 ```
+
+`tests/selfplay.php` is the check the unit tests cannot give. They prove the PHP does what
+it was written to do; self-play asks whether it does what the *specification* does. Run the
+same heuristics over the same scenario in both and the distributions should agree:
+
+| 1000 games | Empire | Insurgency | draws | Empire mean |
+|---|---|---|---|---|
+| `sim.run` (Python) | 44.4% | 48.6% | 7.0% | 10.3 |
+| `selfplay.php` | 46.1% | 47.1% | 6.8% | 10.5 |
+
+Different RNGs mean comparing distributions, not games, and 1000 games pins a rate to
+roughly ±1.6 points — so agreement at this level is consistent with a faithful port rather
+than proof of one. It catches drift, not subtlety. Re-run it after any rules change.
 
 `tests/support/framework.php` is a small stand-in for the parts of the BGA framework this
 game touches, backed by in-memory SQLite. It is not an attempt to reimplement BGA — it
@@ -254,13 +279,17 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
    that board-shrinking (question 1) becomes the Empire's only line rather than its best
    one. Test it in `sim/` behind a scenario flag before any PHP changes; nothing known
    about peeking or shrinking survives the change automatically.
-3. **Deck order as a mechanic.** Piles are now physical — a face-down stack and a face-up
+3. **Bots on BGA.** A solo mode works locally, and the framework clearly supports automata
+   (`addAutomataPlayerPanel`, `solo_mode_ranked`). Whether BGA permits a bot opponent for a
+   game whose solo variant they have not seen in a rulebook is unknown and was not
+   researched — ask them before counting on it. Nothing stops it in Studio.
+4. **Deck order as a mechanic.** Piles are now physical — a face-down stack and a face-up
    area — which leaves room for shuffling a town, burying a card, or turning a revealed card
    back down. Nothing is designed; the structure is simply there for it.
-4. **Side-swap matches.** A full match is arguably two games with the sides traded. The
+5. **Side-swap matches.** A full match is arguably two games with the sides traded. The
    groundwork is there — sides live in `player.player_side`, set from game option 100 — but
    nothing implements it.
-5. **Playtest the 36:24 numbers.** They come from the simulator and no human has played
+6. **Playtest the 36:24 numbers.** They come from the simulator and no human has played
    them.
 
 ## Decisions & Constraints
@@ -293,6 +322,13 @@ Constraints the port itself introduced:
   bug can be reproduced in a second rather than a deploy cycle.
 - **All player-visible filtering goes through `View::forSide`.** One function to get right
   and one function to test. Nothing else may assemble a payload for a client.
+- **The bot is not a player row.** `Game::BOT_PLAYER_ID` (0) exists so everything keyed by
+  player id keeps working, but the framework creates `player` rows only for real people, so
+  the bot's score lives in a global and its name comes from its side. `getAllDatas` puts it
+  in a separate `bot` key rather than in `players`: that array is the framework's, and a
+  row in it for somebody with no player record invites trouble. The client draws it with
+  `playerPanels.addAutomataPlayerPanel` — note BGA's own `.d.ts` deprecation comment points
+  at `players.addAutomataPlayerPanel`, which does not exist.
 - **The face-down pile is the only secret.** `View::pileView` sends its contents to the
   Insurgency alone; everyone else gets ids with null types. Face-up cards are public by
   definition and go out to all.

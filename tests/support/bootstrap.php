@@ -12,6 +12,7 @@ require_once $root . '/modules/php/IllegalMove.php';
 require_once $root . '/modules/php/Scenario.php';
 require_once $root . '/modules/php/Rules.php';
 require_once $root . '/modules/php/Board.php';
+require_once $root . '/modules/php/Bots.php';
 require_once $root . '/modules/php/View.php';
 require_once $root . '/modules/php/Game.php';
 require_once $root . '/modules/php/States/EndScore.php';
@@ -52,6 +53,25 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1): 
     $setup = new ReflectionMethod($game, 'setupNewGame');
     $setup->setAccessible(true);
     $setup->invoke($game, $players, []);
+
+    return $game;
+}
+
+/**
+ * A solo game: one human, and the bot on the other side.
+ */
+function newSoloGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1): Game
+{
+    Db::reset();
+    Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
+    mt_srand($seed);
+
+    $game = new Game();
+    $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
+
+    $setup = new ReflectionMethod($game, 'setupNewGame');
+    $setup->setAccessible(true);
+    $setup->invoke($game, [P_ONE => ['player_name' => 'One']], []);
 
     return $game;
 }

@@ -136,6 +136,41 @@ final class Scenario
         return (int) $this->cardTypes[$cardType]['influence'];
     }
 
+    /**
+     * Breadth-first hop counts from one town, for the bots' sense of "toward".
+     *
+     * @return array<string, int> town id => hops, omitting anything unreachable
+     */
+    public function distancesFrom(string $townId): array
+    {
+        $seen = [$townId => 0];
+        $frontier = [$townId];
+
+        while ($frontier) {
+            $next = [];
+            foreach ($frontier as $current) {
+                foreach ($this->towns[$current]['neighbors'] as $neighbor) {
+                    if (!isset($seen[$neighbor])) {
+                        $seen[$neighbor] = $seen[$current] + 1;
+                        $next[] = $neighbor;
+                    }
+                }
+            }
+            $frontier = $next;
+        }
+
+        return $seen;
+    }
+
+    public function totalInfluence(): int
+    {
+        $total = 0;
+        foreach ($this->deck as $typeId => $quantity) {
+            $total += $this->influenceOf($typeId) * $quantity;
+        }
+        return $total;
+    }
+
     public function deckSize(): int
     {
         return array_sum($this->deck);
