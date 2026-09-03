@@ -53,9 +53,15 @@ class Town:
     label: str
     neighbors: tuple[str, ...]
 
-    # Face-down pile. Index 0 is the TOP of the pile: new cards are placed on
-    # top, and peeking draws from the top and returns to the bottom.
+    # Face-down pile. Index 0 is the TOP: new cards are placed on top, and a
+    # look flips the top card into `revealed`.
     pile: list[Card] = field(default_factory=list)
+
+    # Face up beside the pile, where a look puts what it found. Public to both
+    # players: the Insurgency could always compute what the Empire had seen, so
+    # putting the cards on the table costs it nothing and saves both sides the
+    # bookkeeping. These still count in full at resolution.
+    revealed: list[Card] = field(default_factory=list)
 
     # Empire troops standing here. Resolution spends them: they are removed
     # from play, which is what makes committing to a town cost something.
@@ -72,6 +78,15 @@ class Town:
     def has_empire_presence(self) -> bool:
         """Whether the Empire may generate here."""
         return self.troops > 0
+
+    @property
+    def cards(self) -> list[Card]:
+        """Everything committed to this town, face down or face up."""
+        return self.pile + self.revealed
+
+    @property
+    def card_count(self) -> int:
+        return len(self.pile) + len(self.revealed)
 
 
 @dataclass
@@ -109,10 +124,6 @@ class GameState:
     round_number: int = 1
     game_over: bool = False
 
-    # Uids of cards the Empire has looked at. Card identities never change, so
-    # once seen a card stays known.
-    empire_known_uids: set[int] = field(default_factory=set)
-
     # Human-readable record of what happened, for notebooks and debugging.
     log: list[str] = field(default_factory=list)
 
@@ -122,7 +133,8 @@ class GameState:
             towns={
                 tid: Town(
                     id=t.id, label=t.label, neighbors=t.neighbors,
-                    pile=list(t.pile), troops=t.troops, resolved=t.resolved,
+                    pile=list(t.pile), revealed=list(t.revealed),
+                    troops=t.troops, resolved=t.resolved,
                     winner=t.winner, resolved_influence=t.resolved_influence,
                     resolved_strength=t.resolved_strength,
                 )
@@ -134,7 +146,6 @@ class GameState:
             to_move=self.to_move,
             round_number=self.round_number,
             game_over=self.game_over,
-            empire_known_uids=set(self.empire_known_uids),
             log=list(self.log),
         )
 
@@ -150,7 +161,7 @@ class GameState:
 
     def influence_in(self, town_id: str) -> int:
         """True total influence in a pile. Omniscient: the Empire cannot see this."""
-        return sum(c.influence for c in self.towns[town_id].pile)
+        return sum(c.influence for c in self.towns[town_id].cards)
 
     def strength_in(self, town_id: str) -> int:
         return self.towns[town_id].troops * self.scenario.unit.strength
@@ -209,7 +220,7 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     if town.resolved:
         raise IllegalMove(f"{town_id} is already resolved")
 
-    influence = sum(c.influence for c in town.pile)
+    influence = sum(c.influence for c in town.cards)
     strength = town.troops * state.scenario.unit.strength
 
     if strength > influence:
@@ -230,13 +241,14 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     town.resolved_influence = influence
     town.resolved_strength = strength
 
-    # Everything committed here is spent. The pile stays face up as a public
-    # record of the fight; the troops are removed from play entirely.
+    # Everything committed here is spent. The troops are removed from play
+    # entirely; the cards stay as a public record of the fight.
     if state.scenario.consume_troops:
         town.troops = 0
 
-    # The flip is public, so both players now know these cards.
-    state.empire_known_uids.update(c.uid for c in town.pile)
+    # Resolution flips whatever is left face up, so the whole town is public.
+    town.revealed.extend(town.pile)
+    town.pile.clear()
 
     who = "auto" if declared_by is None else declared_by.value
     state.log.append(
@@ -271,7 +283,7 @@ def _can_declare(state: GameState, town_id: str, side: Side) -> bool:
         return False
     if side is Side.EMPIRE:
         return town.troops > 0
-    return len(town.pile) > 0
+    return town.card_count > 0
 
 
 def legal_resolutions(state: GameState, side: Side) -> list[str]:
@@ -381,7 +393,7 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
 
     # 3. Look. Every troop that did not move peeks; peeks stack per town.
     for town in state.towns.values():
-        if town.resolved or not town.pile:
+        if town.resolved or not town.pile:  # nothing left face down to read
             continue
         # town.troops already reflects both departures and arrivals, so the
         # troops that held still are whatever is left once arrivals are removed.
@@ -406,15 +418,16 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
 
 
 def _peek(state: GameState, town: Town, look_count: int) -> None:
-    """Draw from the top, look, return to the bottom (Decision 8).
+    """Flip the top card of the face-down pile face up (Decision 8).
 
-    Looking at more cards than the pile holds is pointless — after a full
-    cycle you are re-reading cards you just saw — so it is capped.
+    The card leaves the pile and sits beside it, so a look never lands on a
+    card that is already known and the pile is only ever unknowns. There is
+    nothing to cap and no rotation to track: when the pile is empty the
+    garrison has read the town, and further looks do nothing until the
+    Insurgency adds more.
     """
     for _ in range(min(look_count, len(town.pile))):
-        card = town.pile.pop(0)
-        state.empire_known_uids.add(card.uid)
-        town.pile.append(card)
+        town.revealed.append(town.pile.pop(0))
 
 
 # ---------------------------------------------------------------------------

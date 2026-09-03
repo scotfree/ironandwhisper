@@ -139,9 +139,10 @@ def test_resolution_reveals_the_pile_to_the_empire():
     st = state()
     seed_pile(st, "a", influence=2, dummies=2)
     uids = {c.uid for c in st.towns["a"].pile}
-    assert not (uids & st.empire_known_uids)
+    assert not st.towns["a"].revealed
     resolve_town(st, "a", Side.INSURGENCY)
-    assert uids <= st.empire_known_uids
+    assert {c.uid for c in st.towns["a"].revealed} == uids
+    assert not st.towns["a"].pile, "resolution turns the whole town face up"
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +208,7 @@ def test_placed_cards_land_on_top_of_the_pile():
 # Peeking (Decision 8)
 # ---------------------------------------------------------------------------
 
-def test_a_stationary_troop_reads_one_card_per_turn_and_cycles_the_pile():
+def test_a_stationary_troop_reads_one_card_per_turn():
     st = state()
     st.towns["a"].troops = 1
     seed_pile(st, "a", influence=3)
@@ -216,11 +217,50 @@ def test_a_stationary_troop_reads_one_card_per_turn_and_cycles_the_pile():
     for expected_known in (1, 2, 3):
         st.to_move = Side.EMPIRE
         apply_empire_turn(st, EmpireTurn())
-        assert len(st.empire_known_uids) == expected_known
+        assert len(st.towns["a"].revealed) == expected_known
 
-    assert set(uids) == st.empire_known_uids
-    # A full cycle returns the pile to its original order.
-    assert [c.uid for c in st.towns["a"].pile] == uids
+    # The pile holds only what is still unknown, so it empties as it is read.
+    assert [c.uid for c in st.towns["a"].revealed] == uids
+    assert st.towns["a"].pile == []
+
+
+def test_a_look_is_never_spent_on_a_card_already_face_up():
+    """The point of setting cards aside: the pile holds only unknowns."""
+    st = state()
+    st.towns["a"].troops = 1
+    seed_pile(st, "a", influence=2)
+
+    for _ in range(4):
+        st.to_move = Side.EMPIRE
+        apply_empire_turn(st, EmpireTurn())
+
+    # Two cards, read once each. The spare turns had nothing left to find, and
+    # crucially did not re-read what was already known.
+    assert len(st.towns["a"].revealed) == 2
+
+    # A new card lands on top of an empty face-down pile and is read next turn.
+    st.hand = [Card(99, "influence", 1)]
+    st.to_move = Side.INSURGENCY
+    apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
+    apply_empire_turn(st, EmpireTurn())
+    assert 99 in {c.uid for c in st.towns["a"].revealed}
+
+
+def test_revealed_cards_still_count_at_resolution():
+    """Face up is not out of play: the town is worth its whole contents."""
+    st = state()
+    st.towns["a"].troops = 1
+    seed_pile(st, "a", influence=4)
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn())
+    assert len(st.towns["a"].revealed) == 1, "one card is face up"
+    assert len(st.towns["a"].pile) == 3
+
+    # 4 influence against 3 strength. If the face-up card had stopped counting
+    # it would be 3 against 3, and the Empire would take it on the tie.
+    winner = resolve_town(st, "a", Side.INSURGENCY)
+    assert st.towns["a"].resolved_influence == 4
+    assert winner is Side.INSURGENCY
 
 
 def test_peeks_stack_across_stationary_troops():
@@ -229,7 +269,8 @@ def test_peeks_stack_across_stationary_troops():
     seed_pile(st, "a", influence=5)
     st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn())
-    assert len(st.empire_known_uids) == 3
+    assert len(st.towns["a"].revealed) == 3
+    assert len(st.towns["a"].pile) == 2
 
 
 def test_a_troop_that_moved_does_not_peek():
@@ -238,12 +279,12 @@ def test_a_troop_that_moved_does_not_peek():
     seed_pile(st, "b", influence=3)
     st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
-    assert st.empire_known_uids == set()
+    assert st.towns["b"].revealed == []
 
     # ...but it reads the pile from the following turn onward.
     st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn())
-    assert len(st.empire_known_uids) == 1
+    assert len(st.towns["b"].revealed) == 1
 
 
 def test_the_empire_reads_the_newest_card_first():
@@ -253,7 +294,7 @@ def test_the_empire_reads_the_newest_card_first():
     st.hand = [Card(99, "influence", 1)]
     apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
     apply_empire_turn(st, EmpireTurn())
-    assert 99 in st.empire_known_uids
+    assert [c.uid for c in st.towns["a"].revealed] == [99]
 
 
 # ---------------------------------------------------------------------------

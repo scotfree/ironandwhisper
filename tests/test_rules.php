@@ -31,7 +31,7 @@ function rulesPile(array $types, int $firstId = 1): array
 function rulesTown(array $overrides = []): array
 {
     return array_merge(
-        ['neighbors' => [], 'troops' => 0, 'resolved' => false, 'pile' => []],
+        ['neighbors' => [], 'troops' => 0, 'resolved' => false, 'pile' => [], 'revealed' => []],
         $overrides,
     );
 }
@@ -277,25 +277,39 @@ function test_a_town_with_no_pile_is_not_peeked(): void
     assertSame([], Rules::peekPlan($towns, [], 1));
 }
 
-function test_the_empire_reads_the_newest_card_first_and_cycles_the_pile(): void
+function test_the_empire_reads_the_newest_card_first(): void
 {
-    // Decision 8: new cards go on top, a look takes from the top and returns to
-    // the bottom, so a garrison eventually reads the whole pile.
+    // Decision 8: new cards go on top, and a look turns the top card face up.
     $pile = rulesPile(['influence', 'dummy', 'dummy']);
 
-    $first = Rules::rotatePile($pile, 1);
-    assertSame([1], $first['seen'], 'the top card is the newest one placed');
-    assertSame([2, 3, 1], array_column($first['pile'], 'id'), 'and goes to the bottom');
-
-    $second = Rules::rotatePile($first['pile'], 1);
-    assertSame([2], $second['seen']);
+    assertSame([1], Rules::revealFromPile($pile, 1), 'the top card is the newest one placed');
+    assertSame([1, 2], Rules::revealFromPile($pile, 2), 'two looks take the top two');
 }
 
-function test_looking_at_more_cards_than_the_pile_holds_is_capped(): void
+function test_a_look_cannot_take_more_than_the_pile_holds(): void
 {
-    $pile = rulesPile(['influence', 'dummy']);
-    $rotated = Rules::rotatePile($pile, 5);
+    // The pile only ever holds cards nobody has seen, so there is nothing to
+    // re-read and nothing to cap beyond running out.
+    assertSame([1, 2], Rules::revealFromPile(rulesPile(['influence', 'dummy']), 5));
+    assertSame([], Rules::revealFromPile([], 3), 'a town read to the bottom yields nothing');
+}
 
-    assertSame([1, 2], $rotated['seen'], 'no re-reading cards you just saw');
-    assertSame([1, 2], array_column($rotated['pile'], 'id'), 'a full cycle returns the pile as it was');
+function test_face_up_cards_still_count_towards_the_town(): void
+{
+    $town = rulesTown([
+        'troops' => 1,
+        'pile' => rulesPile(['influence', 'dummy']),
+        'revealed' => rulesPile(['influence', 'influence'], 10),
+    ]);
+
+    assertSame(3, Rules::townInfluence($town), 'face up is not out of play');
+    assertSame(4, Rules::townCardCount($town));
+}
+
+function test_the_insurgency_holds_a_town_it_has_only_face_up_cards_in(): void
+{
+    // Everything read does not mean everything gone: presence is presence.
+    $towns = rulesBoard(['a' => ['revealed' => rulesPile(['influence'])]]);
+
+    assertTrue(Rules::canDeclare($towns, 'a', Rules::INSURGENCY));
 }

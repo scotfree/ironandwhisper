@@ -113,10 +113,14 @@ export class InsurgencyTurn {
         return this.game.hand.filter(card => this.assigned[card.id] === undefined);
     }
 
-    /** How many cards a town's pile will hold once this turn is committed. */
+    /**
+     * How many cards a town will hold once this turn is committed, face down
+     * and face up alike — a town the Empire has read to the bottom is still a
+     * town the Insurgency has presence in.
+     */
     private pileAfterStaging(townId: string): number {
         const staged = Object.values(this.assigned).filter(target => target === townId).length;
-        return this.game.board.getTown(townId).pileSize + staged;
+        return this.game.board.getTown(townId).cardCount + staged;
     }
 
     // -- display ------------------------------------------------------------

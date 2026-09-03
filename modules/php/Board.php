@@ -66,7 +66,12 @@ final class Board
 
     /**
      * The whole board in the shape Rules works on, keyed by town id and in map
-     * order. Piles are ordered with index 0 on top.
+     * order.
+     *
+     * A town's cards come back in two parts: `pile` is what is still face down,
+     * index 0 on top, and `revealed` is what has been turned face up beside it.
+     * `empire_seen` is what separates them — turning a card face up is the only
+     * thing that sets it, and resolution sets it for everything at once.
      *
      * @return array<string, array>
      */
@@ -78,8 +83,13 @@ final class Board
         );
 
         $piles = [];
+        $revealed = [];
         foreach ($this->pileCards() as $card) {
-            $piles[$card['townId']][] = $card;
+            if ($card['seen']) {
+                $revealed[$card['townId']][] = $card;
+            } else {
+                $piles[$card['townId']][] = $card;
+            }
         }
 
         $towns = [];
@@ -97,6 +107,7 @@ final class Board
                 'resolvedInfluence' => (int) $row['resolved_influence'],
                 'resolvedStrength' => (int) $row['resolved_strength'],
                 'pile' => $piles[$townId] ?? [],
+                'revealed' => $revealed[$townId] ?? [],
             ];
         }
         return $towns;
@@ -227,25 +238,12 @@ final class Board
     }
 
     /**
-     * Rewrite a pile's order from a list of cards, index 0 on top.
+     * Turn cards face up. They stay where they are in the town and still count
+     * at resolution; they simply leave the face-down pile.
      *
-     * @param array<int, array{id: int}> $pile
+     * @param int[] $cardIds
      */
-    public function writePile(string $townId, array $pile): void
-    {
-        $location = self::pileLocation($townId);
-        foreach (array_values($pile) as $order => $card) {
-            Game::DbQuery(sprintf(
-                "UPDATE `iaw_card` SET `location_order` = %d WHERE `card_id` = %d AND `card_location` = '%s'",
-                $order,
-                (int) $card['id'],
-                $location,
-            ));
-        }
-    }
-
-    /** @param int[] $cardIds */
-    public function markSeen(array $cardIds): void
+    public function reveal(array $cardIds): void
     {
         if (!$cardIds) {
             return;

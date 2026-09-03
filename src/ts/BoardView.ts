@@ -92,6 +92,7 @@ export class BoardView {
                 <div class="iaw-town-name">${town.label}</div>
                 <div class="iaw-town-troops"></div>
                 <div class="iaw-town-pile"></div>
+                <div class="iaw-town-revealed"></div>
                 <div class="iaw-town-result"></div>
                 <div class="iaw-town-pending"></div>
             </div>
@@ -141,8 +142,13 @@ export class BoardView {
             ? `<span class="iaw-troops">${town.troops}</span>`
             : '';
 
+        // Two areas, as on a table: the face-down stack, and the cards a
+        // garrison has turned over lying face up beside it.
         const pile = element.querySelector('.iaw-town-pile') as HTMLElement;
         pile.innerHTML = town.pile.map(card => this.cardHtml(card)).join('');
+
+        const revealed = element.querySelector('.iaw-town-revealed') as HTMLElement;
+        revealed.innerHTML = town.revealed.map(card => this.cardHtml(card)).join('');
 
         const result = element.querySelector('.iaw-town-result') as HTMLElement;
         result.textContent = town.resolved
@@ -155,9 +161,8 @@ export class BoardView {
     }
 
     /**
-     * A face-down card is drawn as a blank: the Empire knows a card is there and
-     * where it sits in the pile, which it could work out anyway from the pile
-     * heights it watches change.
+     * A face-down card is drawn as a blank. Everything in the revealed row is
+     * face up by definition, so it always arrives with a face.
      */
     private cardHtml(card: CardView): string {
         if (card.type === null) {

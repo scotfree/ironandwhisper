@@ -122,7 +122,7 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 | Troop generation | 1 per turn, total | Not per town. See Decision 2. |
 | Infantry — Strength | 3 | Deliberately higher than one card so troops are "heavy." |
 | Infantry — Movement | 1 | Edges per turn. |
-| Infantry — Peek | 1 | Cards a stationary troop may secretly view. |
+| Infantry — Peek | 1 | Cards a stationary troop turns face up each turn. |
 | Rebel hand size | 5 | Drawn and fully placed each Insurgency turn. |
 | Rebel deck size | 60 | Finite, no reshuffle. Sets game length. |
 | Deck influence : dummy | 36 : 24 | Influence cards are worth 1 each. See the note below. |
@@ -195,24 +195,31 @@ Under Decision 9, this is less punishing than it sounds: **dummies are free to l
 
 Alternative considered: ties go to whoever did *not* declare, which makes speculative resolution risky. Better in isolation, but one more thing to hold in your head, and the MVP does not need it.
 
-### 8. Peeking uses a deterministic pile: draw from top, return to bottom
+### 8. Looking turns the top card face up, and it stays that way
 
-**Why:** this self-bookkeeps. A pile `[A B C]` peeked at 1/turn shows A, then B, then C, then cycles — full discovery in as many turns as the pile is tall, with no positions to track and no choices to agonize over. New cards go on top.
+**Why:** this self-bookkeeps, and it is what you would do with real cards. Each town has a face-down pile and a face-up area beside it. A look takes the top card of the pile and lays it face up in that area, where it stays for the rest of the game. New cards go on top of the face-down pile.
+
+**Face-up cards still count in full at resolution.** Turning a card over tells you what it is; it does not take it out of the fight.
+
+There is therefore no rotation to track, nothing to cap, and no such thing as a wasted look: the face-down pile holds only cards nobody has seen, so a look always buys information, and when the pile is empty the garrison has read the town and waits for the Insurgency to add more.
+
+> **This was originally a rotating pile** — draw from the top, return to the bottom, cycle forever. It behaved almost identically, because a garrison that has cycled a pile already knows everything in it, and the simulator measured the difference at well under a percentage point of win rate. The face-up version was adopted because it is simpler to state, simpler to implement, and matches what the table looks like.
 
 Fine print:
 - Several cards placed into the same town on the same turn go on **one at a time, in the order the Insurgency chooses**, so the last one placed is the first one read. This is a real lever, not bookkeeping: it decides which of this turn's cards a garrison sees first, and it is the Insurgency's to set.
 - Multiple stationary troops in one town **stack their Peek**.
 - A troop must start *and* end the turn in the town without moving. Troops arriving this turn cannot look until next turn.
-- A look is a private snapshot. The Insurgency is not notified — though since stationary troops are public, it can infer that looks happened.
+- A look is **public**. The card is face up on the table, so both players see it. This gives the Insurgency nothing it did not have: it knows every card it placed and troop positions are visible, so it could always compute exactly what the Empire had seen. Putting the cards face up only spares both players the arithmetic.
 
 Two consequences worth knowing:
 
-- **The Empire always sees the newest card first**, since new cards land on top. A garrison therefore gives excellent *recent* intelligence and poor *historical* coverage. This self-balances on throughput: a stationary troop reads one card per turn, so if the Insurgency dumps three cards a turn into that town the Empire falls behind 3:1 and needs several stationary troops to keep pace — and stationary troops are not advancing anywhere.
-- **The Insurgency can compute exactly what the Empire has seen.** Peek count is public (stationary troops are visible) and the cycling is fully deterministic. That is a far better foundation for bluffing than a random-sample peek, which only ever gives a probability distribution over what the opponent believes. Here you can build a bluff on a *known* false belief. It is heavy bookkeeping for a human, but trivial for the client to display.
+- **The Empire always sees the newest card first**, since new cards land on top of the face-down pile. A garrison therefore gives excellent *recent* intelligence and poor *historical* coverage. This self-balances on throughput: a stationary troop reads one card per turn, so if the Insurgency dumps three cards a turn into that town the Empire falls behind 3:1 and needs several stationary troops to keep pace — and stationary troops are not advancing anywhere.
+- **Both players know exactly what the Empire has seen**, because it is lying face up in front of them. You can therefore build a bluff on a *known* false belief, which is a far better foundation than a random-sample peek that only ever yields a probability distribution over what your opponent thinks.
+- **A read town is not a safe town.** Once the Empire has turned a pile face up it knows precisely what that town is worth, but the cards still count, and the Insurgency can keep adding to the face-down pile on top.
 
 ### 9. Everything in a resolved town stays, face up, out of play
 
-**Why:** simpler than removing pieces to a discard pile, and the board becomes a record of the game. Cards stay where they are and do nothing further. Troops do **not** stay: they are spent (Decision 3), so a resolved town ends up holding a face-up pile and no garrison, and stops anchoring generation.
+**Why:** simpler than removing pieces to a discard pile, and the board becomes a record of the game. Resolution turns anything still face down face up, so the whole town is public afterwards, and the cards do nothing further. Troops do **not** stay: they are spent (Decision 3), so a resolved town ends up holding a face-up pile and no garrison, and stops anchoring generation.
 
 The significant side effect: **face-up resolved piles make the finite deck countable.** By mid-game both players can count revealed influence and infer how much real strength remains in the deck and in hand. The fog thins on its own as the game progresses, so early play is pure guessing and the endgame is sharp and calculable — and dummies get weaker precisely when the stakes are highest. Card counting becomes a genuine skill without a single extra rule.
 

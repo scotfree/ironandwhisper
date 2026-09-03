@@ -126,64 +126,59 @@ class EmpireTurn extends GameState
     }
 
     /**
-     * Rotate the piles the stationary troops looked at, and tell the Empire —
-     * and only the Empire — what they found.
+     * Turn the top card of each watched pile face up.
      *
-     * The rotation itself is public: it follows from troop positions, which
-     * both players can see, so the Insurgency is told how many cards moved
-     * without being told which.
+     * This is public. The cards physically sit face up beside their town, and
+     * the Insurgency could always work out exactly what the Empire had seen —
+     * it knows what it placed and troop positions are visible — so putting them
+     * on the table costs it nothing and spares both players the bookkeeping.
      *
      * @param array<string, array> $towns    board after generation and movement
      * @param array<string, int> $arrivals
      */
-    private function peek(array $towns, array $arrivals, int $empirePlayerId): void
+    private function peek(array $towns, array $arrivals, int $activePlayerId): void
     {
         $looks = Rules::peekPlan($towns, $arrivals, $this->game->scenario->unitPeek());
         if (!$looks) {
             return;
         }
 
-        $seenByTown = [];
-        $countsByTown = [];
+        $revealed = [];
         foreach ($looks as $townId => $lookCount) {
-            $rotated = Rules::rotatePile($towns[$townId]['pile'], $lookCount);
-            if (!$rotated['seen']) {
+            $cardIds = Rules::revealFromPile($towns[$townId]['pile'], $lookCount);
+            if (!$cardIds) {
                 continue;
             }
 
-            $this->game->board->writePile($townId, $rotated['pile']);
-            $this->game->board->markSeen($rotated['seen']);
+            $this->game->board->reveal($cardIds);
 
             $byId = [];
             foreach ($towns[$townId]['pile'] as $card) {
                 $byId[$card['id']] = $card;
             }
-            $seenByTown[$townId] = array_map(
+            $revealed[$townId] = array_map(
                 fn(int $cardId) => [
                     'id' => $cardId,
                     'type' => $byId[$cardId]['type'],
                     'influence' => $byId[$cardId]['influence'],
                 ],
-                $rotated['seen'],
+                $cardIds,
             );
-            $countsByTown[$townId] = count($rotated['seen']);
         }
 
-        if (!$countsByTown) {
+        if (!$revealed) {
             return;
         }
 
-        $this->notify->all('pilesRotated', '', [
-            'counts' => $countsByTown,
-        ]);
-
-        $this->notify->player(
-            $empirePlayerId,
-            'peekResult',
-            clienttranslate('Your troops look into ${count} piles'),
+        $count = array_sum(array_map('count', $revealed));
+        $this->notify->all(
+            'cardsRevealed',
+            clienttranslate('${player_name} turns ${count} cards face up'),
             [
-                'count' => count($seenByTown),
-                'seen' => $seenByTown,
+                'player_id' => $activePlayerId,
+                'player_name' => $this->game->getPlayerNameById($activePlayerId),
+                'count' => $count,
+                'revealed' => $revealed,
             ],
         );
     }

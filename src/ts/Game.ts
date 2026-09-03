@@ -159,7 +159,8 @@ export class Game {
                 const known = this.cardById(cardId);
                 town.pile.unshift(known ?? { id: cardId, type: null, influence: null });
             });
-            town.pileSize += cardIds.length;
+            town.pileSize = town.pile.length;
+            town.cardCount += cardIds.length;
             this.board.updateTown(townId);
         });
 
@@ -178,28 +179,17 @@ export class Game {
     }
 
     /**
-     * A look takes cards off the top and returns them to the bottom. Everyone
-     * is told how many moved, because troop positions make it derivable; only
-     * the Empire is told what they were.
+     * A look turns the top card of a pile face up, where it stays. This is
+     * public: the cards are on the table, and the Insurgency could work out
+     * what the Empire had seen in any case.
      */
-    async notif_pilesRotated(args: { counts: Record<string, number> }) {
-        Object.entries(args.counts).forEach(([townId, count]) => {
-            const pile = this.board.getTown(townId).pile;
-            pile.push(...pile.splice(0, count));
-            this.board.updateTown(townId);
-        });
-    }
-
-    async notif_peekResult(args: { seen: Record<string, CardView[]> }) {
-        Object.entries(args.seen).forEach(([townId, cards]) => {
-            const pile = this.board.getTown(townId).pile;
-            cards.forEach(seen => {
-                const card = pile.find(entry => entry.id === seen.id);
-                if (card) {
-                    card.type = seen.type;
-                    card.influence = seen.influence;
-                }
-            });
+    async notif_cardsRevealed(args: { revealed: Record<string, CardView[]> }) {
+        Object.entries(args.revealed).forEach(([townId, cards]) => {
+            const town = this.board.getTown(townId);
+            const turned = new Set(cards.map(card => card.id));
+            town.pile = town.pile.filter(card => !turned.has(card.id));
+            town.revealed.push(...cards);
+            town.pileSize = town.pile.length;
             this.board.updateTown(townId);
         });
     }
@@ -216,8 +206,10 @@ export class Game {
         town.winner = args.winner;
         town.resolvedInfluence = args.influence;
         town.resolvedStrength = args.strength;
-        // Face up from here on, to both players.
-        town.pile = args.pile;
+        // Resolution turns the whole town face up.
+        town.revealed = args.pile;
+        town.pile = [];
+        town.pileSize = 0;
         town.troops = 0;
         this.board.updateTown(args.town_id);
     }

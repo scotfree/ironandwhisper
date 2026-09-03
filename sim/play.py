@@ -68,7 +68,7 @@ def render_board(state: GameState, view: Side | None = None) -> str:
     for town in state.towns.values():
         troops = str(town.troops) if town.troops else "·"
 
-        pile_size = len(town.pile)
+        pile_size = town.card_count
         intel = ""
 
         if town.resolved:
@@ -81,10 +81,10 @@ def render_board(state: GameState, view: Side | None = None) -> str:
             if not pile_size:
                 intel = ""
             elif view is Side.INSURGENCY or view is None:
-                influence = sum(c.influence for c in town.pile)
+                influence = sum(c.influence for c in town.cards)
                 intel = f"influence {influence} of {pile_size}"
             elif view is Side.EMPIRE:
-                known = [c for c in town.pile if c.uid in state.empire_known_uids]
+                known = town.revealed
                 if known:
                     known_influence = sum(c.influence for c in known)
                     intel = (
@@ -129,7 +129,7 @@ def render_map(state: GameState) -> str:
                 continue
             town = state.towns[town_def.id]
             mark = "#" if town.resolved else " "
-            cells.append(f"{town.label[:8]:<8}{len(town.pile):>2}/{town.troops:<1}{mark}")
+            cells.append(f"{town.label[:8]:<8}{town.card_count:>2}/{town.troops:<1}{mark}")
             east = by_position.get((x + 1, y))
             links.append("---" if east and east.id in neighbors[town_def.id] else "   ")
         lines.append("".join(c + l for c, l in zip(cells, links)).rstrip())

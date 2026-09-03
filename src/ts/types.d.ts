@@ -19,8 +19,12 @@ interface TownView {
     winner: Side | null;
     resolvedInfluence: number;
     resolvedStrength: number;
+    /** Cards still face down. Only the Insurgency is sent their faces. */
     pileSize: number;
     pile: CardView[];
+    /** Face up beside the pile, visible to everyone, still counting at resolution. */
+    revealed: CardView[];
+    cardCount: number;
 }
 
 interface TownDef {

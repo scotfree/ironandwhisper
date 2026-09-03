@@ -188,10 +188,11 @@ class Game extends \Bga\GameFramework\Table
                 'declaredBy' => $declaredBy,
                 'player_id' => $winnerPlayerId,
                 'player_name' => $this->getPlayerNameById($winnerPlayerId),
-                // Face up from now on: everyone sees the pile.
+                // Resolution turns whatever was still face down face up, so
+                // this carries the town's whole contents to both players.
                 'pile' => array_map(
                     fn(array $card) => ['id' => $card['id'], 'type' => $card['type'], 'influence' => $card['influence']],
-                    $town['pile'],
+                    array_merge($town['revealed'], $town['pile']),
                 ),
                 // Troops committed here are spent, not returned (Decision 3).
                 'troopsSpent' => $town['troops'],

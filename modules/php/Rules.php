@@ -13,10 +13,11 @@
  *     'neighbors' => string[],
  *     'troops'    => int,
  *     'resolved'  => bool,
- *     'pile'      => list of ['id' => int, 'type' => string, 'influence' => int],
+ *     'pile'      => face-down cards, list of ['id', 'type', 'influence'],
+ *     'revealed'  => face-up cards beside the pile, same shape,
  *   ]
- * Pile index 0 is the TOP. New cards are placed on top; peeking takes from the
- * top and returns to the bottom.
+ * Pile index 0 is the TOP. New cards are placed on top; a look flips the top
+ * card into `revealed`, where it stays. Both count at resolution.
  */
 declare(strict_types=1);
 
@@ -34,14 +35,26 @@ final class Rules
 
     // -- reading the board --------------------------------------------------
 
-    /** @param array<int, array{influence: int}> $pile */
-    public static function pileInfluence(array $pile): int
+    /**
+     * Everything committed to a town, face down and face up alike. Turning a
+     * card face up tells the Empire what it is; it does not take it out of the
+     * fight.
+     *
+     * @param array{pile: array, revealed: array} $town
+     */
+    public static function townInfluence(array $town): int
     {
         $total = 0;
-        foreach ($pile as $card) {
+        foreach (array_merge($town['pile'], $town['revealed']) as $card) {
             $total += (int) $card['influence'];
         }
         return $total;
+    }
+
+    /** @param array{pile: array, revealed: array} $town */
+    public static function townCardCount(array $town): int
+    {
+        return count($town['pile']) + count($town['revealed']);
     }
 
     public static function townStrength(int $troops, int $unitStrength): int
@@ -104,7 +117,7 @@ final class Rules
         }
         return $side === self::EMPIRE
             ? $town['troops'] > 0
-            : count($town['pile']) > 0;
+            : self::townCardCount($town) > 0;
     }
 
     /**
@@ -167,7 +180,7 @@ final class Rules
         }
 
         return self::resolutionOutcome(
-            self::pileInfluence($towns[$townId]['pile']),
+            self::townInfluence($towns[$townId]),
             self::townStrength((int) $towns[$townId]['troops'], $unitStrength),
             $empireWinsTies,
         );
@@ -287,6 +300,9 @@ final class Rules
      * `$towns` must already reflect generation and movement. A troop raised
      * this turn counts as stationary: it did not move.
      *
+     * A town whose pile is entirely face up has nothing left to read, so it is
+     * skipped: the pile only ever holds cards nobody has seen.
+     *
      * @param array<string, array> $towns    board after generation and movement
      * @param array<string, int> $arrivals   from planMoves()
      * @return array<string, int>            town id => number of cards to look at
@@ -308,26 +324,20 @@ final class Rules
     }
 
     /**
-     * Draw from the top, look, return to the bottom (Decision 8).
+     * Flip the top cards of the face-down pile face up (Decision 8).
      *
-     * Looking at more cards than the pile holds is pointless — after a full
-     * cycle you are re-reading cards you just saw — so it is capped.
+     * There is no rotation and nothing to cap. The pile holds only cards nobody
+     * has seen, so a look can never land on one that is already known, and when
+     * the pile is empty the garrison has read the town.
      *
-     * @param array<int, array{id: int}> $pile  index 0 = top
-     * @return array{pile: array, seen: int[]}  rotated pile, and the card ids looked at
+     * @param array<int, array{id: int}> $pile  face-down cards, index 0 = top
+     * @return int[]                            ids of the cards turned face up
      */
-    public static function rotatePile(array $pile, int $lookCount): array
+    public static function revealFromPile(array $pile, int $lookCount): array
     {
-        $pile = array_values($pile);
-        $seen = [];
-        $lookCount = min($lookCount, count($pile));
-
-        for ($i = 0; $i < $lookCount; $i++) {
-            $card = array_shift($pile);
-            $seen[] = (int) $card['id'];
-            $pile[] = $card;
-        }
-
-        return ['pile' => $pile, 'seen' => $seen];
+        return array_map(
+            static fn(array $card) => (int) $card['id'],
+            array_slice(array_values($pile), 0, max(0, $lookCount)),
+        );
     }
 }

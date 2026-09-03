@@ -10,13 +10,10 @@
  * The asymmetry is unusual and easy to get backwards:
  *
  *   The Insurgency placed every card, so it legitimately sees every pile in
- *   full. Peeking rotates piles, but rotation is determined by troop positions,
- *   which are public, so showing true order leaks nothing.
+ *   full, face down or not.
  *
- *   The Empire sees pile *heights*, the cards it has peeked at, and resolved
- *   piles, which are face up to everyone. It also sees where unknown cards sit
- *   in a pile, which it could derive anyway: placements change visible heights
- *   and rotations are its own doing.
+ *   Everyone sees the face-up cards beside a town, and the height of the
+ *   face-down pile. Nobody but the Insurgency sees what is still face down.
  *
  * sim/bots.py::EmpireBelief is the reference for exactly what the Empire is
  * entitled to know — it was written to read only Empire-legal information.
@@ -79,34 +76,47 @@ final class View
                 'resolvedInfluence' => $town['resolvedInfluence'],
                 'resolvedStrength' => $town['resolvedStrength'],
                 'pileSize' => count($town['pile']),
+                'cardCount' => Rules::townCardCount($town),
                 'pile' => self::pileView($town, $viewerSide),
+                'revealed' => self::cards($town['revealed']),
             ];
         }
         return $view;
     }
 
     /**
-     * A pile as the given side sees it, in true order with index 0 on top.
+     * The face-down pile as the given side sees it, index 0 on top.
      *
-     * An entry the viewer may not identify carries its card id and a null type:
-     * enough to draw a face-down card in the right place, and nothing more.
+     * Only the Insurgency sees faces here. For everyone else an entry carries
+     * its card id and a null type: enough to draw a face-down card in the right
+     * place, and nothing more. Card ids say nothing about what a card is, and
+     * the Empire needs them to match a card it turns over to one on screen.
      *
-     * @param array{resolved: bool, pile: array} $town
+     * @param array{pile: array} $town
      */
     public static function pileView(array $town, ?string $viewerSide): array
     {
-        $revealAll = $viewerSide === Rules::INSURGENCY || $town['resolved'];
-
-        $pile = [];
-        foreach ($town['pile'] as $card) {
-            // Peeked cards are the Empire's own knowledge, not public record.
-            $known = $revealAll
-                || ($viewerSide === Rules::EMPIRE && ($card['seen'] ?? false));
-            $pile[] = $known
-                ? ['id' => $card['id'], 'type' => $card['type'], 'influence' => $card['influence']]
-                : ['id' => $card['id'], 'type' => null, 'influence' => null];
+        if ($viewerSide === Rules::INSURGENCY) {
+            return self::cards($town['pile']);
         }
-        return $pile;
+
+        return array_map(
+            static fn(array $card) => ['id' => $card['id'], 'type' => null, 'influence' => null],
+            array_values($town['pile']),
+        );
+    }
+
+    /** @param array<int, array> $cards */
+    private static function cards(array $cards): array
+    {
+        return array_map(
+            static fn(array $card) => [
+                'id' => $card['id'],
+                'type' => $card['type'],
+                'influence' => $card['influence'],
+            ],
+            array_values($cards),
+        );
     }
 
     /**

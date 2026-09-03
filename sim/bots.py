@@ -47,9 +47,9 @@ def project_troops(state: GameState, generate_at: str | None,
 class EmpireBelief:
     """Estimates hidden influence from Empire-legal information only.
 
-    Every card is either known (peeked at, or face up in a resolved town) or
-    unknown. Total deck composition is public, so the expected influence of any
-    unknown card is just the ratio across all cards still unaccounted for.
+    Every card is either face up beside its town or face down in its pile.
+    Total deck composition is public, so the expected influence of any card
+    still face down is the ratio across everything unaccounted for.
     """
 
     def __init__(self, state: GameState):
@@ -59,10 +59,9 @@ class EmpireBelief:
         known_influence = 0
         known_count = 0
         for town in state.towns.values():
-            for card in town.pile:
-                if card.uid in state.empire_known_uids:
-                    known_influence += card.influence
-                    known_count += 1
+            for card in town.revealed:
+                known_influence += card.influence
+                known_count += 1
 
         total_cards = scenario.deck_size
         total_influence = scenario.total_influence
@@ -76,13 +75,8 @@ class EmpireBelief:
     def estimated_influence(self, town_id: str) -> float:
         """Best guess at the real influence sitting in an unresolved pile."""
         town = self.state.towns[town_id]
-        estimate = 0.0
-        for card in town.pile:
-            if card.uid in self.state.empire_known_uids:
-                estimate += card.influence
-            else:
-                estimate += self.unknown_rate
-        return estimate
+        known = sum(c.influence for c in town.revealed)
+        return known + len(town.pile) * self.unknown_rate
 
 
 # ---------------------------------------------------------------------------

@@ -148,15 +148,19 @@ function test_the_empire_generates_moves_and_looks(): void
     assertSame(3, $towns['everlan']['troops'], '3 + 1 raised - 1 marched away');
     assertSame(1, $towns['belmar']['troops']);
 
-    $after = array_column($towns['everlan']['pile'], 'id');
     assertSame(
-        array_merge(array_slice($before, 3), array_slice($before, 0, 3)),
-        $after,
-        'three troops stayed put, so three cards cycled to the bottom',
+        array_slice($before, 0, 3),
+        array_column($towns['everlan']['revealed'], 'id'),
+        'three troops stayed put, so the top three cards went face up',
+    );
+    assertSame(
+        array_slice($before, 3),
+        array_column($towns['everlan']['pile'], 'id'),
+        'and the pile holds only what is still unknown',
     );
 }
 
-function test_only_the_empire_is_told_what_it_saw(): void
+function test_turning_cards_face_up_is_public(): void
 {
     $game = newGame();
     enterNextTurn($game);
@@ -170,20 +174,16 @@ function test_only_the_empire_is_told_what_it_saw(): void
 
     empireTurn($game)->actCommitTurn(null, [], null, $empire);
 
-    $private = $game->bga->notify->of('peekResult');
-    assertSame(1, count($private), 'the peek result goes out exactly once');
-    assertSame($empire, $private[0]['player'], 'and only to the Empire');
+    // The cards are face up on the table, so this goes to the room. The
+    // Insurgency could compute it anyway: it knows what it placed and troop
+    // positions are public.
+    $sent = $game->bga->notify->of('cardsRevealed');
+    assertSame(1, count($sent));
+    assertSame('all', $sent[0]['scope'], 'face up means face up to everyone');
+    assertSame(3, count($sent[0]['args']['revealed']['everlan']), 'three troops read three cards');
 
-    $public = $game->bga->notify->of('pilesRotated');
-    assertSame(['everlan' => 3], $public[0]['args']['counts'], 'everyone learns how many cards moved');
-
-    foreach ($game->bga->notify->sent as $notification) {
-        if ($notification['scope'] === 'all') {
-            assertFalse(
-                array_key_exists('seen', $notification['args']),
-                "public notification {$notification['name']} must not carry peeked cards",
-            );
-        }
+    foreach ($sent[0]['args']['revealed']['everlan'] as $card) {
+        assertTrue($card['type'] !== null, 'and they carry their faces');
     }
 }
 
@@ -260,7 +260,7 @@ function test_the_empire_sees_pile_heights_but_not_faces(): void
 
     assertSame(5, $empireView['towns']['ashford']['pileSize'], 'heights are public');
     foreach ($empireView['towns']['ashford']['pile'] as $card) {
-        assertSame(null, $card['type'], 'but no unpeeked card shows its face');
+        assertSame(null, $card['type'], 'but no face-down card shows its face');
     }
     assertSame(null, $empireView['hand'], 'and the hand is not the Empire\'s business');
 
@@ -282,9 +282,13 @@ function test_the_empire_keeps_what_it_has_peeked_at(): void
     empireTurn($game)->actCommitTurn(null, [], null, $empire);
 
     $view = datasFor($game, $empire);
-    $known = array_filter($view['towns']['everlan']['pile'], fn(array $card) => $card['type'] !== null);
 
-    assertSame(3, count($known), 'three stationary troops read three cards');
+    assertSame(3, count($view['towns']['everlan']['revealed']), 'three stationary troops read three cards');
+    assertSame(2, $view['towns']['everlan']['pileSize'], 'two are still face down');
+    assertSame(5, $view['towns']['everlan']['cardCount']);
+    foreach ($view['towns']['everlan']['pile'] as $card) {
+        assertSame(null, $card['type'], 'and the Empire still cannot see those');
+    }
 }
 
 function test_a_resolved_pile_is_face_up_to_both_players(): void
@@ -365,7 +369,7 @@ function test_every_card_reaches_a_town_and_the_influence_adds_up(): void
     $cards = 0;
     $influence = 0;
     foreach ($game->board->towns() as $town) {
-        $cards += count($town['pile']);
+        $cards += Rules::townCardCount($town);
         $influence += $town['resolvedInfluence'];
     }
 
@@ -488,7 +492,8 @@ function test_a_spectator_sees_only_what_has_been_resolved(): void
     $view = datasFor($game, 999999);
 
     assertSame(null, $view['hand'], 'a spectator is not dealt into anything');
-    foreach ($view['towns']['ashford']['pile'] as $card) {
+    assertSame(0, $view['towns']['ashford']['pileSize'], 'a resolved town has nothing face down');
+    foreach ($view['towns']['ashford']['revealed'] as $card) {
         assertTrue($card['type'] !== null, 'a resolved pile is face up to the room');
     }
     foreach ($view['towns']['belmar']['pile'] as $card) {

@@ -19,6 +19,17 @@
   border-radius: 6px;
 }
 
+.iaw-town-revealed {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed rgb(81.1540616246%, 71.731092437%, 52.8851540616%);
+  min-height: 4px;
+}
+
 #iaw-roads {
   position: absolute;
   inset: 0;
@@ -55,14 +66,15 @@
   box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.35);
 }
 .iaw-town.resolved {
-  opacity: 0.75;
-  background: rgb(91.4397759104%, 87.1596638655%, 78.5994397759%);
+  opacity: 0.85;
 }
 .iaw-town.empire-held {
-  border-color: #7a3b2e;
+  border-color: #6b3fa0;
+  background: rgb(81.4274509804%, 75.9058823529%, 88.0784313725%);
 }
 .iaw-town.insurgency-held {
-  border-color: #2f4858;
+  border-color: #2e7d4f;
+  background: rgb(73.7725490196%, 83.6862745098%, 77.9137254902%);
 }
 
 .iaw-town-name {
@@ -78,7 +90,7 @@
   display: inline-block;
   min-width: 18px;
   padding: 0 4px;
-  background: #7a3b2e;
+  background: #6b3fa0;
   color: #fff;
   border-radius: 9px;
   font-weight: bold;
@@ -117,17 +129,19 @@
   background: #fff;
 }
 .iaw-card.face-down {
-  background: repeating-linear-gradient(45deg, #2f4858, #2f4858 3px, #3d5a6c 3px, #3d5a6c 6px);
-  border-color: #2f4858;
+  background: repeating-linear-gradient(45deg, #2e7d4f, #2e7d4f 3px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 3px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 6px);
+  border-color: rgb(12.6590987272%, 34.3997248022%, 21.740626075%);
 }
 .iaw-card.influence {
-  background: #d9e8f5;
-  border-color: #2f4858;
+  background: rgb(54.9215686275%, 71.9607843137%, 62.0392156863%);
+  border-color: rgb(12.6590987272%, 34.3997248022%, 21.740626075%);
+  color: #fff;
   font-weight: bold;
 }
 .iaw-card.dummy {
-  background: #eee;
-  color: #999;
+  background: rgb(90.1647058824%, 93.8823529412%, 91.7176470588%);
+  border-color: rgb(43.2156862745%, 55.6078431373%, 48.3921568627%);
+  color: rgb(23.4193326453%, 63.6394908841%, 40.2201582387%);
 }
 .iaw-card.hand {
   width: 26px;
@@ -198,4 +212,11 @@
   color: #666;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.iaw-town-revealed:empty {
+  border-top: none;
+  min-height: 0;
+  padding-top: 0;
+  margin-top: 0;
 }

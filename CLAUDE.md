@@ -57,9 +57,7 @@ Not done:
 - No stats defined in `stats.jsonc`.
 - No game-end statistics or tie-breaker.
 - No animations; the client redraws towns rather than moving anything.
-- The Empire's known cards are drawn face up in place in the pile. A separate "seen here"
-  row beside each town was agreed in principle — display only, the cards stay in the pile
-  and still count at resolution — but is not built.
+- No art: towns are drawn from map coordinates in CSS.
 
 ## Deploying
 
@@ -170,14 +168,14 @@ information has exactly one gate.
 |---|---|---|
 | `modules/php/Rules.php` | the rules, as pure functions over plain arrays | nothing |
 | `modules/php/Scenario.php` | loads `data/`, `maps/`, `scenarios/` | the JSON |
-| `modules/php/Board.php` | every read and write of `town` and `card` | the database |
+| `modules/php/Board.php` | every read and write of `iaw_town` and `iaw_card` | the database |
 | `modules/php/View.php` | what each side may see | Rules' shape |
 | `modules/php/Game.php` | setup, sides, scoring, `getAllDatas` | all of the above |
 | `modules/php/States/` | turn structure and notifications | all of the above |
 
 `Rules.php` is a direct port of the pure logic in `sim/engine.py`. It returns *plans* —
-`planMoves` gives departures and arrivals, `peekPlan` gives look counts, `rotatePile`
-gives the new order — and the state classes persist them. If the two disagree, the PHP is
+`planMoves` gives departures and arrivals, `peekPlan` gives look counts, `revealFromPile`
+names the cards to turn over — and the state classes persist them. If the two disagree, the PHP is
 wrong.
 
 **The state machine** is three states plus the framework's own:
@@ -194,22 +192,25 @@ wrong.
 it returns to `NextTurn`. Seat order does not decide who starts; the scenario does.
 
 **Data model.** Town geography is never stored — ids, labels, coordinates and adjacency
-come from the map JSON. The `card` table carries `card_location` (`deck`, `hand`, or
-`town:<id>`), `location_order` (**0 is the top of a pile**), and `empire_seen`, which is
-the simulator's `empire_known_uids`. BGA's `Deck` component is deliberately not used: it
-models a deck plus hands, and this game needs a dozen ordered piles that rotate under
-peeking while card identity stays stable.
+come from the map JSON. `iaw_card` carries `card_location` (`deck`, `hand`, or
+`town:<id>`), `location_order` (**0 is the top of a pile**), and `empire_seen`.
 
-**Hidden information** goes through `View::forSide` and nowhere else.
+`empire_seen` is the whole face-down/face-up distinction: a town's *pile* is its cards with
+`empire_seen = 0` in `location_order`, and its *revealed* area is the rest. Looking sets the
+flag; resolution sets it for everything in the town at once. BGA's `Deck` component is not
+used — it models a deck plus hands, and this needs a dozen ordered piles with stable card
+identity.
 
-- The **Insurgency** placed every card, so it sees every pile in full. Rotation follows
-  from troop positions, which are public, so true order leaks nothing.
-- The **Empire** sees pile heights, the cards it has peeked at, and resolved piles. It also
-  sees *where* unknown cards sit, which it could derive anyway.
-- A **spectator** sees resolved piles and nothing else.
+**Hidden information** goes through `View::forSide` and nowhere else. Only the face-down
+pile is secret:
+
+- The **Insurgency** placed every card, so it sees everything, face down or not.
+- **Everyone** sees the face-up cards beside a town and the *height* of the face-down pile.
+  That is why `cardsRevealed` is a `notify->all` carrying real faces, and why it is correct.
+- A **spectator** is simply somebody with no hand and no face-down vision.
 
 Card **ids** are public: they reveal nothing about type, the Empire already gets them from
-`getAllDatas`, and the client needs them to match a peek result to a card on screen. The
+`getAllDatas`, and the client needs them to match a card turned over to one on screen. The
 public placement notification therefore carries ids and no types; the Insurgency's client
 fills the faces in from the hand it already holds.
 
@@ -253,10 +254,13 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
    that board-shrinking (question 1) becomes the Empire's only line rather than its best
    one. Test it in `sim/` behind a scenario flag before any PHP changes; nothing known
    about peeking or shrinking survives the change automatically.
-3. **Side-swap matches.** A full match is arguably two games with the sides traded. The
+3. **Deck order as a mechanic.** Piles are now physical — a face-down stack and a face-up
+   area — which leaves room for shuffling a town, burying a card, or turning a revealed card
+   back down. Nothing is designed; the structure is simply there for it.
+4. **Side-swap matches.** A full match is arguably two games with the sides traded. The
    groundwork is there — sides live in `player.player_side`, set from game option 100 — but
    nothing implements it.
-4. **Playtest the 36:24 numbers.** They come from the simulator and no human has played
+5. **Playtest the 36:24 numbers.** They come from the simulator and no human has played
    them.
 
 ## Decisions & Constraints
@@ -289,9 +293,9 @@ Constraints the port itself introduced:
   bug can be reproduced in a second rather than a deploy cycle.
 - **All player-visible filtering goes through `View::forSide`.** One function to get right
   and one function to test. Nothing else may assemble a payload for a client.
-- **Peek results go out by `notify->player` to the Empire, never `notify->all`.** There is
-  a test that walks every notification of a whole game and fails if a public one carries a
-  card face.
+- **The face-down pile is the only secret.** `View::pileView` sends its contents to the
+  Insurgency alone; everyone else gets ids with null types. Face-up cards are public by
+  definition and go out to all.
 - **The client sends an empty string where it means null.** BGA action parameters travel as
   strings, so both turn actions normalise `''` to `null` before anything else happens.
   Without that, "resolve nothing" looks like a request to resolve a town named `""`.
