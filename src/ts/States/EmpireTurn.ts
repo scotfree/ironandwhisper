@@ -28,16 +28,32 @@ export class EmpireTurn {
     }
 
     onEnteringState(args: EmpireTurnArgs, isCurrentPlayerActive: boolean) {
-        this.args = args;
+        console.log('EmpireTurn.onEnteringState', { args, isCurrentPlayerActive, you: this.game.side });
+
+        // Defensive: a throw in here takes the whole handler with it, and the
+        // symptom is a board where nothing is clickable and no buttons appear.
+        this.args = {
+            generationTowns: args?.generationTowns ?? [],
+            resolvable: args?.resolvable ?? [],
+        };
         this.reset();
 
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} must move'));
+            this.game.setStagingText(this.watchingHtml());
             return;
         }
 
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.refresh();
+    }
+
+    /**
+     * Shown when it is the Empire's turn and you are not the Empire. Without
+     * this the screen is indistinguishable from a broken one.
+     */
+    private watchingHtml(): string {
+        return `<div class="iaw-hint">${_('The Empire is moving. You are the Insurgency, so there is nothing to do until it is your turn.')}</div>`;
     }
 
     onLeavingState() {
@@ -52,7 +68,7 @@ export class EmpireTurn {
         this.source = null;
         this.resolveTarget = null;
         // Skip straight to marching if there is nowhere legal to raise.
-        this.step = (this.args?.generationTowns.length ?? 0) > 0 ? 'raise' : 'move';
+        this.step = this.args.generationTowns.length > 0 ? 'raise' : 'move';
     }
 
     // -- staging ------------------------------------------------------------

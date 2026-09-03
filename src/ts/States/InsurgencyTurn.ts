@@ -24,7 +24,12 @@ export class InsurgencyTurn {
     }
 
     onEnteringState(args: InsurgencyTurnArgs, isCurrentPlayerActive: boolean) {
-        this.args = args;
+        console.log('InsurgencyTurn.onEnteringState', { args, isCurrentPlayerActive, you: this.game.side });
+
+        this.args = {
+            openTowns: args?.openTowns ?? [],
+            resolvable: args?.resolvable ?? [],
+        };
         this.reset();
 
         this.bga.statusBar.setTitle(isCurrentPlayerActive
@@ -32,6 +37,9 @@ export class InsurgencyTurn {
             : _('${actplayer} must place the whole hand'));
 
         if (!isCurrentPlayerActive) {
+            this.game.setStagingText(
+                `<div class="iaw-hint">${_('The Insurgency is placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`
+            );
             return;
         }
 
