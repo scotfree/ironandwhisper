@@ -14,11 +14,12 @@ import { Game } from "../Game";
  * says so, because a player who does not know that will go hunting for a button.
  */
 export class EmpireTurn {
-    private generateAt: string | null = null;
+    /** Town id => troops being built there this turn. */
+    private produce: Record<string, number> = {};
     private moves: StagedMove[] = [];
     private source: string | null = null;
     private resolveTarget: string | null = null;
-    private step: 'raise' | 'move' | 'resolve' = 'raise';
+    private step: 'build' | 'move' | 'resolve' = 'build';
     private args: EmpireTurnArgs;
 
     constructor(
@@ -31,7 +32,8 @@ export class EmpireTurn {
         // Defensive: a throw in here takes the whole handler with it, and the
         // symptom is a board where nothing is clickable and no buttons appear.
         this.args = {
-            generationTowns: args?.generationTowns ?? [],
+            production: args?.production ?? {},
+            networks: args?.networks ?? [],
             resolvable: args?.resolvable ?? [],
         };
         this.reset();
@@ -61,21 +63,45 @@ export class EmpireTurn {
     }
 
     private reset(): void {
-        this.generateAt = null;
+        this.produce = {};
         this.moves = [];
         this.source = null;
         this.resolveTarget = null;
-        // Skip straight to marching if there is nowhere legal to raise.
-        this.step = this.args.generationTowns.length > 0 ? 'raise' : 'move';
+        // Skip straight to marching if there is nothing worth building.
+        this.step = this.buildable().length > 0 ? 'build' : 'move';
+    }
+
+    /** Towns that can build at least one troop this turn. */
+    private buildable(): string[] {
+        return Object.keys(this.args.production).filter(id => this.args.production[id] > 0);
+    }
+
+    /**
+     * How many more troops this town may build, given what is already staged.
+     *
+     * Two production towns in one network draw on the same ceiling, so the
+     * spare has to be counted per network rather than per town.
+     */
+    private buildRoom(townId: string): number {
+        const offered = this.args.production[townId] ?? 0;
+        const network = this.game.board.networkOf(townId);
+        if (!network) {
+            return 0;
+        }
+
+        const staged = network.towns.reduce((total, id) => total + (this.produce[id] ?? 0), 0);
+        const spare = network.ceiling - network.troops - staged;
+
+        return Math.max(0, Math.min(offered - (this.produce[townId] ?? 0), spare));
     }
 
     // -- staging ------------------------------------------------------------
 
     private onTownClick(townId: string): void {
-        if (this.step === 'raise') {
-            if (this.args.generationTowns.includes(townId)) {
-                this.generateAt = townId;
-                this.step = 'move';
+        if (this.step === 'build') {
+            // Click again to build another, while supply and the town allow it.
+            if (this.buildRoom(townId) > 0) {
+                this.produce[townId] = (this.produce[townId] ?? 0) + 1;
             }
             this.refresh();
             return;
@@ -128,10 +154,7 @@ export class EmpireTurn {
      * Troops as they will stand once this turn is committed.
      */
     private projected(townId: string): number {
-        let troops = this.game.board.getTown(townId).troops;
-        if (this.generateAt === townId) {
-            troops += this.bga.gameui.gamedatas.scenario.generationRate;
-        }
+        let troops = this.game.board.getTown(townId).troops + (this.produce[townId] ?? 0);
         this.moves.forEach(move => {
             if (move.from === townId) {
                 troops -= move.count;
@@ -185,8 +208,8 @@ export class EmpireTurn {
     }
 
     private title(): string {
-        if (this.step === 'raise') {
-            return _('${you} may raise a troop: click a highlighted town');
+        if (this.step === 'build') {
+            return _('${you} may build: click a highlighted town, again for another troop');
         }
         if (this.step === 'resolve') {
             return _('${you} must choose a town to resolve');
@@ -199,8 +222,8 @@ export class EmpireTurn {
     private selectableTowns(): string[] {
         const all = Object.keys(this.game.board.allTowns());
 
-        if (this.step === 'raise') {
-            return this.args.generationTowns;
+        if (this.step === 'build') {
+            return this.buildable().filter(id => this.buildRoom(id) > 0);
         }
         if (this.step === 'resolve') {
             return all.filter(townId => this.canResolve(townId));
@@ -214,9 +237,16 @@ export class EmpireTurn {
     private stagingHtml(): string {
         const lines: string[] = [];
 
-        lines.push(this.generateAt
-            ? `<div>${_('Raising at')} <b>${this.townLabel(this.generateAt)}</b></div>`
-            : `<div>${_('No troop raised')}</div>`);
+        const built = Object.entries(this.produce).filter(([, count]) => count > 0);
+        lines.push(built.length
+            ? built.map(([townId, count]) =>
+                `<div>${_('Building')} ${count} ${_('at')} <b>${this.townLabel(townId)}</b></div>`).join('')
+            : `<div>${_('Building nothing')}</div>`);
+
+        const network = this.game.board.networkOf(this.buildable()[0] ?? '');
+        if (network) {
+            lines.push(`<div class="iaw-hint">${_('Supply here')}: ${network.troops} / ${network.ceiling}</div>`);
+        }
 
         this.moves.forEach(move => {
             lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
@@ -242,9 +272,13 @@ export class EmpireTurn {
     private buttons(): void {
         this.bga.statusBar.removeActionButtons();
 
-        if (this.step === 'raise') {
-            this.bga.statusBar.addActionButton(_('Raise nothing this turn'), () => {
+        if (this.step === 'build') {
+            this.bga.statusBar.addActionButton(_('Done building'), () => {
                 this.step = 'move';
+                this.refresh();
+            });
+            this.bga.statusBar.addActionButton(_('Reset'), () => {
+                this.reset();
                 this.refresh();
             }, { color: 'secondary' });
             return;
@@ -273,16 +307,12 @@ export class EmpireTurn {
             this.refresh();
         }, { color: 'secondary' });
 
-        if (this.args.generationTowns.length) {
-            this.bga.statusBar.addActionButton(
-                this.generateAt ? _('Raise somewhere else…') : _('Raise a troop…'),
-                () => {
-                    this.step = 'raise';
-                    this.source = null;
-                    this.refresh();
-                },
-                { color: 'secondary' },
-            );
+        if (this.buildable().length) {
+            this.bga.statusBar.addActionButton(_('Build…'), () => {
+                this.step = 'build';
+                this.source = null;
+                this.refresh();
+            }, { color: 'secondary' });
         }
 
         this.bga.statusBar.addActionButton(_('Reset'), () => {
@@ -299,9 +329,12 @@ export class EmpireTurn {
 
     private commit(): void {
         this.bga.actions.performAction('actCommitTurn', {
-            generateAt: this.generateAt ?? '',
+            produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
             resolve: this.resolveTarget ?? '',
+            // Attrition falls where the server decides unless told otherwise;
+            // choosing which garrison starves is not yet exposed here.
+            disband: JSON.stringify({}),
         });
     }
 }

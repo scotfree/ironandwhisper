@@ -137,6 +137,10 @@ final class View
                 'x' => $town['x'],
                 'y' => $town['y'],
                 'neighbors' => $town['neighbors'],
+                // Static, public, and enough for the client to work out the
+                // Empire's networks itself rather than have them synced.
+                'supply' => $town['supply'],
+                'production' => $town['production'],
             ];
         }
 
@@ -149,7 +153,8 @@ final class View
             'cardTypes' => $scenario->cardTypes,
             'deck' => $scenario->deck,
             'handSize' => $scenario->handSize,
-            'generationRate' => $scenario->generationRate,
+            'supplyPerTroop' => $scenario->supplyPerTroop,
+            'productionCost' => $scenario->productionCost,
             'empireWinsTies' => $scenario->empireWinsTies,
             'turns' => $scenario->turns(),
         ];

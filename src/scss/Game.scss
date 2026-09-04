@@ -304,3 +304,28 @@ $paper: #efe7d7;
 #iaw-arrowhead path {
     fill: $empire;
 }
+
+// Supply and production, read straight off the town.
+.iaw-town-supply {
+    font-size: 10px;
+    color: color.adjust($empire, $lightness: -5%);
+}
+
+.iaw-supply {
+    display: inline-block;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: color.mix($empire, #fff, 12%);
+    font-variant-numeric: tabular-nums;
+}
+
+.iaw-produce {
+    margin-left: 2px;
+}
+
+// A road carries supply when the Empire holds both ends, so the red lines are
+// the network: cutting one is meant to be visible from across the room.
+#iaw-roads-edges line.supplied {
+    stroke: $empire;
+    stroke-width: 5;
+}

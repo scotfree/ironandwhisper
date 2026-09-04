@@ -259,3 +259,25 @@
 #iaw-arrowhead path {
   fill: #6b3fa0;
 }
+
+.iaw-town-supply {
+  font-size: 10px;
+  color: rgb(37.1625780357%, 21.8807702453%, 55.5702101468%);
+}
+
+.iaw-supply {
+  display: inline-block;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: rgb(93.0352941176%, 90.9647058824%, 95.5294117647%);
+  font-variant-numeric: tabular-nums;
+}
+
+.iaw-produce {
+  margin-left: 2px;
+}
+
+#iaw-roads-edges line.supplied {
+  stroke: #6b3fa0;
+  stroke-width: 5;
+}

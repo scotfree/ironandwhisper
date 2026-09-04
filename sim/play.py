@@ -27,7 +27,9 @@ from .engine import (
     Side,
     apply_empire_turn,
     apply_insurgency_turn,
-    legal_generation_towns,
+    production_capacity,
+    production_sites,
+    headroom,
     new_game,
     prepare_turn,
     winner,
@@ -224,8 +226,8 @@ class Table:
                 parts.append(f"  ({unplaced} cards still to place)")
         else:
             turn = self._pending_empire
-            if turn.generate_at:
-                parts.append(f"  generate at {self.state.towns[turn.generate_at].label}")
+            for town_id, count in turn.produce.items():
+                parts.append(f"  build {count} at {self.state.towns[town_id].label}")
             for src, dst, quantity in turn.moves:
                 parts.append(
                     f"  move {quantity}: {self.state.towns[src].label} "
@@ -274,9 +276,12 @@ class Table:
     def generate(self, town: str) -> None:
         self._require(Side.EMPIRE)
         town_id = self._town_id(town)
-        if town_id not in legal_generation_towns(self.state):
+        if town_id not in production_sites(self.state):
             raise IllegalMove(f"no Empire presence at {town}")
-        self._pending_empire.generate_at = town_id
+        allowed = min(production_capacity(self.state, town_id), headroom(self.state, town_id))
+        if allowed <= 0:
+            raise IllegalMove(f"{town} cannot build: no capacity or no supply")
+        self._pending_empire.produce[town_id] = allowed
 
     def move(self, src: str, dst: str, count: int = 1) -> None:
         self._require(Side.EMPIRE)

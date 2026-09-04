@@ -250,8 +250,10 @@ class Game extends \Bga\GameFramework\Table
                     fn(array $card) => ['id' => $card['id'], 'type' => $card['type'], 'influence' => $card['influence']],
                     array_merge($town['revealed'], $town['pile']),
                 ),
-                // Troops committed here are spent, not returned (Decision 3).
-                'troopsSpent' => $town['troops'],
+                // The loser's commitment leaves the board; the winner's stays.
+                'troopsLost' => $outcome['winner'] === Rules::EMPIRE ? 0 : $town['troops'],
+                'cardsTaken' => $outcome['winner'] === Rules::EMPIRE
+                    ? Rules::townCardCount($town) : 0,
             ],
         );
 
@@ -330,26 +332,36 @@ class Game extends \Bga\GameFramework\Table
      *
      * @param array<int, array{from: string, to: string, count: int}> $moves
      */
-    public function applyEmpireTurn(?string $generateAt, array $moves, ?string $resolve, int $actorId): void
-    {
-        $generateAt = $generateAt === '' ? null : $generateAt;
+    public function applyEmpireTurn(
+        array $produce,
+        array $moves,
+        ?string $resolve,
+        array $disband,
+        int $actorId,
+    ): void {
         $resolve = $resolve === '' ? null : $resolve;
 
         $towns = $this->board->towns();
         $moves = $this->normalizeMoves($moves);
+        $produce = array_map('intval', $produce);
 
         // Troop changes accumulate here and are written once, so a troop that
         // is raised and then marched in the same turn costs one update.
         $delta = [];
 
         try {
-            Rules::validateGeneration($towns, $generateAt);
+            Rules::validateProduction(
+                $towns,
+                $produce,
+                $this->scenario->productionCost,
+                $this->scenario->supplyPerTroop,
+            );
         } catch (IllegalMove $e) {
             throw new UserException($e->getMessage());
         }
-        if ($generateAt !== null) {
-            $delta[$generateAt] = ($delta[$generateAt] ?? 0) + $this->scenario->generationRate;
-            $towns[$generateAt]['troops'] += $this->scenario->generationRate;
+        foreach ($produce as $townId => $count) {
+            $delta[$townId] = ($delta[$townId] ?? 0) + $count;
+            $towns[$townId]['troops'] += $count;
         }
 
         try {
@@ -371,8 +383,7 @@ class Game extends \Bga\GameFramework\Table
         $this->bga->notify->all('empireMoved', clienttranslate('${player_name} manoeuvres'), [
             'player_id' => $actorId,
             'player_name' => $this->playerNameFor($actorId),
-            'generateAt' => $generateAt,
-            'generated' => $generateAt === null ? 0 : $this->scenario->generationRate,
+            'produced' => $produce,
             'moves' => array_map(
                 fn(array $move) => ['from' => $move[0], 'to' => $move[1], 'count' => $move[2]],
                 $moves,
@@ -391,8 +402,55 @@ class Game extends \Bga\GameFramework\Table
             $this->resolveTown($resolve, Rules::EMPIRE);
         }
 
+        // Starve anything the networks can no longer supply. End of turn, not
+        // start, so a line cut by the Insurgency can be answered: the Empire
+        // gets one turn to march it back together or accept the loss.
+        $this->applyAttrition($disband);
+
         $this->incRound();
         $this->setToMove(Rules::INSURGENCY);
+    }
+
+    /**
+     * Troops a network cannot supply starve, and score for the Insurgency.
+     *
+     * That is not a special scoring rule, it is the general one: the Insurgency
+     * scores every Empire troop that leaves the board, whether it was beaten
+     * off or starved off. Cutting a supply line is a way of taking troops, so
+     * it pays like one.
+     *
+     * @param array<string, int> $disband the Empire's choice of where to lose from
+     */
+    private function applyAttrition(array $disband): void
+    {
+        $towns = $this->board->towns();
+        $losses = Rules::attritionPlan($towns, $this->scenario->supplyPerTroop, $disband);
+        if (!$losses) {
+            return;
+        }
+
+        $this->board->adjustTroops(array_map(fn(int $count) => -$count, $losses));
+
+        $starved = array_sum($losses);
+        $points = $starved * $this->scenario->unitStrength();
+        $insurgencyId = $this->playerIdForSide(Rules::INSURGENCY);
+        $this->addScore($insurgencyId, $points);
+
+        $this->bga->notify->all(
+            'troopsStarved',
+            clienttranslate('${count} Empire troops starve for want of supply — ${player_name} scores ${points}'),
+            [
+                'count' => $starved,
+                'points' => $points,
+                'losses' => $losses,
+                'player_id' => $insurgencyId,
+                'player_name' => $this->playerNameFor($insurgencyId),
+                'troops' => array_map(
+                    fn(array $town) => $town['troops'],
+                    $this->board->towns(),
+                ),
+            ],
+        );
     }
 
     /**
@@ -486,7 +544,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         $turn = Bots::empireTurn($this->scenario, $this->board->towns());
-        $this->applyEmpireTurn($turn['generateAt'], $turn['moves'], $turn['resolve'], $botId);
+        $this->applyEmpireTurn($turn['produce'], $turn['moves'], $turn['resolve'], [], $botId);
     }
 
     // -- data feed ----------------------------------------------------------

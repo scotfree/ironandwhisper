@@ -242,52 +242,49 @@ final class Bots
             }
         }
 
-        $generateAt = self::empireGeneration($scenario, $towns, $open, $estimateOf);
+        $produce = self::empireProduction($scenario, $towns);
         $moves = self::empireMoves($scenario, $towns, $estimateOf);
 
         return [
-            'generateAt' => $generateAt,
+            'produce' => $produce,
             'moves' => $moves,
-            'resolve' => self::empireResolution($scenario, $towns, $open, $estimateOf, $generateAt, $moves),
+            'resolve' => self::empireResolution($scenario, $towns, $open, $estimateOf, $produce, $moves),
         ];
     }
 
     /**
-     * Raise where the fighting is: the legal anchor nearest the fattest pile.
+     * Build wherever there is capacity and supply for it.
+     *
+     * There is rarely a reason to leave capacity idle, so this takes what each
+     * site offers until the network's ceiling runs out. Sites in the same
+     * network share one ceiling, which is why the spare is tracked per network
+     * rather than per town.
      *
      * @param array<string, array> $towns
-     * @param string[] $open
-     * @param array<string, float> $estimateOf
+     * @return array<string, int>
      */
-    private static function empireGeneration(
-        Scenario $scenario,
-        array $towns,
-        array $open,
-        array $estimateOf,
-    ): ?string {
-        $anchors = Rules::legalGenerationTowns($towns);
-        if (!$anchors) {
-            return null;
-        }
-        if (!$open) {
-            return $anchors[array_rand($anchors)];
-        }
+    private static function empireProduction(Scenario $scenario, array $towns): array
+    {
+        $produce = [];
+        $spare = [];
 
-        $hot = $open[0];
-        foreach ($open as $townId) {
-            if ($estimateOf[$townId] > $estimateOf[$hot]) {
-                $hot = $townId;
+        foreach (Rules::productionSites($towns, $scenario->productionCost) as $site) {
+            $key = implode(',', Rules::componentOf($towns, $site));
+            if (!isset($spare[$key])) {
+                $spare[$key] = Rules::headroom($towns, $site, $scenario->supplyPerTroop);
+            }
+
+            $want = min(
+                Rules::productionCapacity($towns, $site, $scenario->productionCost),
+                $spare[$key],
+            );
+            if ($want > 0) {
+                $produce[$site] = $want;
+                $spare[$key] -= $want;
             }
         }
 
-        $distances = $scenario->distancesFrom($hot);
-        $nearest = $anchors[0];
-        foreach ($anchors as $anchor) {
-            if (($distances[$anchor] ?? 99) < ($distances[$nearest] ?? 99)) {
-                $nearest = $anchor;
-            }
-        }
-        return $nearest;
+        return $produce;
     }
 
     /**
@@ -344,15 +341,15 @@ final class Bots
         array $towns,
         array $open,
         array $estimateOf,
-        ?string $generateAt,
+        array $produce,
         array $moves,
     ): ?string {
         $projected = [];
         foreach ($towns as $townId => $town) {
             $projected[$townId] = (int) $town['troops'];
         }
-        if ($generateAt !== null) {
-            $projected[$generateAt] += $scenario->generationRate;
+        foreach ($produce as $townId => $count) {
+            $projected[$townId] += $count;
         }
         foreach ($moves as $move) {
             $projected[$move['from']] -= $move['count'];

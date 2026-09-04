@@ -40,6 +40,13 @@ class TownDef:
     x: float
     y: float
 
+    # What this town contributes to the troop ceiling of whatever Empire
+    # network it belongs to, and how much it can build there each turn. The two
+    # are independent: a poor town can be a garrison depot, a rich one can be
+    # unable to build anything.
+    supply: int = 1
+    production: int = 0
+
 
 @dataclass(frozen=True)
 class GameMap:
@@ -94,7 +101,11 @@ class Scenario:
     card_types: dict[str, CardType]
     hand_size: int
     deck: dict[str, int]
-    generation_rate: int
+
+    # Supply pays for troops standing; production pays for raising them.
+    supply_per_troop: int
+    production_cost: int
+
     empire_start: dict[str, int]
     first_player: "Side"  # noqa: F821 - avoids a circular import at module load
     empire_wins_ties: bool
@@ -102,7 +113,6 @@ class Scenario:
     # Whether resolution spends the troops committed to it. True is the real
     # rule; False exists so the notebook can reproduce the experiment that
     # established why it has to be True. See Decision 3 in the design doc.
-    consume_troops: bool = True
 
     # -- derived quantities, where the tuning pressure lives ---------------
 
@@ -126,10 +136,27 @@ class Scenario:
     def starting_troops(self) -> int:
         return sum(self.empire_start.values())
 
+    @cached_property
+    def town_supply(self) -> dict[str, int]:
+        return {t.id: t.supply for t in self.map.towns}
+
+    @cached_property
+    def town_production(self) -> dict[str, int]:
+        return {t.id: t.production for t in self.map.towns}
+
+    @property
+    def map_supply(self) -> int:
+        """The whole map's supply, i.e. the largest army the board could hold."""
+        return sum(t.supply for t in self.map.towns)
+
     @property
     def total_strength(self) -> int:
-        troops = self.starting_troops + self.turns * self.generation_rate
-        return troops * self.unit.strength
+        """The most force the Empire could ever have standing at once.
+
+        Not a budget for the whole game the way it used to be: troops are no
+        longer spent at resolution, they are limited by supply.
+        """
+        return (self.map_supply // self.supply_per_troop) * self.unit.strength
 
     @property
     def empire_premium(self) -> float:
@@ -173,7 +200,8 @@ def load_card_types() -> dict[str, CardType]:
 def load_map(map_id: str) -> GameMap:
     raw = _load_json(MAPS_DIR / f"{map_id}.json")
     towns = tuple(
-        TownDef(id=t["id"], label=t["label"], x=t["x"], y=t["y"])
+        TownDef(id=t["id"], label=t["label"], x=t["x"], y=t["y"],
+                supply=t.get("supply", 1), production=t.get("production", 0))
         for t in raw["towns"]
     )
     known = {t.id for t in towns}
@@ -206,11 +234,11 @@ def load_scenario(scenario_id: str, **overrides) -> Scenario:
         card_types=card_types,
         hand_size=raw["hand_size"],
         deck=dict(raw["deck"]),
-        generation_rate=raw["generation_rate"],
+        supply_per_troop=raw.get("supply_per_troop", 1),
+        production_cost=raw.get("production_cost", 1),
         empire_start=dict(raw["empire_start"]),
         first_player=Side(raw["first_player"]),
         empire_wins_ties=raw["empire_wins_ties"],
-        consume_troops=raw.get("consume_troops", True),
     )
 
     for key, value in overrides.items():

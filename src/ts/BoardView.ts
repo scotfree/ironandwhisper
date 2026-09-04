@@ -81,7 +81,8 @@ export class BoardView {
         const lines = this.scenario.edges.map(([a, b]) => {
             const from = this.scenario.towns[a];
             const to = this.scenario.towns[b];
-            return `<line x1="${this.px(from.x)}" y1="${this.px(from.y)}"
+            return `<line id="${this.edgeElementId(a, b)}"
+                          x1="${this.px(from.x)}" y1="${this.px(from.y)}"
                           x2="${this.px(to.x)}" y2="${this.px(to.y)}" />`;
         }).join('');
 
@@ -120,6 +121,7 @@ export class BoardView {
             <div id="${this.townElementId(town.id)}" class="iaw-town"
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
                 <div class="iaw-town-name">${town.label}</div>
+                <div class="iaw-town-supply"></div>
                 <div class="iaw-town-troops"></div>
                 <div class="iaw-town-pile"></div>
                 <div class="iaw-town-revealed"></div>
@@ -135,6 +137,62 @@ export class BoardView {
 
     private townElementId(townId: string): string {
         return `iaw-town-${townId}`;
+    }
+
+    private edgeElementId(a: string, b: string): string {
+        return `iaw-edge-${a}-${b}`;
+    }
+
+    /**
+     * The Empire's supply networks, worked out from the board rather than sent.
+     * A town is in a network if the Empire stands in it; two occupied towns are
+     * linked if the map links them. Computing it here keeps it correct after any
+     * notification without anything having to be kept in step.
+     */
+    networks(): string[][] {
+        const occupied = new Set(
+            Object.keys(this.towns).filter(id => this.towns[id].troops > 0),
+        );
+
+        const seen = new Set<string>();
+        const found: string[][] = [];
+
+        occupied.forEach(start => {
+            if (seen.has(start)) {
+                return;
+            }
+            const network: string[] = [];
+            const frontier = [start];
+            seen.add(start);
+
+            while (frontier.length) {
+                const current = frontier.pop();
+                network.push(current);
+                this.scenario.towns[current].neighbors.forEach(neighbor => {
+                    if (occupied.has(neighbor) && !seen.has(neighbor)) {
+                        seen.add(neighbor);
+                        frontier.push(neighbor);
+                    }
+                });
+            }
+            found.push(network);
+        });
+
+        return found;
+    }
+
+    /** The ceiling and load of the network a town belongs to, if any. */
+    networkOf(townId: string): { towns: string[]; ceiling: number; troops: number } | null {
+        const network = this.networks().find(n => n.includes(townId));
+        if (!network) {
+            return null;
+        }
+        const supply = network.reduce((total, id) => total + this.scenario.towns[id].supply, 0);
+        return {
+            towns: network,
+            ceiling: Math.floor(supply / this.scenario.supplyPerTroop),
+            troops: network.reduce((total, id) => total + this.towns[id].troops, 0),
+        };
     }
 
     // -- updating -----------------------------------------------------------
@@ -154,6 +212,20 @@ export class BoardView {
 
     updateAll(): void {
         Object.keys(this.towns).forEach(townId => this.updateTown(townId));
+        this.updateRoads();
+    }
+
+    /**
+     * Colour the roads that carry supply. An edge is live when the Empire holds
+     * both ends, which is exactly when it joins two towns of one network — so
+     * the red lines *are* the network, and cutting one is visible.
+     */
+    private updateRoads(): void {
+        this.scenario.edges.forEach(([a, b]) => {
+            const line = document.getElementById(this.edgeElementId(a, b));
+            const live = this.towns[a]?.troops > 0 && this.towns[b]?.troops > 0;
+            line?.classList.toggle('supplied', live);
+        });
     }
 
     updateTown(townId: string): void {
@@ -188,6 +260,18 @@ export class BoardView {
         result.textContent = town.resolved
             ? `${town.resolvedInfluence} : ${town.resolvedStrength}`
             : '';
+
+        // Supply reads as "what this town adds / what its network can hold".
+        const network = this.networkOf(townId);
+        const definition = this.scenario.towns[townId];
+        const supply = element.querySelector('.iaw-town-supply') as HTMLElement;
+        supply.innerHTML = `
+            <span class="iaw-supply" title="${_('Supply: this town, and its network')}"
+                >${definition.supply}${network ? `/${network.ceiling}` : ''}</span>
+            ${definition.production > 0
+                ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
+                : ''}
+        `;
 
         const pending = element.querySelector('.iaw-town-pending') as HTMLElement;
         pending.textContent = this.pending[townId] ?? '';

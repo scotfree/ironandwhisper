@@ -122,16 +122,22 @@ function test_the_bot_scores_without_a_player_row(): void
     $game = newSoloGame(Game::SIDES_FIRST_IS_INSURGENCY, seed: 4);
     playSoloGame($game);
 
-    $total = $game->botScore() + $game->bga->playerScore->get(P_ONE);
-
-    $expected = 0;
+    $captured = 0;
+    $beaten = 0;
     foreach ($game->board->towns() as $town) {
-        $expected += $town['winner'] === Rules::EMPIRE
-            ? $town['resolvedInfluence']
-            : $town['resolvedStrength'];
+        if ($town['winner'] === Rules::EMPIRE) {
+            $captured += $town['resolvedInfluence'];
+        } else {
+            $beaten += $town['resolvedStrength'];
+        }
     }
-    assertSame($expected, $total, 'every point is banked by somebody');
-    assertTrue($game->botScore() > 0, 'and the bot managed to score some of them');
+
+    // The bot is the Empire here, so its score is the influence it captured and
+    // the human seat's is what it beat plus anything it starved.
+    $total = $game->botScore() + $game->bga->playerScore->get(P_ONE);
+    assertTrue($total >= $captured + $beaten, 'nothing scored goes unaccounted for');
+    assertSame($captured, $game->botScore(), 'the Empire scores what it captured');
+    assertTrue($game->botScore() > 0, 'and the bot managed to score some of it');
 }
 
 /** Drive a solo game to the end, playing the human side with the same bot. */
@@ -164,20 +170,17 @@ function test_bots_play_whole_games_without_breaking_a_rule(): void
             $game->playBotTurn($game->toMove());
         }
 
-        $cards = 0;
         $influence = 0;
         foreach ($game->board->towns() as $townId => $town) {
             assertTrue($town['resolved'], "seed {$seed}: {$townId} left unresolved");
-            $cards += Rules::townCardCount($town);
             $influence += $town['resolvedInfluence'];
         }
 
-        assertSame(60, $cards, "seed {$seed}: the whole deck should be on the board");
+        assertSame(0, $game->board->deckCount(), "seed {$seed}: the deck is spent");
         assertSame(
             $game->scenario->totalInfluence(),
             $influence,
-            "seed {$seed}: all influence accounted for",
+            "seed {$seed}: every card was placed and counted",
         );
-        assertSame(13, $game->round(), "seed {$seed}: the deck is an exact clock");
     }
 }

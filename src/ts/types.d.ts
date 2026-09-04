@@ -33,6 +33,10 @@ interface TownDef {
     x: number;
     y: number;
     neighbors: string[];
+    /** What this town adds to the ceiling of whatever Empire network holds it. */
+    supply: number;
+    /** Troops it can build per turn, if the Empire stands there. */
+    production: number;
 }
 
 interface ScenarioView {
@@ -44,7 +48,8 @@ interface ScenarioView {
     cardTypes: Record<string, { id: string; label: string; influence: number }>;
     deck: Record<string, number>;
     handSize: number;
-    generationRate: number;
+    supplyPerTroop: number;
+    productionCost: number;
     empireWinsTies: boolean;
     turns: number;
 }
@@ -81,7 +86,9 @@ interface InsurgencyTurnArgs {
 }
 
 interface EmpireTurnArgs {
-    generationTowns: string[];
+    /** Town id => how many troops it may build this turn, ceiling included. */
+    production: Record<string, number>;
+    networks: { towns: string[]; ceiling: number; troops: number }[];
     resolvable: string[];
 }
 

@@ -32,7 +32,11 @@ function rulesPile(array $types, int $firstId = 1): array
 function rulesTown(array $overrides = []): array
 {
     return array_merge(
-        ['neighbors' => [], 'troops' => 0, 'resolved' => false, 'pile' => [], 'revealed' => []],
+        [
+            'neighbors' => [], 'troops' => 0, 'resolved' => false,
+            'pile' => [], 'revealed' => [],
+            'supply' => 1, 'production' => 0,
+        ],
         $overrides,
     );
 }
@@ -172,35 +176,131 @@ function test_cards_cannot_be_placed_in_a_resolved_town(): void
     assertThrows(IllegalMove::class, fn() => Rules::validatePlacements($towns, [1], ['a' => [1]]));
 }
 
-// -- generation -------------------------------------------------------------
+// -- supply and production ---------------------------------------------------
 
-function test_generation_requires_existing_presence(): void
+function test_a_network_is_the_towns_the_empire_stands_in(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 1]]);
+    $towns = rulesBoard(['a' => ['troops' => 1], 'b' => ['troops' => 1]]);
+    assertSame([['a', 'b']], Rules::components($towns));
 
-    assertSame(['a'], Rules::legalGenerationTowns($towns));
-    assertThrows(IllegalMove::class, fn() => Rules::validateGeneration($towns, 'b'));
-    Rules::validateGeneration($towns, 'a');
+    // With b empty there is no road between a and c, so they are two networks.
+    $split = rulesBoard(['a' => ['troops' => 1], 'c' => ['troops' => 1]]);
+    assertSame([['a'], ['c']], Rules::components($split));
 }
 
-function test_resolved_towns_do_not_anchor_generation(): void
+function test_the_ceiling_is_the_networks_summed_supply(): void
 {
-    // The garrison was spent when the town resolved, so the Empire no longer
-    // holds the place — and troops is 0 there in any case.
     $towns = rulesBoard([
-        'a' => ['troops' => 0, 'resolved' => true],
-        'b' => ['troops' => 2],
+        'a' => ['troops' => 1, 'supply' => 2],
+        'b' => ['troops' => 1, 'supply' => 3],
     ]);
 
-    assertSame(['b'], Rules::legalGenerationTowns($towns));
+    assertSame(5, Rules::ceiling($towns, ['a', 'b'], 1));
+    assertSame(2, Rules::troopsIn($towns, ['a', 'b']));
+    assertSame(3, Rules::headroom($towns, 'a', 1), 'five supply, two troops standing');
 }
 
-function test_generation_falls_back_when_the_empire_is_swept_off_the_board(): void
+function test_a_resolved_town_still_carries_supply(): void
 {
-    // Without this, spending your last troops ends the game early.
-    $towns = rulesBoard(['a' => ['resolved' => true]]);
+    // The Empire won here and kept its garrison, so the town is still network.
+    $towns = rulesBoard([
+        'a' => ['troops' => 2, 'supply' => 2, 'resolved' => true],
+        'b' => ['troops' => 1, 'supply' => 2],
+    ]);
 
-    assertSame(['b', 'c'], Rules::legalGenerationTowns($towns), 'any unresolved town, resolved ones excluded');
+    assertSame([['a', 'b']], Rules::components($towns));
+    assertSame(4, Rules::ceiling($towns, ['a', 'b'], 1));
+}
+
+function test_building_needs_presence_production_and_supply(): void
+{
+    $towns = rulesBoard([
+        'a' => ['troops' => 1, 'supply' => 3, 'production' => 1],
+        'b' => ['troops' => 0, 'supply' => 3, 'production' => 1],
+    ]);
+
+    assertSame(['a'], Rules::productionSites($towns, 1), 'b is nobody\'s until someone stands in it');
+    Rules::validateProduction($towns, ['a' => 1], 1, 1);
+
+    assertThrows(
+        IllegalMove::class,
+        fn() => Rules::validateProduction($towns, ['b' => 1], 1, 1),
+        'no presence, no building',
+    );
+    assertThrows(
+        IllegalMove::class,
+        fn() => Rules::validateProduction($towns, ['a' => 2], 1, 1),
+        'the town can only build one a turn',
+    );
+}
+
+function test_building_stops_at_the_ceiling(): void
+{
+    $towns = rulesBoard(['a' => ['troops' => 1, 'supply' => 1, 'production' => 5]]);
+
+    assertSame(0, Rules::headroom($towns, 'a', 1), 'one supply, already spent');
+    assertThrows(
+        IllegalMove::class,
+        fn() => Rules::validateProduction($towns, ['a' => 1], 1, 1),
+        'production is not the constraint here, supply is',
+    );
+}
+
+function test_two_sites_in_one_network_share_one_ceiling(): void
+{
+    $towns = rulesBoard([
+        'a' => ['troops' => 1, 'supply' => 2, 'production' => 5],
+        'b' => ['troops' => 1, 'supply' => 2, 'production' => 5],
+    ]);
+
+    // Four supply, two troops standing, so two more between them — not two each.
+    Rules::validateProduction($towns, ['a' => 1, 'b' => 1], 1, 1);
+    assertThrows(
+        IllegalMove::class,
+        fn() => Rules::validateProduction($towns, ['a' => 2, 'b' => 1], 1, 1),
+    );
+}
+
+// -- attrition ---------------------------------------------------------------
+
+function test_troops_a_network_cannot_supply_starve(): void
+{
+    $towns = rulesBoard(['a' => ['troops' => 3, 'supply' => 1]]);
+
+    assertSame(['a' => 2], Rules::attritionPlan($towns, 1));
+}
+
+function test_a_supplied_network_starves_nobody(): void
+{
+    $towns = rulesBoard([
+        'a' => ['troops' => 1, 'supply' => 2],
+        'b' => ['troops' => 1, 'supply' => 2],
+    ]);
+
+    assertSame([], Rules::attritionPlan($towns, 1));
+}
+
+function test_the_empire_chooses_where_attrition_falls(): void
+{
+    $towns = rulesBoard([
+        'a' => ['troops' => 2, 'supply' => 1],
+        'b' => ['troops' => 2, 'supply' => 1],
+    ]);
+
+    // Four troops, two supply: two starve, and the Empire says which.
+    assertSame(['b' => 2], Rules::attritionPlan($towns, 1, ['b' => 2]));
+}
+
+function test_severing_a_line_leaves_two_smaller_ceilings(): void
+{
+    $held = ['troops' => 1, 'supply' => 1];
+    $towns = rulesBoard(['a' => $held, 'b' => $held, 'c' => $held]);
+    assertSame(3, Rules::ceiling($towns, Rules::componentOf($towns, 'a'), 1));
+
+    // The Insurgency takes the middle town: one network becomes two.
+    $cut = rulesBoard(['a' => $held, 'c' => $held]);
+    assertSame(1, Rules::ceiling($cut, Rules::componentOf($cut, 'a'), 1));
+    assertSame(1, Rules::ceiling($cut, Rules::componentOf($cut, 'c'), 1));
 }
 
 // -- movement ---------------------------------------------------------------

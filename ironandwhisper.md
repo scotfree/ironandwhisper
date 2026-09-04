@@ -118,8 +118,10 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 | Parameter | Starting value | Notes |
 |---|---|---|
 | Number of towns | 12 | Average degree ~3, diameter 4–5. |
-| Empire starting position | 3 troops, one town | Board starts with no cards on it. |
-| Troop generation | 1 per turn, total | Not per town. See Decision 2. |
+| Empire starting position | 3 troops across two adjacent towns | Board starts with no cards on it. |
+| Town supply | 2, or 3 in four richer towns | What a town adds to its network's troop ceiling. |
+| Town production | 1, at Everlan and Kirn only | Troops the town can build per turn. |
+| Supply per troop | 1 | Divides network supply into a troop ceiling. |
 | Infantry — Strength | 3 | Deliberately higher than one card so troops are "heavy." |
 | Infantry — Movement | 1 | Edges per turn. |
 | Infantry — Peek | 1 | Cards a stationary troop turns face up each turn. |
@@ -132,7 +134,7 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 
 - **Game length** = `deck_size / hand_size` = **12 Insurgency turns**. Deterministic, because the whole hand must be placed every turn.
 - **Total Insurgency influence** = the deck's values summed = **51**.
-- **Total Empire strength** = `(starting_troops + turns × generation_rate) × strength` = `(3 + 12) × 3` = **45**.
+- **Total Empire strength** = the whole map's supply, if the Empire ever held all of it = `28 × 3` = **84**. Unlike the Insurgency's influence this is a ceiling, not a budget: troops are no longer spent, they are limited by supply.
 
 The Empire commands about **0.88×** the Insurgency's total force. That is deliberate but temporary: it is headroom for the network-strength change under design, which will raise the Empire's effective strength considerably. As the rules stand today it is badly Insurgency-favoured — see the measurements below.
 
@@ -168,17 +170,36 @@ Settled rules and the reasoning behind them. Recorded so they aren't silently re
 
 **Why:** resolution is optional and there is no pass rule, so two cautious players could otherwise stall forever. Mass resolution at exhaustion fixes this by making refusal-to-resolve useless — the pot gets cashed regardless, so declining only surrenders the timing. It also reframes resolution from "how I score" into "how I lock in a win before it can be reversed," which is a better decision to put in front of a player.
 
-### 2. Troop generation — one per turn, anywhere the Empire already stands
+### 2. Supply is a ceiling on troops; production builds them
 
-**Why:** capitals were dropped in favour of something more minimal. Generation requires *presence*, which makes Empire position sticky: abandoning a town costs the right to reinforce there later. It also merges attrition and economy onto one axis, since presence is the precondition for income.
+Two numbers per town, independent of each other:
 
-> **Coupling warning.** The rate is **one troop per turn in total**, not one per occupied town. The per-town reading is degenerate: the Empire splits up to occupy more towns, occupies more towns to generate more troops, and by mid-game out-produces the entire Insurgency deck every turn. Dilution becomes strictly correct and there is no counterplay. **This rule and Decision 3 are only safe as a pair** — see below.
+- **Supply** — what the town contributes to a troop ceiling.
+- **Production** — how many troops it can build per turn, if the Empire stands there.
 
-### 3. Troops committed to a resolved town are spent
+A poor town can be a depot; a rich one can be unable to build anything.
 
-**Why:** this is the load-bearing rule of the whole economy, and simulation proved it. Without it the game collapses: see the note below.
+**Networks.** A town is in an Empire network if the Empire stands in it, and two occupied towns are linked if the map links them. Each network's supply is summed and divided by `supply_per_troop`: that is the most troops it can keep standing. Networks pool separately, so cutting one in half gives two smaller ceilings.
 
-Resolved towns therefore do **not** anchor generation — the garrison there is gone, so the Empire no longer holds the place. Because troops are consumed, the Empire can in principle spend its last troop and have nowhere legal to generate, so one fallback clause is needed: **if the Empire has no troops anywhere, it may raise its next troop in any unresolved town.** That is the entire cost of the rule.
+**Building.** A town with production and a garrison may raise troops there, up to its own production and up to the spare ceiling of its network. Troops appear where they were built and march from there — there is no teleporting to the front, so distance is real.
+
+**Attrition.** A network that cannot supply its troops starves them, at the end of the Empire's turn. End of turn rather than start, so a line the Insurgency cut can be answered: the Empire gets exactly one turn to march it back together or accept the loss. Starved troops score for the Insurgency.
+
+**Why:** this is the Empire's whole character in one subsystem. It does not out-fight the Insurgency, it out-organises it — and an organisation can be cut. It also produces the tension the game needs from the Empire's side: **spread for economy, concentrate for battle.** Supply is per town, so thinning out raises your ceiling; attack strength is local, so thin garrisons lose fights and are removed. The two pull against each other every turn.
+
+> **An older version of this rule read "one troop per turn, anywhere the Empire already stands", with a warning that per-town generation was degenerate** — the Empire splits up to occupy more towns, occupies more towns to generate more, and out-produces the Insurgency deck. Per-town production is exactly what that warned against, and it is safe now for a reason that did not hold then: dilution is no longer free. A thin garrison loses its local fight, and the troops in it are removed and scored. Spreading buys economy and sells safety, which is a trade rather than a strictly correct move.
+
+> **A rejected version had the network contribute *attack strength* rather than supply**, so every fight was backed by the whole army. It fails: a troop contributes the same strength wherever it stands, so there is never a reason to expose one. The Empire wins a town, parks its army there permanently out of reach, and pushes forward with a single token troop. That is the failure in Decision 3 wearing a different hat — the Empire never accepts a bad fight, and the Insurgency's only scoring route closes. Network-as-production has no such incentive, because collecting a town's supply costs a garrison that counts against the very ceiling it raises.
+
+### 3. The loser's commitment is taken off the board; the winner's stays
+
+When a town resolves, whoever lost has their commitment removed from the board and scored by the winner. The Empire loses a town: its troops there are taken and the Insurgency scores their strength. The Empire wins: the cards are taken and it scores their influence, and **its garrison stays**, so the town goes on carrying supply and, if it can, building.
+
+**Why:** it reads correctly — you take the enemy's stuff — and it is one rule where there used to be two. It also means winning a town is worth something lasting rather than converting your army into points, which is what makes the Empire's game about holding a map rather than trading pieces for score.
+
+Resolved towns are never contested again, so a town the Empire won and garrisons is permanently safe. That is deliberate: **an Empire that locks down a network of supply lines has won, and that is the Empire's thesis.** The Insurgency is not building a rival network; it is denying that any network can exist. Its counterplay is to take the junctions before they lock.
+
+> **An earlier version spent the winner's troops too**, on the grounds that commitment should cost something. The simulator showed the opposite arrangement — troops always surviving — was catastrophic at **99.7%** Empire wins, because an Empire that keeps its army never has to accept a bad fight and the Insurgency's only scoring route closes. What reopens it here is that the Empire's troops *are* removed when it loses, and that supply gives the Insurgency a second way to take them off the board without winning a fight at all.
 
 > **Simulation result, and a corrected earlier decision.** We first tried the opposite — troops survive resolution — on the grounds that it removes a field from the state. It makes the game degenerate. The Empire wins **99.7%** at the starting parameters, **96.7%** even at 83% influence density, and **90.8%** with a fixed force of only two troops and no generation at all. Across every configuration, under 4% of Empire strength was ever overcome.
 >
@@ -203,6 +224,12 @@ This permits place-then-immediately-resolve — the Insurgency drops five influe
 It also makes the deck an exact clock, which is lost if the placement rate can vary.
 
 Under Decision 9, this is less punishing than it sounds: **dummies are free to lose**, so forced placement is the Insurgency's cheap noise generator while it rations real influence.
+
+### 6a. The Insurgency scores every Empire troop that leaves the board
+
+**Why:** it is the same rule it always had — score the strength you take off the enemy — but it now covers two ways of taking it. Beat a garrison at a resolution and you score it. Cut the supply line that fed it and it starves, and you score that too.
+
+This is what keeps the Insurgency's strategy and its scoring pointed the same way. Severing a line is the most narratively rebel thing in the game, and it would be odd if it paid nothing. It also gives the Empire a real decision with no rule attached: **how close to your ceiling dare you run?** An army at maximum loses troops the moment anything is cut; slack costs tempo and buys resilience.
 
 ### 7. The Empire wins ties
 

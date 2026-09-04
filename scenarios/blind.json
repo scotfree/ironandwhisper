@@ -11,10 +11,12 @@
     "influence2": 9,
     "influence3": 3
   },
-  "generation_rate": 1,
   "empire_start": {
-    "everlan": 3
+    "everlan": 2,
+    "belmar": 1
   },
   "first_player": "insurgency",
-  "empire_wins_ties": true
+  "empire_wins_ties": true,
+  "supply_per_troop": 1,
+  "production_cost": 1
 }

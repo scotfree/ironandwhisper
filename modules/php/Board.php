@@ -101,6 +101,8 @@ final class Board
                 'x' => $definition['x'],
                 'y' => $definition['y'],
                 'neighbors' => $definition['neighbors'],
+                'supply' => $definition['supply'],
+                'production' => $definition['production'],
                 'troops' => (int) $row['troops'],
                 'resolved' => (bool) (int) $row['resolved'],
                 'winner' => $row['winner'],
@@ -270,28 +272,48 @@ final class Board
     }
 
     /**
+     * Take cards off the board. Used when the Empire beats a pile: the loser's
+     * commitment is captured and scored, not left lying in the town.
+     */
+    public function discardCardsIn(string $townId): void
+    {
+        Game::DbQuery(sprintf(
+            "DELETE FROM `iaw_card` WHERE `card_location` = '%s'",
+            self::pileLocation($townId),
+        ));
+    }
+
+    /**
      * Freeze a town after a fight.
      *
-     * Troops committed here are spent — removed from play, not returned
-     * (Decision 3). The pile stays where it is as a face-up record, so every
-     * card in it becomes public knowledge.
+     * The loser's commitment is removed and scored; the winner's stays where it
+     * is. An Empire that holds a town keeps its garrison, so the town goes on
+     * carrying supply and, if it can, building.
      *
      * @param array{winner: string, influence: int, strength: int} $outcome
      */
     public function markResolved(string $townId, array $outcome): void
     {
-        Game::DbQuery(sprintf(
-            "UPDATE `iaw_town` SET `resolved` = 1, `winner` = '%s', `resolved_influence` = %d,
-             `resolved_strength` = %d, `troops` = 0 WHERE `town_id` = '%s'",
-            $outcome['winner'],
-            $outcome['influence'],
-            $outcome['strength'],
-            $townId,
-        ));
-
+        // Everything in the town is public from here on, whoever won.
         Game::DbQuery(sprintf(
             "UPDATE `iaw_card` SET `empire_seen` = 1 WHERE `card_location` = '%s'",
             self::pileLocation($townId),
         ));
+
+        // The loser's commitment is taken off the board; the winner's stays.
+        $empireWon = $outcome['winner'] === Rules::EMPIRE;
+        Game::DbQuery(sprintf(
+            "UPDATE `iaw_town` SET `resolved` = 1, `winner` = '%s', `resolved_influence` = %d,
+             `resolved_strength` = %d%s WHERE `town_id` = '%s'",
+            $outcome['winner'],
+            $outcome['influence'],
+            $outcome['strength'],
+            $empireWon ? '' : ', `troops` = 0',
+            $townId,
+        ));
+
+        if ($empireWon) {
+            $this->discardCardsIn($townId);
+        }
     }
 }

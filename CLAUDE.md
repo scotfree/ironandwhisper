@@ -14,11 +14,19 @@ named for the design decision it pins down. If the PHP disagrees with the simula
 PHP is wrong. `tests/test_rules.php` mirrors those cases in PHP — when you change a rule,
 change it in both places and in `ironandwhisper.md`.
 
-**Do not "simplify" troop consumption.** Troops committed to a town are removed from play
-when it resolves. This was tried the other way, measured, and it destroys the game — the
-Empire wins 99.7%, and no parameter rescues it. `ironandwhisper.md` Decision 3 records the
-numbers; `load_scenario("baseline", consume_troops=False)` reproduces it. It looks like a
-harmless simplification. It is not.
+**The loser's commitment is taken; the winner's stays** (Decision 3). The Empire keeps its
+garrison in a town it wins, and that garrison keeps carrying supply. This is *not* the old
+"troops always survive" arrangement that measured at 99.7% Empire wins — what reopens the
+Insurgency's scoring is that Empire troops are still removed when it *loses*, and that
+cutting supply starves them without a fight at all. Do not restore the winner-keeps-all
+version, and do not make attrition score nothing.
+
+**Supply is a ceiling, not income** (Decision 2). Networks of Empire-occupied towns pool
+their towns' supply; that divided by `supply_per_troop` is the most troops the network can
+keep standing, and anything over starves at end of turn. Production is a separate per-town
+number. The two are independent on purpose — a poor town can be a depot, a rich one can
+build nothing. An earlier design had the network contribute *attack strength* instead;
+it fails, and `ironandwhisper.md` Decision 2 records why.
 
 **This BGA skeleton is a framework generation newer than zoomquest's.** See the section
 below before assuming anything carries over. zoomquest is a useful reference for *shape*
@@ -28,11 +36,10 @@ but its framework idioms are obsolete.
 PHP.** Changing their shape means changing both. That sharing is the whole reason the
 tuning work transfers.
 
-**`baseline` is deliberately unbalanced right now.** The deck is graded — 24 cards worth 0,
-24 worth 1, 9 worth 2, 3 worth 3 — for 51 total influence against 45 Empire strength, and
-the Insurgency wins about 83% of games. That is intentional headroom for the
-network-strength change under design (open question 2). Do not "fix" it by retuning; the
-next rules change is meant to eat it. `ironandwhisper.md` carries the measurements.
+**Balance is roughly even and entirely untested by humans.** With supply and production in,
+1000 games of heuristic bots put the Empire near 47% and the Insurgency near 49%. The
+numbers came from one tuning pass — raising town supply from 1-2 to 2-3 — not from
+playtesting.
 
 **There is no "dummy" card any more.** Card type ids are `influence0` through `influence3`
 and carry their own value. A bluff is a card worth 0.
@@ -297,7 +304,12 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
    nothing implements it.
 6. **Playtest the numbers.** They come from the simulator and no human has played them.
 
-7. **The simulator cannot tell you whether a decision is interesting.** Graded cards were
+7. **Attrition losses are chosen server-side.** The Empire is supposed to pick which
+   garrison starves, and the action already carries a `disband` argument, but the client
+   sends an empty one and `Rules::attritionPlan` falls back to the largest garrisons.
+   Choosing badly can cause a second cut, so this is a real decision going unmade.
+
+8. **The simulator cannot tell you whether a decision is interesting.** Graded cards were
    added on the theory that they make peeking richer, and the measured value of peeking
    *fell* — because the Empire bot collapses every pile into one expected-value number and
    marches at the biggest. Per-card variance actually tripled, so each look genuinely

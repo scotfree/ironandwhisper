@@ -24,6 +24,10 @@
     "*.ipynb",
     ".ipynb_checkpoints",
     ".pytest_cache",
-    ".gitignore"
+    ".gitignore",
+    "bga-framework.d.ts",
+    "_ide_helper.php",
+    "tsconfig.json",
+    "rollup.config.mjs"
   ]
 }

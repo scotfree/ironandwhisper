@@ -36,7 +36,8 @@ class EmpireTurn extends GameState
         $towns = $this->game->board->towns();
 
         return [
-            'generationTowns' => Rules::legalGenerationTowns($towns),
+            'production' => self::productionOffer($towns, $this->game->scenario),
+            'networks' => self::networkView($towns, $this->game->scenario),
             'resolvable' => Rules::legalResolutions($towns, Rules::EMPIRE),
         ];
     }
@@ -51,14 +52,59 @@ class EmpireTurn extends GameState
      */
     #[PossibleAction]
     public function actCommitTurn(
-        ?string $generateAt,
+        #[JsonParam] array $produce,
         #[JsonParam] array $moves,
         ?string $resolve,
+        #[JsonParam] array $disband,
         int $activePlayerId,
     ) {
-        $this->game->applyEmpireTurn($generateAt, $moves, $resolve, $activePlayerId);
+        $this->game->applyEmpireTurn($produce, $moves, $resolve, $disband, $activePlayerId);
 
         return NextTurn::class;
+    }
+
+    /**
+     * How many troops each town could build this turn, ceiling included.
+     *
+     * @param array<string, array> $towns
+     * @return array<string, int>
+     */
+    private static function productionOffer(array $towns, \Bga\Games\IronAndWhisper\Scenario $scenario): array
+    {
+        $offer = [];
+        $spare = [];
+
+        foreach (Rules::productionSites($towns, $scenario->productionCost) as $site) {
+            $key = implode(',', Rules::componentOf($towns, $site));
+            if (!isset($spare[$key])) {
+                $spare[$key] = Rules::headroom($towns, $site, $scenario->supplyPerTroop);
+            }
+            $offer[$site] = min(
+                Rules::productionCapacity($towns, $site, $scenario->productionCost),
+                $spare[$key],
+            );
+        }
+
+        return $offer;
+    }
+
+    /**
+     * The Empire's networks, with the ceiling and load of each, so the client
+     * can colour the roads and show a town's supply against its network total.
+     *
+     * @param array<string, array> $towns
+     * @return array<int, array{towns: string[], ceiling: int, troops: int}>
+     */
+    private static function networkView(array $towns, \Bga\Games\IronAndWhisper\Scenario $scenario): array
+    {
+        return array_map(
+            fn(array $component) => [
+                'towns' => $component,
+                'ceiling' => Rules::ceiling($towns, $component, $scenario->supplyPerTroop),
+                'troops' => Rules::troopsIn($towns, $component),
+            ],
+            Rules::components($towns),
+        );
     }
 
     /**
@@ -68,6 +114,6 @@ class EmpireTurn extends GameState
      */
     public function zombie(int $playerId)
     {
-        return $this->actCommitTurn(null, [], null, $playerId);
+        return $this->actCommitTurn([], [], null, [], $playerId);
     }
 }

@@ -34,7 +34,8 @@ final class Scenario
         public readonly array $cardTypes,
         public readonly int $handSize,
         public readonly array $deck,
-        public readonly int $generationRate,
+        public readonly int $supplyPerTroop,
+        public readonly int $productionCost,
         public readonly array $empireStart,
         public readonly string $firstPlayer,
         public readonly bool $empireWinsTies,
@@ -61,6 +62,11 @@ final class Scenario
                 'label' => $town['label'],
                 'x' => (float) $town['x'],
                 'y' => (float) $town['y'],
+                // What the town adds to the ceiling of whatever network holds
+                // it, and how much it can build each turn. Independent: a poor
+                // town can be a depot, a rich one can build nothing.
+                'supply' => (int) ($town['supply'] ?? 1),
+                'production' => (int) ($town['production'] ?? 0),
                 'neighbors' => [],
             ];
         }
@@ -111,7 +117,8 @@ final class Scenario
             cardTypes: $cardTypes,
             handSize: (int) $scenario['hand_size'],
             deck: array_map('intval', $scenario['deck']),
-            generationRate: (int) $scenario['generation_rate'],
+            supplyPerTroop: (int) ($scenario['supply_per_troop'] ?? 1),
+            productionCost: (int) ($scenario['production_cost'] ?? 1),
             empireStart: array_map('intval', $scenario['empire_start']),
             firstPlayer: $scenario['first_player'],
             empireWinsTies: (bool) $scenario['empire_wins_ties'],
@@ -167,6 +174,16 @@ final class Scenario
         $total = 0;
         foreach ($this->deck as $typeId => $quantity) {
             $total += $this->influenceOf($typeId) * $quantity;
+        }
+        return $total;
+    }
+
+    /** The whole map's supply: the largest army the board could ever hold. */
+    public function mapSupply(): int
+    {
+        $total = 0;
+        foreach ($this->towns as $town) {
+            $total += $town['supply'];
         }
         return $total;
     }

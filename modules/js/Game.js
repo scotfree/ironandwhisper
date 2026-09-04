@@ -65,7 +65,8 @@ class BoardView {
         const lines = this.scenario.edges.map(([a, b]) => {
             const from = this.scenario.towns[a];
             const to = this.scenario.towns[b];
-            return `<line x1="${this.px(from.x)}" y1="${this.px(from.y)}"
+            return `<line id="${this.edgeElementId(a, b)}"
+                          x1="${this.px(from.x)}" y1="${this.px(from.y)}"
                           x2="${this.px(to.x)}" y2="${this.px(to.y)}" />`;
         }).join('');
         return `<svg id="iaw-roads" width="${width}" height="${height}">
@@ -97,6 +98,7 @@ class BoardView {
             <div id="${this.townElementId(town.id)}" class="iaw-town"
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
                 <div class="iaw-town-name">${town.label}</div>
+                <div class="iaw-town-supply"></div>
                 <div class="iaw-town-troops"></div>
                 <div class="iaw-town-pile"></div>
                 <div class="iaw-town-revealed"></div>
@@ -111,6 +113,53 @@ class BoardView {
     townElementId(townId) {
         return `iaw-town-${townId}`;
     }
+    edgeElementId(a, b) {
+        return `iaw-edge-${a}-${b}`;
+    }
+    /**
+     * The Empire's supply networks, worked out from the board rather than sent.
+     * A town is in a network if the Empire stands in it; two occupied towns are
+     * linked if the map links them. Computing it here keeps it correct after any
+     * notification without anything having to be kept in step.
+     */
+    networks() {
+        const occupied = new Set(Object.keys(this.towns).filter(id => this.towns[id].troops > 0));
+        const seen = new Set();
+        const found = [];
+        occupied.forEach(start => {
+            if (seen.has(start)) {
+                return;
+            }
+            const network = [];
+            const frontier = [start];
+            seen.add(start);
+            while (frontier.length) {
+                const current = frontier.pop();
+                network.push(current);
+                this.scenario.towns[current].neighbors.forEach(neighbor => {
+                    if (occupied.has(neighbor) && !seen.has(neighbor)) {
+                        seen.add(neighbor);
+                        frontier.push(neighbor);
+                    }
+                });
+            }
+            found.push(network);
+        });
+        return found;
+    }
+    /** The ceiling and load of the network a town belongs to, if any. */
+    networkOf(townId) {
+        const network = this.networks().find(n => n.includes(townId));
+        if (!network) {
+            return null;
+        }
+        const supply = network.reduce((total, id) => total + this.scenario.towns[id].supply, 0);
+        return {
+            towns: network,
+            ceiling: Math.floor(supply / this.scenario.supplyPerTroop),
+            troops: network.reduce((total, id) => total + this.towns[id].troops, 0),
+        };
+    }
     // -- updating -----------------------------------------------------------
     setTowns(towns) {
         this.towns = towns;
@@ -124,6 +173,19 @@ class BoardView {
     }
     updateAll() {
         Object.keys(this.towns).forEach(townId => this.updateTown(townId));
+        this.updateRoads();
+    }
+    /**
+     * Colour the roads that carry supply. An edge is live when the Empire holds
+     * both ends, which is exactly when it joins two towns of one network — so
+     * the red lines *are* the network, and cutting one is visible.
+     */
+    updateRoads() {
+        this.scenario.edges.forEach(([a, b]) => {
+            const line = document.getElementById(this.edgeElementId(a, b));
+            const live = this.towns[a]?.troops > 0 && this.towns[b]?.troops > 0;
+            line?.classList.toggle('supplied', live);
+        });
     }
     updateTown(townId) {
         const town = this.towns[townId];
@@ -152,6 +214,17 @@ class BoardView {
         result.textContent = town.resolved
             ? `${town.resolvedInfluence} : ${town.resolvedStrength}`
             : '';
+        // Supply reads as "what this town adds / what its network can hold".
+        const network = this.networkOf(townId);
+        const definition = this.scenario.towns[townId];
+        const supply = element.querySelector('.iaw-town-supply');
+        supply.innerHTML = `
+            <span class="iaw-supply" title="${_('Supply: this town, and its network')}"
+                >${definition.supply}${network ? `/${network.ceiling}` : ''}</span>
+            ${definition.production > 0
+            ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
+            : ''}
+        `;
         const pending = element.querySelector('.iaw-town-pending');
         pending.textContent = this.pending[townId] ?? '';
         element.classList.toggle('pending', Boolean(this.pending[townId]));
@@ -252,17 +325,19 @@ class EmpireTurn {
     constructor(game, bga) {
         this.game = game;
         this.bga = bga;
-        this.generateAt = null;
+        /** Town id => troops being built there this turn. */
+        this.produce = {};
         this.moves = [];
         this.source = null;
         this.resolveTarget = null;
-        this.step = 'raise';
+        this.step = 'build';
     }
     onEnteringState(args, isCurrentPlayerActive) {
         // Defensive: a throw in here takes the whole handler with it, and the
         // symptom is a board where nothing is clickable and no buttons appear.
         this.args = {
-            generationTowns: args?.generationTowns ?? [],
+            production: args?.production ?? {},
+            networks: args?.networks ?? [],
             resolvable: args?.resolvable ?? [],
         };
         this.reset();
@@ -287,19 +362,39 @@ class EmpireTurn {
         this.game.setStagingText('');
     }
     reset() {
-        this.generateAt = null;
+        this.produce = {};
         this.moves = [];
         this.source = null;
         this.resolveTarget = null;
-        // Skip straight to marching if there is nowhere legal to raise.
-        this.step = this.args.generationTowns.length > 0 ? 'raise' : 'move';
+        // Skip straight to marching if there is nothing worth building.
+        this.step = this.buildable().length > 0 ? 'build' : 'move';
+    }
+    /** Towns that can build at least one troop this turn. */
+    buildable() {
+        return Object.keys(this.args.production).filter(id => this.args.production[id] > 0);
+    }
+    /**
+     * How many more troops this town may build, given what is already staged.
+     *
+     * Two production towns in one network draw on the same ceiling, so the
+     * spare has to be counted per network rather than per town.
+     */
+    buildRoom(townId) {
+        const offered = this.args.production[townId] ?? 0;
+        const network = this.game.board.networkOf(townId);
+        if (!network) {
+            return 0;
+        }
+        const staged = network.towns.reduce((total, id) => total + (this.produce[id] ?? 0), 0);
+        const spare = network.ceiling - network.troops - staged;
+        return Math.max(0, Math.min(offered - (this.produce[townId] ?? 0), spare));
     }
     // -- staging ------------------------------------------------------------
     onTownClick(townId) {
-        if (this.step === 'raise') {
-            if (this.args.generationTowns.includes(townId)) {
-                this.generateAt = townId;
-                this.step = 'move';
+        if (this.step === 'build') {
+            // Click again to build another, while supply and the town allow it.
+            if (this.buildRoom(townId) > 0) {
+                this.produce[townId] = (this.produce[townId] ?? 0) + 1;
             }
             this.refresh();
             return;
@@ -346,10 +441,7 @@ class EmpireTurn {
      * Troops as they will stand once this turn is committed.
      */
     projected(townId) {
-        let troops = this.game.board.getTown(townId).troops;
-        if (this.generateAt === townId) {
-            troops += this.bga.gameui.gamedatas.scenario.generationRate;
-        }
+        let troops = this.game.board.getTown(townId).troops + (this.produce[townId] ?? 0);
         this.moves.forEach(move => {
             if (move.from === townId) {
                 troops -= move.count;
@@ -394,8 +486,8 @@ class EmpireTurn {
         this.buttons();
     }
     title() {
-        if (this.step === 'raise') {
-            return _('${you} may raise a troop: click a highlighted town');
+        if (this.step === 'build') {
+            return _('${you} may build: click a highlighted town, again for another troop');
         }
         if (this.step === 'resolve') {
             return _('${you} must choose a town to resolve');
@@ -406,8 +498,8 @@ class EmpireTurn {
     }
     selectableTowns() {
         const all = Object.keys(this.game.board.allTowns());
-        if (this.step === 'raise') {
-            return this.args.generationTowns;
+        if (this.step === 'build') {
+            return this.buildable().filter(id => this.buildRoom(id) > 0);
         }
         if (this.step === 'resolve') {
             return all.filter(townId => this.canResolve(townId));
@@ -419,9 +511,14 @@ class EmpireTurn {
     }
     stagingHtml() {
         const lines = [];
-        lines.push(this.generateAt
-            ? `<div>${_('Raising at')} <b>${this.townLabel(this.generateAt)}</b></div>`
-            : `<div>${_('No troop raised')}</div>`);
+        const built = Object.entries(this.produce).filter(([, count]) => count > 0);
+        lines.push(built.length
+            ? built.map(([townId, count]) => `<div>${_('Building')} ${count} ${_('at')} <b>${this.townLabel(townId)}</b></div>`).join('')
+            : `<div>${_('Building nothing')}</div>`);
+        const network = this.game.board.networkOf(this.buildable()[0] ?? '');
+        if (network) {
+            lines.push(`<div class="iaw-hint">${_('Supply here')}: ${network.troops} / ${network.ceiling}</div>`);
+        }
         this.moves.forEach(move => {
             lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
                         ${_('to')} <b>${this.townLabel(move.to)}</b></div>`);
@@ -441,9 +538,13 @@ class EmpireTurn {
     }
     buttons() {
         this.bga.statusBar.removeActionButtons();
-        if (this.step === 'raise') {
-            this.bga.statusBar.addActionButton(_('Raise nothing this turn'), () => {
+        if (this.step === 'build') {
+            this.bga.statusBar.addActionButton(_('Done building'), () => {
                 this.step = 'move';
+                this.refresh();
+            });
+            this.bga.statusBar.addActionButton(_('Reset'), () => {
+                this.reset();
                 this.refresh();
             }, { color: 'secondary' });
             return;
@@ -465,9 +566,9 @@ class EmpireTurn {
             this.source = null;
             this.refresh();
         }, { color: 'secondary' });
-        if (this.args.generationTowns.length) {
-            this.bga.statusBar.addActionButton(this.generateAt ? _('Raise somewhere else…') : _('Raise a troop…'), () => {
-                this.step = 'raise';
+        if (this.buildable().length) {
+            this.bga.statusBar.addActionButton(_('Build…'), () => {
+                this.step = 'build';
                 this.source = null;
                 this.refresh();
             }, { color: 'secondary' });
@@ -483,9 +584,12 @@ class EmpireTurn {
     // -- sending ------------------------------------------------------------
     commit() {
         this.bga.actions.performAction('actCommitTurn', {
-            generateAt: this.generateAt ?? '',
+            produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
             resolve: this.resolveTarget ?? '',
+            // Attrition falls where the server decides unless told otherwise;
+            // choosing which garrison starves is not yet exposed here.
+            disband: JSON.stringify({}),
         });
     }
 }

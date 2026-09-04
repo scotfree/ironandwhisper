@@ -18,8 +18,13 @@ from .engine import (
     GameState,
     InsurgencyTurn,
     Side,
-    legal_generation_towns,
+    ceiling,
+    component_of,
+    headroom,
     legal_resolutions,
+    production_capacity,
+    production_sites,
+    troops_in,
 )
 
 
@@ -27,17 +32,17 @@ from .engine import (
 # What the Empire is allowed to know
 # ---------------------------------------------------------------------------
 
-def project_troops(state: GameState, generate_at: str | None,
+def project_troops(state: GameState, produce: dict[str, int],
                    moves: list[tuple[str, str, int]]) -> dict[str, int]:
-    """Troop counts as they will stand after generation and movement.
+    """Troop counts as they will stand after building and movement.
 
-    An Empire turn generates, then moves, then resolves, so any decision about
+    An Empire turn builds, then moves, then resolves, so any decision about
     resolving has to be made against the projected board rather than the
     current one.
     """
     projected = {tid: town.troops for tid, town in state.towns.items()}
-    if generate_at is not None:
-        projected[generate_at] += state.scenario.generation_rate
+    for town_id, count in produce.items():
+        projected[town_id] += count
     for src, dst, quantity in moves:
         projected[src] -= quantity
         projected[dst] += quantity
@@ -115,8 +120,16 @@ class RandomEmpire:
         self.resolve_chance = resolve_chance
 
     def choose(self, state: GameState) -> EmpireTurn:
-        anchors = legal_generation_towns(state)
-        generate_at = self.rng.choice(anchors) if anchors else None
+        produce: dict[str, int] = {}
+        spare: dict[frozenset[str], int] = {}
+        for site in production_sites(state):
+            network = frozenset(component_of(state, site))
+            if network not in spare:
+                spare[network] = headroom(state, site)
+            want = min(production_capacity(state, site), spare[network])
+            if want > 0:
+                produce[site] = want
+                spare[network] -= want
 
         moves = []
         for town in state.towns.values():
@@ -130,7 +143,7 @@ class RandomEmpire:
                 moves.append((town.id, self.rng.choice(open_neighbors), quantity))
 
         # Judge against the projected board: the engine moves before resolving.
-        projected = project_troops(state, generate_at, moves)
+        projected = project_troops(state, produce, moves)
         options = [
             t.id for t in state.unresolved if projected[t.id] > 0
         ]
@@ -138,7 +151,7 @@ class RandomEmpire:
         if options and self.rng.random() < self.resolve_chance:
             resolve = self.rng.choice(options)
 
-        return EmpireTurn(generate_at=generate_at, moves=moves, resolve=resolve)
+        return EmpireTurn(produce=produce, moves=moves, resolve=resolve)
 
 
 # ---------------------------------------------------------------------------
@@ -259,16 +272,19 @@ class HeuristicEmpire:
         def attractiveness(town) -> float:
             return belief.estimated_influence(town.id)
 
-        # Generate where the fighting is: the anchor nearest a fat pile.
-        anchors = legal_generation_towns(state)
-        generate_at = None
-        if anchors:
-            hot = max(open_towns, key=attractiveness, default=None)
-            if hot is not None:
-                distances = state.scenario.map.distances_from(hot.id)
-                generate_at = min(anchors, key=lambda tid: distances.get(tid, 99))
-            else:
-                generate_at = self.rng.choice(anchors)
+        # Build wherever we can afford to. Production is per town and the
+        # ceiling is per network, so this takes what each site offers until the
+        # supply runs out — there is rarely a reason to leave capacity idle.
+        produce: dict[str, int] = {}
+        spare: dict[frozenset[str], int] = {}
+        for site in production_sites(state):
+            network = frozenset(component_of(state, site))
+            if network not in spare:
+                spare[network] = headroom(state, site)
+            want = min(production_capacity(state, site), spare[network])
+            if want > 0:
+                produce[site] = want
+                spare[network] -= want
 
         # March toward the most attractive reachable unresolved town, but leave
         # a garrison anywhere we already look like we are winning.
@@ -296,7 +312,7 @@ class HeuristicEmpire:
         # Resolve where we believe we win by enough. The engine generates and
         # moves before resolving, so judge against where the troops will BE,
         # not where they are now.
-        projected = project_troops(state, generate_at, moves)
+        projected = project_troops(state, produce, moves)
         resolve = None
         best_value = -1.0
         for town in open_towns:
@@ -312,7 +328,7 @@ class HeuristicEmpire:
             if value > best_value:
                 best_value, resolve = value, town.id
 
-        return EmpireTurn(generate_at=generate_at, moves=moves, resolve=resolve)
+        return EmpireTurn(produce=produce, moves=moves, resolve=resolve)
 
 
 BOTS = {

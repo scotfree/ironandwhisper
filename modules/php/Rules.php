@@ -75,28 +75,197 @@ final class Rules
     }
 
     /**
-     * Where the Empire may raise troops.
+     * The Empire's supply networks.
      *
-     * Normally: any town it already stands in. Resolved towns do not qualify —
-     * the garrison there was spent, so the Empire no longer holds the place.
+     * A town is in a network if the Empire stands in it, and two occupied towns
+     * are linked if the map links them. Resolution is irrelevant: a town the
+     * Empire won and still garrisons carries supply like any other. Cutting a
+     * network in two leaves two smaller ceilings, which is the whole reason the
+     * Insurgency attacks a junction.
      *
-     * The fallback exists because troops are consumed by resolution: an Empire
-     * that commits its last troops would otherwise have no legal generation
-     * site and be eliminated with turns still on the clock. With nothing on the
-     * board it may raise troops in any town still contested.
+     * @param array<string, array> $towns
+     * @return array<int, string[]>
+     */
+    public static function components(array $towns): array
+    {
+        $occupied = [];
+        foreach ($towns as $townId => $town) {
+            if ($town['troops'] > 0) {
+                $occupied[$townId] = true;
+            }
+        }
+
+        $seen = [];
+        $components = [];
+
+        foreach (array_keys($occupied) as $townId) {
+            if (isset($seen[$townId])) {
+                continue;
+            }
+
+            $component = [];
+            $frontier = [$townId];
+            $seen[$townId] = true;
+
+            while ($frontier) {
+                $current = array_pop($frontier);
+                $component[] = $current;
+                foreach ($towns[$current]['neighbors'] as $neighbor) {
+                    if (isset($occupied[$neighbor]) && !isset($seen[$neighbor])) {
+                        $seen[$neighbor] = true;
+                        $frontier[] = $neighbor;
+                    }
+                }
+            }
+
+            sort($component);
+            $components[] = $component;
+        }
+
+        return $components;
+    }
+
+    /**
+     * @param array<string, array> $towns
+     * @return string[] the network containing this town, empty if it holds none
+     */
+    public static function componentOf(array $towns, string $townId): array
+    {
+        foreach (self::components($towns) as $component) {
+            if (in_array($townId, $component, true)) {
+                return $component;
+            }
+        }
+        return [];
+    }
+
+    /**
+     * How many troops a network can keep standing.
+     *
+     * @param array<string, array> $towns
+     * @param string[] $component
+     */
+    public static function ceiling(array $towns, array $component, int $supplyPerTroop): int
+    {
+        if ($supplyPerTroop <= 0) {
+            return 0;
+        }
+        $supply = 0;
+        foreach ($component as $townId) {
+            $supply += (int) $towns[$townId]['supply'];
+        }
+        return intdiv($supply, $supplyPerTroop);
+    }
+
+    /**
+     * @param array<string, array> $towns
+     * @param string[] $component
+     */
+    public static function troopsIn(array $towns, array $component): int
+    {
+        $troops = 0;
+        foreach ($component as $townId) {
+            $troops += (int) $towns[$townId]['troops'];
+        }
+        return $troops;
+    }
+
+    /**
+     * Towns the Empire holds that can build and can afford to.
      *
      * @param array<string, array> $towns
      * @return string[]
      */
-    public static function legalGenerationTowns(array $towns): array
+    public static function productionSites(array $towns, int $productionCost): array
     {
-        $held = [];
+        $sites = [];
         foreach ($towns as $townId => $town) {
-            if ($town['troops'] > 0) {
-                $held[] = $townId;
+            if ($town['troops'] > 0 && self::productionCapacity($towns, $townId, $productionCost) > 0) {
+                $sites[] = $townId;
             }
         }
-        return $held ?: self::unresolvedTownIds($towns);
+        return $sites;
+    }
+
+    /**
+     * How many troops a town could raise this turn, ignoring the ceiling.
+     *
+     * @param array<string, array> $towns
+     */
+    public static function productionCapacity(array $towns, string $townId, int $productionCost): int
+    {
+        if (!isset($towns[$townId]) || $towns[$townId]['troops'] === 0 || $productionCost <= 0) {
+            return 0;
+        }
+        return intdiv((int) $towns[$townId]['production'], $productionCost);
+    }
+
+    /**
+     * Spare ceiling in the network this town belongs to.
+     *
+     * @param array<string, array> $towns
+     */
+    public static function headroom(array $towns, string $townId, int $supplyPerTroop): int
+    {
+        $component = self::componentOf($towns, $townId);
+        if (!$component) {
+            return 0;
+        }
+        return max(
+            0,
+            self::ceiling($towns, $component, $supplyPerTroop) - self::troopsIn($towns, $component),
+        );
+    }
+
+    /**
+     * Which troops starve, because their network can no longer supply them.
+     *
+     * The Empire's own choices are honoured first, then the largest garrisons,
+     * so a turn is always legal even when it names nowhere.
+     *
+     * @param array<string, array> $towns
+     * @param array<string, int> $disband  the Empire's preferences
+     * @return array<string, int> town id => troops lost
+     */
+    public static function attritionPlan(array $towns, int $supplyPerTroop, array $disband = []): array
+    {
+        $losses = [];
+
+        foreach (self::components($towns) as $component) {
+            $over = self::troopsIn($towns, $component)
+                - self::ceiling($towns, $component, $supplyPerTroop);
+            if ($over <= 0) {
+                continue;
+            }
+
+            $order = [];
+            foreach ($component as $townId) {
+                if (($disband[$townId] ?? 0) > 0) {
+                    $order[] = $townId;
+                }
+            }
+            $rest = $component;
+            usort($rest, static fn(string $a, string $b) => $towns[$b]['troops'] <=> $towns[$a]['troops']);
+            $order = array_merge($order, $rest);
+
+            $taken = 0;
+            foreach ($order as $townId) {
+                if ($taken >= $over) {
+                    break;
+                }
+                $available = (int) $towns[$townId]['troops'] - ($losses[$townId] ?? 0);
+                $wanted = isset($disband[$townId]) && !in_array($townId, $rest, true)
+                    ? $disband[$townId]
+                    : $available;
+                $take = min($available, $over - $taken, max(0, $wanted));
+                if ($take > 0) {
+                    $losses[$townId] = ($losses[$townId] ?? 0) + $take;
+                    $taken += $take;
+                }
+            }
+        }
+
+        return $losses;
     }
 
     /**
@@ -231,18 +400,51 @@ final class Rules
     // -- the Empire turn ----------------------------------------------------
 
     /**
+     * Check a set of builds: presence, the town's own production, and the spare
+     * ceiling of each network taken together rather than town by town.
+     *
      * @param array<string, array> $towns
+     * @param array<string, int> $produce town id => troops to raise there
      */
-    public static function validateGeneration(array $towns, ?string $townId): void
-    {
-        if ($townId === null) {
-            return;
+    public static function validateProduction(
+        array $towns,
+        array $produce,
+        int $productionCost,
+        int $supplyPerTroop,
+    ): void {
+        $addedTo = [];
+
+        foreach ($produce as $townId => $count) {
+            $count = (int) $count;
+            if ($count <= 0) {
+                throw new IllegalMove('build count must be positive');
+            }
+            if (!isset($towns[$townId])) {
+                throw new IllegalMove("unknown town {$townId}");
+            }
+            if ($towns[$townId]['troops'] === 0) {
+                throw new IllegalMove("cannot build at {$townId}: no Empire presence");
+            }
+
+            $capacity = self::productionCapacity($towns, $townId, $productionCost);
+            if ($count > $capacity) {
+                throw new IllegalMove("{$townId} can build {$capacity}, asked for {$count}");
+            }
+
+            // Several towns can share one ceiling, so charge them all to it.
+            $key = implode(',', self::componentOf($towns, $townId));
+            $addedTo[$key] = ($addedTo[$key] ?? 0) + $count;
         }
-        if (!isset($towns[$townId])) {
-            throw new IllegalMove("unknown town {$townId}");
-        }
-        if (!in_array($townId, self::legalGenerationTowns($towns), true)) {
-            throw new IllegalMove("cannot generate at {$townId}: no Empire presence");
+
+        foreach ($addedTo as $key => $added) {
+            $component = explode(',', $key);
+            $spare = self::ceiling($towns, $component, $supplyPerTroop)
+                - self::troopsIn($towns, $component);
+            if ($added > $spare) {
+                throw new IllegalMove(
+                    "cannot build {$added}: supply supports " . max(0, $spare) . ' more'
+                );
+            }
         }
     }
 

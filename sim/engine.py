@@ -101,16 +101,23 @@ class InsurgencyTurn:
 
 @dataclass
 class EmpireTurn:
-    """moves is a list of (from_town, to_town, count) troop transfers.
+    """One Empire turn: build, march, look, and maybe resolve.
+
+    `produce` maps a production town to how many troops to raise there. Troops
+    appear where they are built and have to march from there.
+
+    `disband` optionally names where to take attrition losses from. Anything not
+    specified is taken from the largest garrisons, so a turn is always legal.
 
     Looks are not listed: every troop that did not move peeks automatically,
     since peeking is free, always available to a stationary troop, and never
     disadvantageous. Making it an explicit choice would add an action with no
     decision in it.
     """
-    generate_at: str | None = None
+    produce: dict[str, int] = field(default_factory=dict)
     moves: list[tuple[str, str, int]] = field(default_factory=list)
     resolve: str | None = None
+    disband: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -241,14 +248,17 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     town.resolved_influence = influence
     town.resolved_strength = strength
 
-    # Everything committed here is spent. The troops are removed from play
-    # entirely; the cards stay as a public record of the fight.
-    if state.scenario.consume_troops:
-        town.troops = 0
-
-    # Resolution flips whatever is left face up, so the whole town is public.
+    # The flip is public whatever happens next.
     town.revealed.extend(town.pile)
     town.pile.clear()
+
+    # The loser's commitment is taken off the board and scored; the winner's
+    # stays. An Empire that holds a town keeps its garrison, so the town goes on
+    # carrying supply and, if it can, building.
+    if winner is Side.EMPIRE:
+        town.revealed.clear()
+    else:
+        town.troops = 0
 
     who = "auto" if declared_by is None else declared_by.value
     state.log.append(
@@ -259,19 +269,77 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     return winner
 
 
-def legal_generation_towns(state: GameState) -> list[str]:
-    """Where the Empire may raise troops.
+def empire_components(state: GameState) -> list[set[str]]:
+    """The Empire's supply networks.
 
-    Normally: any town it already stands in. Resolved towns do not qualify —
-    the garrison there was spent, so the Empire no longer holds the place.
+    A town is in the network if the Empire stands in it, and two occupied towns
+    are linked if the map links them. Resolution does not matter: a town the
+    Empire won and still garrisons carries supply exactly like any other.
 
-    The fallback exists because troops are consumed by resolution: an Empire
-    that commits its last troops would otherwise have no legal generation site
-    and be eliminated with turns still on the clock. With nothing on the board
-    it may raise troops anywhere still contested.
+    Cutting a network in two gives two smaller ceilings, which is the whole
+    point of the Insurgency attacking a junction.
     """
-    held = [t.id for t in state.towns.values() if t.has_empire_presence]
-    return held if held else [t.id for t in state.unresolved]
+    occupied = {t.id for t in state.towns.values() if t.troops > 0}
+    seen: set[str] = set()
+    components: list[set[str]] = []
+
+    for town_id in sorted(occupied):
+        if town_id in seen:
+            continue
+        component = {town_id}
+        frontier = [town_id]
+        while frontier:
+            current = frontier.pop()
+            for neighbor in state.towns[current].neighbors:
+                if neighbor in occupied and neighbor not in component:
+                    component.add(neighbor)
+                    frontier.append(neighbor)
+        seen |= component
+        components.append(component)
+
+    return components
+
+
+def component_of(state: GameState, town_id: str) -> set[str]:
+    for component in empire_components(state):
+        if town_id in component:
+            return component
+    return set()
+
+
+def ceiling(state: GameState, component: set[str]) -> int:
+    """How many troops a network can keep standing."""
+    supply = sum(state.scenario.town_supply[tid] for tid in component)
+    return supply // state.scenario.supply_per_troop
+
+
+def troops_in(state: GameState, component: set[str]) -> int:
+    return sum(state.towns[tid].troops for tid in component)
+
+
+def production_sites(state: GameState) -> list[str]:
+    """Towns the Empire holds that can build, and can afford to build."""
+    cost = state.scenario.production_cost
+    return [
+        t.id for t in state.towns.values()
+        if t.troops > 0 and state.scenario.town_production[t.id] >= cost
+    ]
+
+
+def production_capacity(state: GameState, town_id: str) -> int:
+    """How many troops this town could raise this turn, ignoring the ceiling."""
+    cost = state.scenario.production_cost
+    if state.towns[town_id].troops == 0 or cost <= 0:
+        return 0
+    return state.scenario.town_production[town_id] // cost
+
+
+def headroom(state: GameState, town_id: str) -> int:
+    """Spare ceiling in the network this town belongs to."""
+    component = component_of(state, town_id)
+    if not component:
+        return 0
+    return max(0, ceiling(state, component) - troops_in(state, component))
 
 
 def _can_declare(state: GameState, town_id: str, side: Side) -> bool:
@@ -345,20 +413,28 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
 
     scenario = state.scenario
 
-    # 1. Generate. Requires existing presence, which frozen troops satisfy.
-    if turn.generate_at is not None:
-        town = state.towns.get(turn.generate_at)
+    # 1. Build. A town can raise troops if the Empire stands there and the town
+    #    can produce; how many is capped by the town's production and by the
+    #    spare ceiling of the network it belongs to.
+    for town_id, count in turn.produce.items():
+        if count <= 0:
+            raise IllegalMove("produce count must be positive")
+        town = state.towns.get(town_id)
         if town is None:
-            raise IllegalMove(f"unknown town {turn.generate_at!r}")
-        if turn.generate_at not in legal_generation_towns(state):
+            raise IllegalMove(f"unknown town {town_id!r}")
+        if town.troops == 0:
+            raise IllegalMove(f"cannot build at {town_id}: no Empire presence")
+        if count > production_capacity(state, town_id):
             raise IllegalMove(
-                f"cannot generate at {turn.generate_at}: no Empire presence"
+                f"{town_id} can build {production_capacity(state, town_id)}, asked for {count}"
             )
-        town.troops += scenario.generation_rate
-        state.log.append(
-            f"R{state.round_number}: Empire raises "
-            f"{scenario.generation_rate} at {town.label}"
-        )
+        if count > headroom(state, town_id):
+            raise IllegalMove(
+                f"cannot build {count} at {town_id}: supply supports "
+                f"{headroom(state, town_id)} more"
+            )
+        town.troops += count
+        state.log.append(f"R{state.round_number}: Empire builds {count} at {town.label}")
 
     # 2. Move. Record departures first so we can work out who stayed still.
     departed: dict[str, int] = {}
@@ -413,8 +489,50 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
             )
         resolve_town(state, turn.resolve, Side.EMPIRE)
 
+    # 5. Starve anything the networks can no longer support.
+    _attrition(state, turn.disband)
+
     state.to_move = Side.INSURGENCY
     state.round_number += 1
+
+
+def _attrition(state: GameState, disband: dict[str, int]) -> None:
+    """Troops a network cannot supply starve, at the end of the Empire's turn.
+
+    End of turn rather than start, so a cut made by the Insurgency can be
+    answered: the Empire gets one turn to march the line back together or to
+    accept the loss and consolidate.
+
+    Starved troops score for the Insurgency. That is not a special rule, it is
+    the general one — the Insurgency scores every Empire troop that leaves the
+    board, whether it was beaten off it or starved off it. Cutting a supply line
+    is a way of taking troops, so it pays like one.
+    """
+    for component in empire_components(state):
+        over = troops_in(state, component) - ceiling(state, component)
+        if over <= 0:
+            continue
+
+        # Take what the Empire asked for first, then the largest garrisons, so
+        # a turn is always legal even if it names nowhere.
+        order = [tid for tid in sorted(component) if disband.get(tid)]
+        order += sorted(component, key=lambda tid: -state.towns[tid].troops)
+
+        starved = 0
+        for town_id in order:
+            if starved >= over:
+                break
+            town = state.towns[town_id]
+            take = min(town.troops, over - starved, disband.get(town_id, town.troops))
+            town.troops -= take
+            starved += take
+
+        if starved:
+            state.scores[Side.INSURGENCY] += starved * state.scenario.unit.strength
+            state.log.append(
+                f"R{state.round_number}: {starved} Empire troops starve — "
+                f"supply cut to {ceiling(state, component)}"
+            )
 
 
 def _peek(state: GameState, town: Town, look_count: int) -> None:
