@@ -181,13 +181,26 @@ export class BoardView {
         return found;
     }
 
+    /**
+     * What a town gives the Empire, which is nothing once the rebels have won
+     * it. An Insurgency victory denies the ground permanently: the Empire may
+     * garrison it and hold a line through it, but it will never feed one.
+     */
+    supplyOf(townId: string): number {
+        const town = this.towns[townId];
+        if (town.resolved && town.winner === 'insurgency') {
+            return 0;
+        }
+        return this.scenario.towns[townId].supply;
+    }
+
     /** The ceiling and load of the network a town belongs to, if any. */
     networkOf(townId: string): { towns: string[]; ceiling: number; troops: number } | null {
         const network = this.networks().find(n => n.includes(townId));
         if (!network) {
             return null;
         }
-        const supply = network.reduce((total, id) => total + this.scenario.towns[id].supply, 0);
+        const supply = network.reduce((total, id) => total + this.supplyOf(id), 0);
         return {
             towns: network,
             ceiling: Math.floor(supply / this.scenario.supplyPerTroop),
@@ -264,11 +277,15 @@ export class BoardView {
         // Supply reads as "what this town adds / what its network can hold".
         const network = this.networkOf(townId);
         const definition = this.scenario.towns[townId];
+        const denied = town.resolved && town.winner === 'insurgency';
         const supply = element.querySelector('.iaw-town-supply') as HTMLElement;
         supply.innerHTML = `
-            <span class="iaw-supply" title="${_('Supply: this town, and its network')}"
-                >${definition.supply}${network ? `/${network.ceiling}` : ''}</span>
-            ${definition.production > 0
+            <span class="iaw-supply${denied ? ' denied' : ''}"
+                  title="${denied
+                      ? _('Taken by the Insurgency: supplies nothing, builds nothing')
+                      : _('Supply: this town, and its network')}"
+                >${this.supplyOf(townId)}${network ? `/${network.ceiling}` : ''}</span>
+            ${definition.production > 0 && !denied
                 ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
                 : ''}
         `;

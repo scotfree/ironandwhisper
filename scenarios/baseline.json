@@ -1,7 +1,7 @@
 {
   "id": "baseline",
   "label": "Baseline MVP",
-  "notes": "Supply and production. The Empire opens on Everlan and Belmar: 3 supply, 3 troops, already at its ceiling, so it must take ground to grow. Graded influence cards, 60 of them, so the clock stays at 12 turns.",
+  "notes": "Supply and production. The Empire opens on Everlan and Belmar, and must take ground to grow. Graded influence cards, 60 of them, so the clock stays at 12 turns. Tuned to roughly even against the heuristic bots; untested by humans.",
   "map": "grid12",
   "unit": "infantry",
   "hand_size": 5,
@@ -17,6 +17,6 @@
   },
   "first_player": "insurgency",
   "empire_wins_ties": true,
-  "supply_per_troop": 1,
+  "supply_per_troop": 2,
   "production_cost": 1
 }

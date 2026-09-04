@@ -580,3 +580,34 @@ def test_scoring_conserves_what_was_actually_committed():
     assert (st.scores[Side.INSURGENCY] - beaten) % st.scenario.unit.strength == 0, (
         "the excess is whole troops, starved"
     )
+
+
+def test_a_town_the_rebels_take_never_supplies_the_empire_again():
+    """The Insurgency cannot build a network, so its victories destroy one."""
+    st = state(map=line_map(supply=2, producers=("a", "b")))
+    st.towns["a"].troops = 1
+    st.towns["b"].troops = 1
+    assert ceiling(st, component_of(st, "a")) == 4
+
+    # The rebels take b. The Empire may march back in — b is resolved, so it can
+    # never be contested again — but it will never feed the Empire again either.
+    st.towns["b"].troops = 0
+    seed_pile(st, "b", influence=1)
+    resolve_town(st, "b", Side.INSURGENCY)
+    st.towns["b"].troops = 1
+
+    assert component_of(st, "a") == {"a", "b"}, "still a road, still garrisoned"
+    assert ceiling(st, component_of(st, "a")) == 2, "but b feeds nothing"
+
+
+def test_a_town_the_rebels_take_never_builds_for_the_empire_again():
+    st = state(map=line_map(supply=2, producers=("a", "b")))
+    st.towns["b"].troops = 1
+    assert production_capacity(st, "b") == 1
+
+    seed_pile(st, "b", influence=5)
+    resolve_town(st, "b", Side.INSURGENCY)
+    st.towns["b"].troops = 1
+
+    assert production_capacity(st, "b") == 0
+    assert "b" not in production_sites(st)

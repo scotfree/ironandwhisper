@@ -119,9 +119,9 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 |---|---|---|
 | Number of towns | 12 | Average degree ~3, diameter 4–5. |
 | Empire starting position | 3 troops across two adjacent towns | Board starts with no cards on it. |
-| Town supply | 2, or 3 in four richer towns | What a town adds to its network's troop ceiling. |
+| Town supply | 5 to 7, no two towns alike | What a town adds to its network's troop ceiling. |
 | Town production | 1, at Everlan and Kirn only | Troops the town can build per turn. |
-| Supply per troop | 1 | Divides network supply into a troop ceiling. |
+| Supply per troop | 2 | Divides network supply into a troop ceiling. |
 | Infantry — Strength | 3 | Deliberately higher than one card so troops are "heavy." |
 | Infantry — Movement | 1 | Edges per turn. |
 | Infantry — Peek | 1 | Cards a stationary troop turns face up each turn. |
@@ -134,7 +134,7 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 
 - **Game length** = `deck_size / hand_size` = **12 Insurgency turns**. Deterministic, because the whole hand must be placed every turn.
 - **Total Insurgency influence** = the deck's values summed = **51**.
-- **Total Empire strength** = the whole map's supply, if the Empire ever held all of it = `28 × 3` = **84**. Unlike the Insurgency's influence this is a ceiling, not a budget: troops are no longer spent, they are limited by supply.
+- **Total Empire strength** = the whole map's supply, if the Empire ever held all of it = `(72 ÷ 2) × 3` = **108**. Unlike the Insurgency's influence this is a ceiling, not a budget: troops are no longer spent, they are limited by supply.
 
 The Empire commands about **0.88×** the Insurgency's total force. That is deliberate but temporary: it is headroom for the network-strength change under design, which will raise the Empire's effective strength considerably. As the rules stand today it is badly Insurgency-favoured — see the measurements below.
 
@@ -183,11 +183,15 @@ A poor town can be a depot; a rich one can be unable to build anything.
 
 **Building.** A town with production and a garrison may raise troops there, up to its own production and up to the spare ceiling of its network. Troops appear where they were built and march from there — there is no teleporting to the front, so distance is real.
 
+**Denial.** A town the Insurgency wins supplies nothing and builds nothing, ever again. The Empire may march back into it — the town is resolved, so it can never be contested a second time — and it will hold a line through it, but it will never feed one. This is what makes taking a town worth something lasting to a side that cannot build a network of its own: it does not capture supply, it destroys it.
+
 **Attrition.** A network that cannot supply its troops starves them, at the end of the Empire's turn. End of turn rather than start, so a line the Insurgency cut can be answered: the Empire gets exactly one turn to march it back together or accept the loss. Starved troops score for the Insurgency.
 
 **Why:** this is the Empire's whole character in one subsystem. It does not out-fight the Insurgency, it out-organises it — and an organisation can be cut. It also produces the tension the game needs from the Empire's side: **spread for economy, concentrate for battle.** Supply is per town, so thinning out raises your ceiling; attack strength is local, so thin garrisons lose fights and are removed. The two pull against each other every turn.
 
 > **An older version of this rule read "one troop per turn, anywhere the Empire already stands", with a warning that per-town generation was degenerate** — the Empire splits up to occupy more towns, occupies more towns to generate more, and out-produces the Insurgency deck. Per-town production is exactly what that warned against, and it is safe now for a reason that did not hold then: dilution is no longer free. A thin garrison loses its local fight, and the troops in it are removed and scored. Spreading buys economy and sells safety, which is a trade rather than a strictly correct move.
+
+> **Balance is very sensitive to ordinary towns, and not to capitals.** Sweeping the values found a cliff: at 2.5 supply-troops per ordinary town the Empire wins about 38%, at 3.0 about 65%, with nothing in between reachable on a uniform map. Raising the *capitals* instead moved it the wrong way — concentrating supply makes the Empire fragile, because losing one node collapses a ceiling and starves an army into the Insurgency's score. The map is therefore deliberately heterogeneous, which straddles the cliff and lands near even. Treat the cliff as a property of the current bots as much as of the game: it is where their strategy flips, and a human plays the margin differently.
 
 > **A rejected version had the network contribute *attack strength* rather than supply**, so every fight was backed by the whole army. It fails: a troop contributes the same strength wherever it stands, so there is never a reason to expose one. The Empire wins a town, parks its army there permanently out of reach, and pushes forward with a single token troop. That is the failure in Decision 3 wearing a different hat — the Empire never accepts a bad fight, and the Insurgency's only scoring route closes. Network-as-production has no such incentive, because collecting a town's supply costs a garrison that counts against the very ceiling it raises.
 

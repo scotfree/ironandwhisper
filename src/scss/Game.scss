@@ -329,3 +329,10 @@ $paper: #efe7d7;
     stroke: $empire;
     stroke-width: 5;
 }
+
+// A town the rebels took: still ground, still passable, but it feeds nothing.
+.iaw-supply.denied {
+    background: none;
+    color: #999;
+    text-decoration: line-through;
+}

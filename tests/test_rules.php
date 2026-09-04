@@ -33,7 +33,7 @@ function rulesTown(array $overrides = []): array
 {
     return array_merge(
         [
-            'neighbors' => [], 'troops' => 0, 'resolved' => false,
+            'neighbors' => [], 'troops' => 0, 'resolved' => false, 'winner' => null,
             'pile' => [], 'revealed' => [],
             'supply' => 1, 'production' => 0,
         ],
@@ -413,4 +413,36 @@ function test_the_insurgency_holds_a_town_it_has_only_face_up_cards_in(): void
     $towns = rulesBoard(['a' => ['revealed' => rulesPile(['influence1'])]]);
 
     assertTrue(Rules::canDeclare($towns, 'a', Rules::INSURGENCY));
+}
+
+function test_a_town_the_rebels_take_never_supplies_the_empire_again(): void
+{
+    // The Insurgency cannot build a network of its own, so its victories
+    // destroy one. The Empire may march back into a town it lost — the town is
+    // resolved, so it can never be contested again — and it will hold a line,
+    // but it will never feed one.
+    $towns = rulesBoard([
+        'a' => ['troops' => 1, 'supply' => 2, 'production' => 1],
+        'b' => ['troops' => 1, 'supply' => 2, 'production' => 1],
+    ]);
+    assertSame(4, Rules::ceiling($towns, ['a', 'b'], 1));
+    assertSame(1, Rules::productionCapacity($towns, 'b', 1));
+
+    $towns['b']['resolved'] = true;
+    $towns['b']['winner'] = Rules::INSURGENCY;
+
+    assertSame([['a', 'b']], Rules::components($towns), 'still a road, still garrisoned');
+    assertSame(2, Rules::ceiling($towns, ['a', 'b'], 1), 'but it feeds nothing');
+    assertSame(0, Rules::productionCapacity($towns, 'b', 1), 'and builds nothing');
+    assertSame(['a'], Rules::productionSites($towns, 1));
+}
+
+function test_a_town_the_empire_wins_keeps_supplying(): void
+{
+    $towns = rulesBoard([
+        'a' => ['troops' => 1, 'supply' => 2],
+        'b' => ['troops' => 1, 'supply' => 2, 'resolved' => true, 'winner' => Rules::EMPIRE],
+    ]);
+
+    assertSame(4, Rules::ceiling($towns, ['a', 'b'], 1), 'holding it is the reward');
 }

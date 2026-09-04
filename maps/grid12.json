@@ -1,14 +1,14 @@
 {
   "id": "grid12",
   "label": "Twelve Towns",
-  "notes": "3x4 lattice. 17 edges, average degree 2.83, diameter 5. Deliberately regular so early tuning runs are easy to reason about. Total supply 16. Two producers, Everlan and Kirn, at opposite ends of the middle column, so the Empire starts on one and has to march the length of the map for the other.",
+  "notes": "3x4 lattice. 17 edges, average degree 2.83, diameter 5. Total supply 72, divided by 2 per troop, so a town supports between 2.5 and 3.5 troops and costs one to garrison. Towns deliberately differ: balance sits between '2.5 troops per ordinary town' and '3', and a uniform map lands on one side of that cliff or the other. Two producers, Everlan and Kirn, at opposite ends of the middle column, so the Empire starts on one and must march the length of the map for the other.",
   "towns": [
     {
       "id": "ashford",
       "label": "Ashford",
       "x": 0,
       "y": 0,
-      "supply": 2,
+      "supply": 5,
       "production": 0
     },
     {
@@ -16,7 +16,7 @@
       "label": "Belmar",
       "x": 1,
       "y": 0,
-      "supply": 2,
+      "supply": 6,
       "production": 0
     },
     {
@@ -24,7 +24,7 @@
       "label": "Coldwater",
       "x": 2,
       "y": 0,
-      "supply": 3,
+      "supply": 7,
       "production": 0
     },
     {
@@ -32,7 +32,7 @@
       "label": "Draymoor",
       "x": 0,
       "y": 1,
-      "supply": 2,
+      "supply": 6,
       "production": 0
     },
     {
@@ -40,7 +40,7 @@
       "label": "Everlan",
       "x": 1,
       "y": 1,
-      "supply": 3,
+      "supply": 7,
       "production": 1
     },
     {
@@ -48,7 +48,7 @@
       "label": "Fenn",
       "x": 2,
       "y": 1,
-      "supply": 2,
+      "supply": 5,
       "production": 0
     },
     {
@@ -56,7 +56,7 @@
       "label": "Gallow",
       "x": 0,
       "y": 2,
-      "supply": 3,
+      "supply": 7,
       "production": 0
     },
     {
@@ -64,7 +64,7 @@
       "label": "Harrow",
       "x": 1,
       "y": 2,
-      "supply": 2,
+      "supply": 6,
       "production": 0
     },
     {
@@ -72,7 +72,7 @@
       "label": "Ilmen",
       "x": 2,
       "y": 2,
-      "supply": 2,
+      "supply": 5,
       "production": 0
     },
     {
@@ -80,7 +80,7 @@
       "label": "Joss",
       "x": 0,
       "y": 3,
-      "supply": 2,
+      "supply": 5,
       "production": 0
     },
     {
@@ -88,7 +88,7 @@
       "label": "Kirn",
       "x": 1,
       "y": 3,
-      "supply": 3,
+      "supply": 7,
       "production": 1
     },
     {
@@ -96,7 +96,7 @@
       "label": "Larrow",
       "x": 2,
       "y": 3,
-      "supply": 2,
+      "supply": 6,
       "production": 0
     }
   ],

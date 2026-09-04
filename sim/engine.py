@@ -307,9 +307,32 @@ def component_of(state: GameState, town_id: str) -> set[str]:
     return set()
 
 
+def town_supply(state: GameState, town_id: str) -> int:
+    """What a town gives the Empire, which is nothing once the rebels have won it.
+
+    An Insurgency victory denies the ground permanently. The Empire may march
+    back in — the town is resolved, so it can never be contested again — and it
+    will hold a line, but it will never feed one. That is what makes taking a
+    town worth something lasting to a side that cannot build a network of its
+    own: it does not capture supply, it destroys it.
+    """
+    town = state.towns[town_id]
+    if town.resolved and town.winner is Side.INSURGENCY:
+        return 0
+    return state.scenario.town_supply[town_id]
+
+
+def town_production(state: GameState, town_id: str) -> int:
+    """As with supply: a town the rebels took never builds for the Empire again."""
+    town = state.towns[town_id]
+    if town.resolved and town.winner is Side.INSURGENCY:
+        return 0
+    return state.scenario.town_production[town_id]
+
+
 def ceiling(state: GameState, component: set[str]) -> int:
     """How many troops a network can keep standing."""
-    supply = sum(state.scenario.town_supply[tid] for tid in component)
+    supply = sum(town_supply(state, tid) for tid in component)
     return supply // state.scenario.supply_per_troop
 
 
@@ -322,7 +345,7 @@ def production_sites(state: GameState) -> list[str]:
     cost = state.scenario.production_cost
     return [
         t.id for t in state.towns.values()
-        if t.troops > 0 and state.scenario.town_production[t.id] >= cost
+        if t.troops > 0 and town_production(state, t.id) >= cost
     ]
 
 
@@ -331,7 +354,7 @@ def production_capacity(state: GameState, town_id: str) -> int:
     cost = state.scenario.production_cost
     if state.towns[town_id].troops == 0 or cost <= 0:
         return 0
-    return state.scenario.town_production[town_id] // cost
+    return town_production(state, town_id) // cost
 
 
 def headroom(state: GameState, town_id: str) -> int:

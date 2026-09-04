@@ -281,3 +281,9 @@
   stroke: #6b3fa0;
   stroke-width: 5;
 }
+
+.iaw-supply.denied {
+  background: none;
+  color: #999;
+  text-decoration: line-through;
+}

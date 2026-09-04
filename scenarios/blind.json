@@ -17,6 +17,6 @@
   },
   "first_player": "insurgency",
   "empire_wins_ties": true,
-  "supply_per_troop": 1,
+  "supply_per_troop": 2,
   "production_cost": 1
 }

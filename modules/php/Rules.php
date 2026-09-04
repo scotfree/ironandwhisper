@@ -152,9 +152,37 @@ final class Rules
         }
         $supply = 0;
         foreach ($component as $townId) {
-            $supply += (int) $towns[$townId]['supply'];
+            $supply += self::townSupply($towns[$townId]);
         }
         return intdiv($supply, $supplyPerTroop);
+    }
+
+    /**
+     * What a town gives the Empire, which is nothing once the rebels have won it.
+     *
+     * An Insurgency victory denies the ground permanently. The Empire may march
+     * back in — the town is resolved, so it can never be contested again — and
+     * it will hold a line, but it will never feed one. That is what makes
+     * taking a town worth something lasting to a side that cannot build a
+     * network of its own: it does not capture supply, it destroys it.
+     *
+     * @param array{resolved: bool, winner: ?string, supply: int} $town
+     */
+    public static function townSupply(array $town): int
+    {
+        if ($town['resolved'] && $town['winner'] === self::INSURGENCY) {
+            return 0;
+        }
+        return (int) $town['supply'];
+    }
+
+    /** As with supply: a town the rebels took never builds for the Empire again. */
+    public static function townProduction(array $town): int
+    {
+        if ($town['resolved'] && $town['winner'] === self::INSURGENCY) {
+            return 0;
+        }
+        return (int) $town['production'];
     }
 
     /**
@@ -197,7 +225,7 @@ final class Rules
         if (!isset($towns[$townId]) || $towns[$townId]['troops'] === 0 || $productionCost <= 0) {
             return 0;
         }
-        return intdiv((int) $towns[$townId]['production'], $productionCost);
+        return intdiv(self::townProduction($towns[$townId]), $productionCost);
     }
 
     /**

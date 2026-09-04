@@ -36,10 +36,16 @@ but its framework idioms are obsolete.
 PHP.** Changing their shape means changing both. That sharing is the whole reason the
 tuning work transfers.
 
-**Balance is roughly even and entirely untested by humans.** With supply and production in,
-1000 games of heuristic bots put the Empire near 47% and the Insurgency near 49%. The
-numbers came from one tuning pass — raising town supply from 1-2 to 2-3 — not from
-playtesting.
+**Balance is roughly even and entirely untested by humans.** 500 bot games put the Empire
+at 49% in Python and 52% in PHP. Getting there needed a *heterogeneous* map: balance sits
+on a cliff between 2.5 and 3.0 supply-troops per ordinary town, and a uniform map lands on
+one side or the other. Raising the capitals instead moves it the wrong way — concentrated
+supply makes the Empire fragile. Assume the cliff is where the bots' strategy flips rather
+than a real property of the game, and re-tune after any rules change.
+
+**The control scenarios are stale.** `flat`, `graded36`, `blind` and friends were measured
+before supply, production and denial existed. They still load and run; their recorded
+numbers in `ironandwhisper.md` belong to the rules of the time.
 
 **There is no "dummy" card any more.** Card type ids are `influence0` through `influence3`
 and carry their own value. A bluff is a card worth 0.
