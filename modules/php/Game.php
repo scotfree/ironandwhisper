@@ -235,7 +235,7 @@ class Game extends \Bga\GameFramework\Table
             clienttranslate('${town_label} resolves: ${influence} influence against ${strength} strength — ${player_name} takes it for ${points}'),
             [
                 'town_id' => $townId,
-                'town_label' => $town['label'],
+                'town_label' => $this->townLabel($townId),
                 'i18n' => ['town_label'],
                 'influence' => $outcome['influence'],
                 'strength' => $outcome['strength'],
@@ -304,9 +304,24 @@ class Game extends \Bga\GameFramework\Table
         // entire hand out every turn — and so is which card sits where, since
         // the Empire watches the heights change. What the cards *are* is not,
         // so this carries ids and no types.
-        $this->bga->notify->all('cardsPlaced', clienttranslate('${player_name} seeds ${count} cards'), [
+        // One line per town, so the log reads as an account of the turn rather
+        // than a total. The state-carrying notification comes after, silent.
+        foreach ($placed as $townId => $cardIds) {
+            $this->bga->notify->all(
+                'placedIn',
+                clienttranslate('${player_name} places ${count} in ${town_label}'),
+                [
+                    'player_id' => $actorId,
+                    'player_name' => $this->playerNameFor($actorId),
+                    'count' => count($cardIds),
+                    'town_label' => $this->townLabel($townId),
+                    'i18n' => ['town_label'],
+                ],
+            );
+        }
+
+        $this->bga->notify->all('cardsPlaced', '', [
             'player_id' => $actorId,
-            'player_name' => $this->playerNameFor($actorId),
             'count' => count($hand),
             'cards' => $placed,
         ]);
@@ -380,9 +395,37 @@ class Game extends \Bga\GameFramework\Table
 
         $this->board->adjustTroops($delta);
 
-        $this->bga->notify->all('empireMoved', clienttranslate('${player_name} manoeuvres'), [
+        foreach ($produce as $townId => $count) {
+            $this->bga->notify->all(
+                'built',
+                clienttranslate('${player_name} builds ${count} in ${town_label}'),
+                [
+                    'player_id' => $actorId,
+                    'player_name' => $this->playerNameFor($actorId),
+                    'count' => $count,
+                    'town_label' => $this->townLabel($townId),
+                    'i18n' => ['town_label'],
+                ],
+            );
+        }
+
+        foreach ($moves as [$from, $to, $count]) {
+            $this->bga->notify->all(
+                'marched',
+                clienttranslate('${player_name} marches ${count} from ${from_label} to ${to_label}'),
+                [
+                    'player_id' => $actorId,
+                    'player_name' => $this->playerNameFor($actorId),
+                    'count' => $count,
+                    'from_label' => $this->townLabel($from),
+                    'to_label' => $this->townLabel($to),
+                    'i18n' => ['from_label', 'to_label'],
+                ],
+            );
+        }
+
+        $this->bga->notify->all('empireMoved', '', [
             'player_id' => $actorId,
-            'player_name' => $this->playerNameFor($actorId),
             'produced' => $produce,
             'moves' => array_map(
                 fn(array $move) => ['from' => $move[0], 'to' => $move[1], 'count' => $move[2]],
@@ -438,11 +481,13 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'troopsStarved',
-            clienttranslate('${count} Empire troops starve for want of supply — ${player_name} scores ${points}'),
+            clienttranslate('${count} Empire troops starve for want of supply in ${town_labels} — ${player_name} scores ${points}'),
             [
                 'count' => $starved,
                 'points' => $points,
                 'losses' => $losses,
+                'town_labels' => $this->townLabels(array_keys($losses)),
+                'i18n' => ['town_labels'],
                 'player_id' => $insurgencyId,
                 'player_name' => $this->playerNameFor($insurgencyId),
                 'troops' => array_map(
@@ -500,14 +545,27 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'cardsRevealed',
-            clienttranslate('${player_name} turns ${count} cards face up'),
+            clienttranslate('${player_name} turns ${count} cards face up in ${town_labels}'),
             [
                 'player_id' => $actorId,
                 'player_name' => $this->playerNameFor($actorId),
                 'count' => array_sum(array_map('count', $revealed)),
+                'town_labels' => $this->townLabels(array_keys($revealed)),
+                'i18n' => ['town_labels'],
                 'revealed' => $revealed,
             ],
         );
+    }
+
+    public function townLabel(string $townId): string
+    {
+        return $this->scenario->towns[$townId]['label'] ?? $townId;
+    }
+
+    /** @param string[] $townIds */
+    public function townLabels(array $townIds): string
+    {
+        return implode(', ', array_map(fn(string $id) => $this->townLabel($id), $townIds));
     }
 
     /**

@@ -63,12 +63,12 @@ namespace Bga\GameFramework {
 
         public function all(string $name, string|object $message = '', array $args = []): void
         {
-            $this->sent[] = ['scope' => 'all', 'player' => null, 'name' => $name, 'args' => $args];
+            $this->sent[] = ['scope' => 'all', 'player' => null, 'name' => $name, 'message' => $message, 'args' => $args];
         }
 
         public function player(int $playerId, string $name, string|object $message = '', array $args = []): void
         {
-            $this->sent[] = ['scope' => 'player', 'player' => $playerId, 'name' => $name, 'args' => $args];
+            $this->sent[] = ['scope' => 'player', 'player' => $playerId, 'name' => $name, 'message' => $message, 'args' => $args];
         }
 
         public function addDecorator(callable $fn): void

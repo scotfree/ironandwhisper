@@ -191,6 +191,21 @@ export class Game {
         this.renderHand();
     }
 
+    /**
+     * Log-only notifications. The board is moved by the notification that
+     * follows each of these; these exist so the game log reads as an account of
+     * the turn — which town was built in, what marched where, how many cards
+     * went into each pile — rather than a one-line summary.
+     */
+    async notif_built(args: unknown) {
+    }
+
+    async notif_marched(args: unknown) {
+    }
+
+    async notif_placedIn(args: unknown) {
+    }
+
     async notif_empireMoved(args: { troops: Record<string, number> }) {
         Object.entries(args.troops).forEach(([townId, troops]) => {
             this.board.getTown(townId).troops = troops;
