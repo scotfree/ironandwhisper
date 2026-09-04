@@ -1,13 +1,13 @@
 {
   "id": "baseline",
   "label": "Baseline MVP",
-  "notes": "Balance point indicated by the simulator: 36 influence : 24 dummy. Empire total strength 45 vs Insurgency total influence 36; game runs 12 Insurgency turns.",
+  "notes": "Graded influence cards: mostly 1s, a good number of 2s, a few 3s. 60 cards keeps the clock at 12 Insurgency turns; the values raise the Insurgency economy to 51 without lengthening the game.",
 
   "map": "grid12",
   "unit": "infantry",
 
   "hand_size": 5,
-  "deck": { "influence": 36, "dummy": 24 },
+  "deck": { "influence0": 24, "influence1": 24, "influence2": 9, "influence3": 3 },
 
   "generation_rate": 1,
   "empire_start": { "everlan": 3 },

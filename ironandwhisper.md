@@ -125,23 +125,38 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 | Infantry — Peek | 1 | Cards a stationary troop turns face up each turn. |
 | Rebel hand size | 5 | Drawn and fully placed each Insurgency turn. |
 | Rebel deck size | 60 | Finite, no reshuffle. Sets game length. |
-| Deck influence : dummy | 36 : 24 | Influence cards are worth 1 each. See the note below. |
-| Influence card value | 1 | |
+| Deck composition | 24×0, 24×1, 9×2, 3×3 | Graded influence. There is no separate "dummy": a bluff is a card worth 0. |
 | Town point values | none (MVP) | Capture-only scoring; intrinsic values are deferred. |
 
 **Derived quantities**, which is where the tuning pressure actually lives:
 
 - **Game length** = `deck_size / hand_size` = **12 Insurgency turns**. Deterministic, because the whole hand must be placed every turn.
-- **Total Insurgency influence** = `deck_size × influence_ratio` = **36**.
+- **Total Insurgency influence** = the deck's values summed = **51**.
 - **Total Empire strength** = `(starting_troops + turns × generation_rate) × strength` = `(3 + 12) × 3` = **45**.
 
-The Empire commands about 1.25× the Insurgency's total force, which is deliberate — it moves at one edge per turn and has to cover twelve towns, while the Insurgency can place anywhere instantly.
+The Empire commands about **0.88×** the Insurgency's total force. That is deliberate but temporary: it is headroom for the network-strength change under design, which will raise the Empire's effective strength considerably. As the rules stand today it is badly Insurgency-favoured — see the measurements below.
+
+**Card values decouple the clock from the economy.** Deck size sets game length, because the whole hand is placed every turn: 60 cards ÷ 5 = 12 turns, exactly. Card *values* set the Insurgency's economy. Grading the cards is therefore the only way to change what the Insurgency can buy without changing how long the game lasts.
 
 > **Simulation says this premium is the wrong thing to tune.** See `notebooks/exploration.ipynb`. Bringing the premium to exactly 1.00 by lowering troop strength moves the win rate almost not at all, because capture-only scoring makes troop strength self-cancelling: weaker troops win fewer fights, but each fight the Insurgency wins is also worth fewer points, and the two effects nearly cancel.
 >
 > The knob that actually moves the game is **influence density** — the share of the deck that is real. At the original 50:50 the Empire won about 73% of games; balance against the current bots lands near **36 influence : 24 dummy**, roughly 60% density, and the table above now carries that.
 >
-> **Nobody has played it.** 36:24 is a simulator output adopted as a starting point, not a playtested number, and it was measured against bots that are not good players. Treat it as the next thing to test rather than as settled.
+> **Nobody has played any of it.** These are simulator outputs adopted as starting points, measured against bots that are not good players.
+
+> **Graded cards, measured.** 1000 games per configuration, heuristic bots, current rules. `scenarios/` holds each of these so they can be re-run.
+>
+> | deck | total influence | Empire wins | with no peeking | peeking is worth |
+> |---|---|---|---|---|
+> | `flat` — 36×1, 24×0 | 36 | 44.4% | 34.4% | **10.0 points** |
+> | `graded36` — 15×1, 6×2, 3×3, 36×0 | 36 | 57.0% | 55.2% | **1.8 points** |
+> | `baseline` — 24×1, 9×2, 3×3, 24×0 | 51 | 12.2% | 10.9% | 1.3 points |
+>
+> Two things fall out, and one of them is uncomfortable.
+>
+> **Grading helps the Empire**, holding the economy fixed: 44.4% → 57.0%. Concentrating the same influence into fewer, bigger cards means more towns hold nothing but noise, and the Insurgency has fewer real cards to spread across twelve towns. So grading is not in itself a way to strengthen the Insurgency — the economy increase to 51 is what does that, and it does it hard.
+>
+> **Peeking measures as worth much less with graded cards** — 10.0 points down to 1.8 — which is the opposite of the design intent. Do not take that at face value. Each look is genuinely more informative: per-card influence variance triples, from 0.24 to 0.74. What the number really says is that *these bots* cannot cash the extra information, because the Empire bot reduces every pile to one expected-value estimate and marches at the biggest number. "There is a 3 in that town" and "that town estimates at 1.8" are the same thing to it. A human who turns over a 3 knows something categorical. The simulator can measure balance; it is a poor instrument for whether a decision is interesting, and this is exactly where it is weakest.
 
 ---
 

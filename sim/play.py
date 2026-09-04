@@ -9,7 +9,7 @@ through a position, or watch two bots and step in partway.
 
     t = Table("baseline", seed=1, empire=HeuristicEmpire())
     t.show()
-    t.place("everlan", influence=3, dummy=2)
+    t.place("everlan", 3, 1, 0)   # a three, a one and a nothing
     t.end_turn()        # your turn is applied, then the bot Empire replies
 """
 
@@ -99,10 +99,14 @@ def render_board(state: GameState, view: Side | None = None) -> str:
         )
 
     if state.hand and view is not Side.EMPIRE:
-        influence = sum(1 for c in state.hand if c.influence > 0)
-        dummies = len(state.hand) - influence
+        counts: dict[int, int] = {}
+        for card in state.hand:
+            counts[card.influence] = counts.get(card.influence, 0) + 1
+        summary = "  ".join(
+            f"{count}x{value}" for value, count in sorted(counts.items(), reverse=True)
+        )
         lines.append("")
-        lines.append(f"HAND: {influence} influence, {dummies} dummy")
+        lines.append(f"HAND ({len(state.hand)}): {summary}   total {sum(c.influence for c in state.hand)}")
 
     return "\n".join(lines)
 
@@ -204,12 +208,11 @@ class Table:
         if self.state.to_move is Side.INSURGENCY:
             turn = self._pending_insurgency
             for town_id, indices in turn.placements.items():
-                influence = sum(
-                    1 for i in indices if self.state.hand[i].influence > 0
+                values = sorted(
+                    (self.state.hand[i].influence for i in indices), reverse=True
                 )
-                dummies = len(indices) - influence
                 parts.append(
-                    f"  place {influence} influence + {dummies} dummy "
+                    f"  place [{' '.join(str(v) for v in values)}] "
                     f"-> {self.state.towns[town_id].label}"
                 )
             if turn.resolve:
@@ -234,11 +237,11 @@ class Table:
 
     # -- Insurgency actions -------------------------------------------------
 
-    def place(self, town: str, influence: int = 0, dummy: int = 0,
-              cards: int = 0) -> None:
+    def place(self, town: str, *values: int, cards: int = 0) -> None:
         """Commit cards from hand to a town, applied when you end the turn.
 
-        Specify influence/dummy counts, or `cards=n` for n of whatever is left.
+        Name the values you want — `place("everlan", 3, 1, 1)` — or pass
+        `cards=n` for n of whatever is left, in any mix.
         """
         self._require(Side.INSURGENCY)
         town_id = self._town_id(town)
@@ -251,11 +254,8 @@ class Table:
         available = [i for i in range(len(self.state.hand)) if i not in already]
 
         chosen = []
-        for want, predicate in (
-            (influence, lambda c: c.influence > 0),
-            (dummy, lambda c: c.influence == 0),
-            (cards, lambda c: True),
-        ):
+        wanted = [(1, (lambda v: (lambda c: c.influence == v))(value)) for value in values]
+        for want, predicate in wanted + [(cards, lambda c: True)]:
             for _ in range(want):
                 match = next(
                     (i for i in available

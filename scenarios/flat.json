@@ -1,0 +1,18 @@
+{
+  "id": "flat",
+  "label": "Flat deck",
+  "notes": "The pre-grading deck: 36 cards worth 1, 24 worth nothing. Kept as the control for measuring what graded card values are worth.",
+  "map": "grid12",
+  "unit": "infantry",
+  "hand_size": 5,
+  "deck": {
+    "influence1": 36,
+    "influence0": 24
+  },
+  "generation_rate": 1,
+  "empire_start": {
+    "everlan": 3
+  },
+  "first_player": "insurgency",
+  "empire_wins_ties": true
+}

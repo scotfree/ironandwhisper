@@ -1,0 +1,20 @@
+{
+  "id": "blind",
+  "label": "Graded deck, no peeking",
+  "notes": "Baseline with a unit that cannot look. Paired with `baseline` to measure what peeking is worth once cards are graded.",
+  "map": "grid12",
+  "unit": "blind",
+  "hand_size": 5,
+  "deck": {
+    "influence0": 24,
+    "influence1": 24,
+    "influence2": 9,
+    "influence3": 3
+  },
+  "generation_rate": 1,
+  "empire_start": {
+    "everlan": 3
+  },
+  "first_player": "insurgency",
+  "empire_wins_ties": true
+}

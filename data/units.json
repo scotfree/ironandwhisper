@@ -4,5 +4,11 @@
     "strength": 3,
     "movement": 1,
     "peek": 1
+  },
+  "blind": {
+    "label": "Blind Infantry",
+    "strength": 3,
+    "movement": 1,
+    "peek": 0
   }
 }

@@ -1,10 +1,18 @@
 {
-  "influence": {
-    "label": "Influence",
+  "influence0": {
+    "label": "Influence 0",
+    "influence": 0
+  },
+  "influence1": {
+    "label": "Influence 1",
     "influence": 1
   },
-  "dummy": {
-    "label": "Dummy",
-    "influence": 0
+  "influence2": {
+    "label": "Influence 2",
+    "influence": 2
+  },
+  "influence3": {
+    "label": "Influence 3",
+    "influence": 3
   }
 }

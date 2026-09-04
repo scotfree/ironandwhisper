@@ -169,8 +169,15 @@ class HeuristicInsurgency:
         strength_of = state.strength_in
         open_towns = [t for t in state.unresolved]
 
-        influence_idx = [i for i, c in enumerate(state.hand) if c.influence > 0]
-        dummy_idx = [i for i, c in enumerate(state.hand) if c.influence == 0]
+        # Cards are graded, so commit by value rather than by count: spending
+        # three ones where a three would do wastes two cards. Biggest first
+        # reaches a threshold with the fewest cards, leaving more for elsewhere.
+        influence_idx = sorted(
+            (i for i, c in enumerate(state.hand) if c.influence > 0),
+            key=lambda i: state.hand[i].influence,
+            reverse=True,
+        )
+        worthless_idx = [i for i, c in enumerate(state.hand) if c.influence == 0]
 
         placements: dict[str, list[int]] = {}
 
@@ -185,9 +192,13 @@ class HeuristicInsurgency:
             if not influence_idx:
                 break
             needed = strength_of(town.id) - state.influence_in(town.id) + self.margin
-            take = min(len(influence_idx), max(0, needed))
-            if take:
-                chosen, influence_idx = influence_idx[:take], influence_idx[take:]
+            chosen: list[int] = []
+            committed = 0
+            while influence_idx and committed < needed:
+                index = influence_idx.pop(0)
+                chosen.append(index)
+                committed += state.hand[index].influence
+            if chosen:
                 placements.setdefault(town.id, []).extend(chosen)
 
         # Leftover influence goes wherever the Empire is likely to arrive.
@@ -195,7 +206,7 @@ class HeuristicInsurgency:
             fallback = targets[0] if targets else self.rng.choice(open_towns)
             placements.setdefault(fallback.id, []).extend(influence_idx)
 
-        # Dummies: next to Empire troops if baiting, otherwise scattered.
+        # Worthless cards: next to Empire troops if baiting, otherwise scattered.
         if self.bait:
             bait_towns = [
                 t for t in open_towns
@@ -207,7 +218,7 @@ class HeuristicInsurgency:
         else:
             bait_towns = open_towns
 
-        for index in dummy_idx:
+        for index in worthless_idx:
             town = self.rng.choice(bait_towns)
             placements.setdefault(town.id, []).append(index)
 

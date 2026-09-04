@@ -15,7 +15,8 @@ const STRENGTH = 3;
 
 function rulesCard(int $id, string $type): array
 {
-    return ['id' => $id, 'type' => $type, 'influence' => $type === 'influence' ? 1 : 0];
+    // Card type ids carry their value: influence0 through influence3.
+    return ['id' => $id, 'type' => $type, 'influence' => (int) substr($type, -1)];
 }
 
 /** A pile written newest-first, the way it is actually stored. */
@@ -54,7 +55,7 @@ function rulesBoard(array $overrides = []): array
 
 function test_empire_wins_and_scores_the_influence_it_captured(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence', 'influence'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence1', 'influence1'])]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
 
     assertSame(Rules::EMPIRE, $outcome['winner'], '6 strength beats 2 influence');
@@ -63,7 +64,7 @@ function test_empire_wins_and_scores_the_influence_it_captured(): void
 
 function test_insurgency_wins_and_scores_the_strength_it_overcame(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(array_fill(0, 5, 'influence'))]]);
+    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(array_fill(0, 5, 'influence1'))]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
 
     assertSame(Rules::INSURGENCY, $outcome['winner'], '5 influence beats 3 strength');
@@ -72,7 +73,7 @@ function test_insurgency_wins_and_scores_the_strength_it_overcame(): void
 
 function test_dummies_are_worth_nothing_so_a_bluff_pays_the_empire_nothing(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['dummy', 'dummy', 'dummy'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence0', 'influence0', 'influence0'])]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
 
     assertSame(Rules::EMPIRE, $outcome['winner']);
@@ -90,7 +91,7 @@ function test_walkover_scores_nothing(): void
 
 function test_empire_wins_ties(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(['influence', 'influence', 'influence'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(['influence1', 'influence1', 'influence1'])]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
 
     assertSame(Rules::EMPIRE, $outcome['winner'], 'Decision 7: 3 against 3 goes to the Empire');
@@ -99,7 +100,7 @@ function test_empire_wins_ties(): void
 
 function test_tiebreaker_is_configurable(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(['influence', 'influence', 'influence'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(['influence1', 'influence1', 'influence1'])]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, false);
 
     assertSame(Rules::INSURGENCY, $outcome['winner']);
@@ -117,7 +118,7 @@ function test_resolved_towns_cannot_be_resolved_twice(): void
 
 function test_empire_cannot_resolve_a_town_it_has_no_troops_in(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 0, 'pile' => rulesPile(['influence'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 0, 'pile' => rulesPile(['influence1'])]]);
 
     assertFalse(Rules::canDeclare($towns, 'a', Rules::EMPIRE), 'Decision 5');
     assertTrue(Rules::canDeclare($towns, 'a', Rules::INSURGENCY));
@@ -133,7 +134,7 @@ function test_insurgency_cannot_resolve_a_town_with_no_cards(): void
 
 function test_a_resolved_town_is_declarable_by_nobody(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence']), 'resolved' => true]]);
+    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence1']), 'resolved' => true]]);
 
     assertFalse(Rules::canDeclare($towns, 'a', Rules::EMPIRE));
     assertFalse(Rules::canDeclare($towns, 'a', Rules::INSURGENCY));
@@ -250,14 +251,14 @@ function test_movement_is_simultaneous(): void
 
 function test_a_stationary_troop_reads_one_card_per_turn(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(['influence', 'dummy', 'dummy'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(['influence1', 'influence0', 'influence0'])]]);
 
     assertSame(['a' => 1], Rules::peekPlan($towns, [], 1));
 }
 
 function test_peeks_stack_across_stationary_troops(): void
 {
-    $towns = rulesBoard(['a' => ['troops' => 3, 'pile' => rulesPile(['influence', 'dummy', 'dummy'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 3, 'pile' => rulesPile(['influence1', 'influence0', 'influence0'])]]);
 
     assertSame(['a' => 3], Rules::peekPlan($towns, [], 1));
 }
@@ -265,7 +266,7 @@ function test_peeks_stack_across_stationary_troops(): void
 function test_a_troop_that_moved_does_not_peek(): void
 {
     // Two troops arrived, one was already standing here: only that one looks.
-    $towns = rulesBoard(['a' => ['troops' => 3, 'pile' => rulesPile(['influence', 'dummy'])]]);
+    $towns = rulesBoard(['a' => ['troops' => 3, 'pile' => rulesPile(['influence1', 'influence0'])]]);
 
     assertSame(['a' => 1], Rules::peekPlan($towns, ['a' => 2], 1));
 }
@@ -280,7 +281,7 @@ function test_a_town_with_no_pile_is_not_peeked(): void
 function test_the_empire_reads_the_newest_card_first(): void
 {
     // Decision 8: new cards go on top, and a look turns the top card face up.
-    $pile = rulesPile(['influence', 'dummy', 'dummy']);
+    $pile = rulesPile(['influence1', 'influence0', 'influence0']);
 
     assertSame([1], Rules::revealFromPile($pile, 1), 'the top card is the newest one placed');
     assertSame([1, 2], Rules::revealFromPile($pile, 2), 'two looks take the top two');
@@ -290,7 +291,7 @@ function test_a_look_cannot_take_more_than_the_pile_holds(): void
 {
     // The pile only ever holds cards nobody has seen, so there is nothing to
     // re-read and nothing to cap beyond running out.
-    assertSame([1, 2], Rules::revealFromPile(rulesPile(['influence', 'dummy']), 5));
+    assertSame([1, 2], Rules::revealFromPile(rulesPile(['influence1', 'influence0']), 5));
     assertSame([], Rules::revealFromPile([], 3), 'a town read to the bottom yields nothing');
 }
 
@@ -298,8 +299,8 @@ function test_face_up_cards_still_count_towards_the_town(): void
 {
     $town = rulesTown([
         'troops' => 1,
-        'pile' => rulesPile(['influence', 'dummy']),
-        'revealed' => rulesPile(['influence', 'influence'], 10),
+        'pile' => rulesPile(['influence1', 'influence0']),
+        'revealed' => rulesPile(['influence1', 'influence1'], 10),
     ]);
 
     assertSame(3, Rules::townInfluence($town), 'face up is not out of play');
@@ -309,7 +310,7 @@ function test_face_up_cards_still_count_towards_the_town(): void
 function test_the_insurgency_holds_a_town_it_has_only_face_up_cards_in(): void
 {
     // Everything read does not mean everything gone: presence is presence.
-    $towns = rulesBoard(['a' => ['revealed' => rulesPile(['influence'])]]);
+    $towns = rulesBoard(['a' => ['revealed' => rulesPile(['influence1'])]]);
 
     assertTrue(Rules::canDeclare($towns, 'a', Rules::INSURGENCY));
 }

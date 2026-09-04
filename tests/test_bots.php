@@ -32,13 +32,13 @@ function test_the_empire_bot_reads_only_what_is_face_up(): void
     // must not be able to tell it apart from four dummies.
     $hidden = [
         'a' => ['neighbors' => [], 'troops' => 0, 'resolved' => false,
-                'pile' => [$card(1, 'influence'), $card(2, 'influence'),
-                           $card(3, 'influence'), $card(4, 'influence')],
+                'pile' => [$card(1, 'influence1'), $card(2, 'influence1'),
+                           $card(3, 'influence1'), $card(4, 'influence1')],
                 'revealed' => []],
     ];
     $bluff = $hidden;
-    $bluff['a']['pile'] = [$card(1, 'dummy'), $card(2, 'dummy'),
-                           $card(3, 'dummy'), $card(4, 'dummy')];
+    $bluff['a']['pile'] = [$card(1, 'influence0'), $card(2, 'influence0'),
+                           $card(3, 'influence0'), $card(4, 'influence0')];
 
     $realEstimate = Bots::estimate(Bots::belief($scenario, $hidden), $hidden['a']);
     $bluffEstimate = Bots::estimate(Bots::belief($scenario, $bluff), $bluff['a']);
@@ -60,10 +60,10 @@ function test_turning_cards_over_moves_the_estimate(): void
     $town = ['neighbors' => [], 'troops' => 0, 'resolved' => false, 'pile' => [], 'revealed' => []];
 
     $unknown = $town;
-    $unknown['pile'] = [$card(1, 'influence'), $card(2, 'influence')];
+    $unknown['pile'] = [$card(1, 'influence1'), $card(2, 'influence1')];
 
     $read = $town;
-    $read['revealed'] = [$card(1, 'influence'), $card(2, 'influence')];
+    $read['revealed'] = [$card(1, 'influence1'), $card(2, 'influence1')];
 
     $scenarioTowns = ['a' => $read];
     assertSame(
@@ -173,7 +173,11 @@ function test_bots_play_whole_games_without_breaking_a_rule(): void
         }
 
         assertSame(60, $cards, "seed {$seed}: the whole deck should be on the board");
-        assertSame(36, $influence, "seed {$seed}: all influence accounted for");
+        assertSame(
+            $game->scenario->totalInfluence(),
+            $influence,
+            "seed {$seed}: all influence accounted for",
+        );
         assertSame(13, $game->round(), "seed {$seed}: the deck is an exact clock");
     }
 }

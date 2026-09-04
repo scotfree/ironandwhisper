@@ -23,7 +23,7 @@ function test_setup_builds_the_map_the_deck_and_the_garrison(): void
     $towns = $game->board->towns();
 
     assertSame(12, count($towns), 'grid12 has twelve towns');
-    assertSame(60, $game->board->deckCount(), '36 influence + 24 dummy');
+    assertSame(60, $game->board->deckCount(), 'the deck is the clock: 60 cards, 12 turns');
     assertSame(3, $towns['everlan']['troops'], 'empire_start garrisons Everlan');
     assertSame(0, $towns['ashford']['troops']);
     assertSame(0, count($game->board->hand()), 'the hand is drawn in NextTurn, not at setup');
@@ -374,7 +374,11 @@ function test_every_card_reaches_a_town_and_the_influence_adds_up(): void
     }
 
     assertSame(60, $cards, 'the whole deck ends up on the board');
-    assertSame(36, $influence, 'and all of its influence is accounted for');
+    assertSame(
+        $game->scenario->totalInfluence(),
+        $influence,
+        'and all of its influence is accounted for',
+    );
 }
 
 function test_scoring_conserves_what_was_actually_committed(): void

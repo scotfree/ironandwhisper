@@ -202,8 +202,9 @@ export class BoardView {
         if (card.type === null) {
             return '<span class="iaw-card face-down"></span>';
         }
-        const label = card.influence && card.influence > 0 ? String(card.influence) : '·';
-        return `<span class="iaw-card ${card.type}">${label}</span>`;
+        // Show the value, including zero: with graded cards, "worth nothing"
+        // is information rather than an absence of it.
+        return `<span class="iaw-card ${card.type}">${card.influence ?? 0}</span>`;
     }
 
     // -- interaction --------------------------------------------------------

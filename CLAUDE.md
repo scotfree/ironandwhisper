@@ -28,10 +28,14 @@ but its framework idioms are obsolete.
 PHP.** Changing their shape means changing both. That sharing is the whole reason the
 tuning work transfers.
 
-**Balance numbers are the simulator's, not a playtest's.** `scenarios/baseline.json` now
-holds 36 influence : 24 dummy, the balance point the simulator indicated. Nobody has
-played it. Re-measure before trusting it, and change it in the JSON — both the simulator
-and the PHP read that file, so neither needs code changes to retune.
+**`baseline` is deliberately unbalanced right now.** The deck is graded — 24 cards worth 0,
+24 worth 1, 9 worth 2, 3 worth 3 — for 51 total influence against 45 Empire strength, and
+the Insurgency wins about 83% of games. That is intentional headroom for the
+network-strength change under design (open question 2). Do not "fix" it by retuning; the
+next rules change is meant to eat it. `ironandwhisper.md` carries the measurements.
+
+**There is no "dummy" card any more.** Card type ids are `influence0` through `influence3`
+and carry their own value. A bluff is a card worth 0.
 
 ---
 
@@ -130,7 +134,9 @@ ironandwhisper.md      rules + Decisions & Constraints (the source of truth for 
 data/units.json        strength / movement / peek per unit type
 data/cards.json        influence value per card type
 maps/*.json            geography: towns with x/y, edges
-scenarios/*.json       references a map, sets the knobs
+scenarios/*.json       references a map, sets the knobs. `baseline` is the game;
+                       `flat`, `graded36`, `blind`, `flat_blind`, `graded36_blind`
+                       are controls, kept so the measurements can be re-run
 sim/                   Python rules engine, bots, tests, human play interface
 tests/                 PHP tests, and a stub of the BGA framework to run them against
 notebooks/             exploration.ipynb + build_notebook.py that generates it
@@ -289,8 +295,14 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
 5. **Side-swap matches.** A full match is arguably two games with the sides traded. The
    groundwork is there — sides live in `player.player_side`, set from game option 100 — but
    nothing implements it.
-6. **Playtest the 36:24 numbers.** They come from the simulator and no human has played
-   them.
+6. **Playtest the numbers.** They come from the simulator and no human has played them.
+
+7. **The simulator cannot tell you whether a decision is interesting.** Graded cards were
+   added on the theory that they make peeking richer, and the measured value of peeking
+   *fell* — because the Empire bot collapses every pile into one expected-value number and
+   marches at the biggest. Per-card variance actually tripled, so each look genuinely
+   carries more. When a change is about decision texture rather than balance, the bots are
+   the wrong instrument and the answer has to come from a table.
 
 ## Decisions & Constraints
 

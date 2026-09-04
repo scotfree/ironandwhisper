@@ -101,15 +101,21 @@ final class Bots
             return ['placements' => [], 'resolve' => null];
         }
 
+        // Cards are graded, so commit by value rather than by count: spending
+        // three ones where a three would do wastes two cards. Biggest first
+        // reaches a threshold with the fewest cards, leaving more for elsewhere.
         $influence = [];
-        $dummies = [];
+        $worthless = [];
+        $valueOf = [];
         foreach ($hand as $card) {
+            $valueOf[(int) $card['id']] = (int) $card['influence'];
             if ((int) $card['influence'] > 0) {
                 $influence[] = (int) $card['id'];
             } else {
-                $dummies[] = (int) $card['id'];
+                $worthless[] = (int) $card['id'];
             }
         }
+        usort($influence, static fn(int $a, int $b) => $valueOf[$b] <=> $valueOf[$a]);
 
         $strengthOf = static fn(array $town): int
             => Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
@@ -127,9 +133,16 @@ final class Bots
             $needed = $strengthOf($open[$townId])
                 - Rules::townInfluence($open[$townId])
                 + self::INSURGENCY_MARGIN;
-            $take = min(count($influence), max(0, $needed));
-            if ($take > 0) {
-                $placements[$townId] = array_splice($influence, 0, $take);
+
+            $chosen = [];
+            $committed = 0;
+            while ($influence && $committed < $needed) {
+                $cardId = array_shift($influence);
+                $chosen[] = $cardId;
+                $committed += $valueOf[$cardId];
+            }
+            if ($chosen) {
+                $placements[$townId] = $chosen;
             }
         }
 
@@ -139,7 +152,7 @@ final class Bots
             $placements[$fallback] = array_merge($placements[$fallback] ?? [], $influence);
         }
 
-        // Dummies go next to troops, so the noise looks like something.
+        // Worthless cards go next to troops, so the noise looks like something.
         $bait = [];
         foreach ($open as $townId => $town) {
             if ($town['troops'] > 0) {
@@ -155,7 +168,7 @@ final class Bots
         }
         $bait = $bait ?: array_keys($open);
 
-        foreach ($dummies as $cardId) {
+        foreach ($worthless as $cardId) {
             $townId = $bait[array_rand($bait)];
             $placements[$townId][] = $cardId;
         }

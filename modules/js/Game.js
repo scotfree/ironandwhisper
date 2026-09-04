@@ -164,8 +164,9 @@ class BoardView {
         if (card.type === null) {
             return '<span class="iaw-card face-down"></span>';
         }
-        const label = card.influence && card.influence > 0 ? String(card.influence) : '·';
-        return `<span class="iaw-card ${card.type}">${label}</span>`;
+        // Show the value, including zero: with graded cards, "worth nothing"
+        // is information rather than an absence of it.
+        return `<span class="iaw-card ${card.type}">${card.influence ?? 0}</span>`;
     }
     // -- interaction --------------------------------------------------------
     onTownClick(handler) {
@@ -759,7 +760,7 @@ class Game {
             return;
         }
         element.innerHTML = this.hand.map(card => {
-            const label = card.influence && card.influence > 0 ? String(card.influence) : '·';
+            const label = String(card.influence ?? 0);
             const staged = assigned[card.id] ? ' staged' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
             return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"

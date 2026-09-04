@@ -132,16 +132,29 @@
   background: repeating-linear-gradient(45deg, #2e7d4f, #2e7d4f 3px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 3px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 6px);
   border-color: rgb(12.6590987272%, 34.3997248022%, 21.740626075%);
 }
-.iaw-card.influence {
-  background: rgb(54.9215686275%, 71.9607843137%, 62.0392156863%);
+.iaw-card.influence0 {
+  background: rgb(93.4431372549%, 95.9215686275%, 94.4784313725%);
+  border-color: rgb(43.2156862745%, 55.6078431373%, 48.3921568627%);
+  color: rgb(26.1093911249%, 70.9494324045%, 44.8400412797%);
+}
+.iaw-card.influence1 {
+  background: rgb(68.8549019608%, 80.6274509804%, 73.7725490196%);
   border-color: rgb(12.6590987272%, 34.3997248022%, 21.740626075%);
   color: #fff;
   font-weight: bold;
 }
-.iaw-card.dummy {
-  background: rgb(90.1647058824%, 93.8823529412%, 91.7176470588%);
-  border-color: rgb(43.2156862745%, 55.6078431373%, 48.3921568627%);
-  color: rgb(23.4193326453%, 63.6394908841%, 40.2201582387%);
+.iaw-card.influence2 {
+  background: rgb(44.2666666667%, 65.3333333333%, 53.0666666667%);
+  border-color: rgb(10.5070519436%, 28.5517715858%, 18.0447196422%);
+  color: #fff;
+  font-weight: bold;
+}
+.iaw-card.influence3 {
+  background: rgb(14.8111455108%, 40.2476780186%, 25.4365325077%);
+  border-color: rgb(7.2789817681%, 19.7798417613%, 12.5008599931%);
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 0 0 1px rgb(32.0605435157%, 74.9982800138%, 49.9965600275%) inset;
 }
 .iaw-card.hand {
   width: 26px;

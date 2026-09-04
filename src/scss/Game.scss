@@ -162,17 +162,34 @@ $paper: #efe7d7;
         border-color: color.adjust($insurgency, $lightness: -10%);
     }
 
-    &.influence {
-        background: color.mix($insurgency, #fff, 55%);
+    // Cards are graded 0 to 3. The colour ramps with the value, so a pile's
+    // worth is legible without reading the numbers.
+    &.influence0 {
+        background: color.mix($insurgency, #fff, 8%);
+        border-color: color.mix($insurgency, #999, 40%);
+        color: color.adjust($insurgency, $lightness: 15%);
+    }
+
+    &.influence1 {
+        background: color.mix($insurgency, #fff, 38%);
         border-color: color.adjust($insurgency, $lightness: -10%);
         color: #fff;
         font-weight: bold;
     }
 
-    &.dummy {
-        background: color.mix($insurgency, #fff, 12%);
-        border-color: color.mix($insurgency, #999, 40%);
-        color: color.adjust($insurgency, $lightness: 10%);
+    &.influence2 {
+        background: color.mix($insurgency, #fff, 68%);
+        border-color: color.adjust($insurgency, $lightness: -14%);
+        color: #fff;
+        font-weight: bold;
+    }
+
+    &.influence3 {
+        background: color.adjust($insurgency, $lightness: -6%);
+        border-color: color.adjust($insurgency, $lightness: -20%);
+        color: #fff;
+        font-weight: bold;
+        box-shadow: 0 0 0 1px color.adjust($insurgency, $lightness: 20%) inset;
     }
 
     &.hand {

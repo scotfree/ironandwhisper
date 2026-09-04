@@ -1,0 +1,20 @@
+{
+  "id": "graded36_blind",
+  "label": "Graded deck at flat economy, no peeking",
+  "notes": "60 cards and 36 total influence, the same economy as `flat`, but graded values. Paired with flat/flat_blind to ask whether grading makes information more valuable, with the economy held constant.",
+  "map": "grid12",
+  "unit": "blind",
+  "hand_size": 5,
+  "deck": {
+    "influence0": 36,
+    "influence1": 15,
+    "influence2": 6,
+    "influence3": 3
+  },
+  "generation_rate": 1,
+  "empire_start": {
+    "everlan": 3
+  },
+  "first_player": "insurgency",
+  "empire_wins_ties": true
+}

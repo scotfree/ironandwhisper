@@ -31,8 +31,10 @@ from .engine import (
 
 INFANTRY = Unit(id="infantry", label="Imperial Infantry", strength=3, movement=1, peek=1)
 CARD_TYPES = {
-    "influence": CardType(id="influence", label="Influence", influence=1),
-    "dummy": CardType(id="dummy", label="Dummy", influence=0),
+    "influence0": CardType(id="influence0", label="Influence 0", influence=0),
+    "influence1": CardType(id="influence1", label="Influence 1", influence=1),
+    "influence2": CardType(id="influence2", label="Influence 2", influence=2),
+    "influence3": CardType(id="influence3", label="Influence 3", influence=3),
 }
 
 
@@ -48,7 +50,7 @@ def scenario(**overrides) -> Scenario:
     fields = dict(
         id="test", label="Test", map=line_map(), unit=INFANTRY,
         card_types=CARD_TYPES, hand_size=2,
-        deck={"influence": 4, "dummy": 4}, generation_rate=1,
+        deck={"influence1": 4, "influence0": 4}, generation_rate=1,
         empire_start={"a": 1}, first_player=Side.INSURGENCY,
         empire_wins_ties=True,
     )
@@ -64,10 +66,10 @@ def seed_pile(st, town_id: str, influence: int = 0, dummies: int = 0) -> None:
     """Put known cards into a pile, newest on top."""
     uid = 1000 + len(st.towns[town_id].pile)
     for _ in range(influence):
-        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence", influence=1))
+        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence1", influence=1))
         uid += 1
     for _ in range(dummies):
-        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="dummy", influence=0))
+        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence0", influence=0))
         uid += 1
 
 
@@ -159,7 +161,7 @@ def test_empire_cannot_resolve_a_town_it_has_no_troops_in():
 
 def test_insurgency_cannot_resolve_a_town_with_no_cards():
     st = state()
-    st.hand = [Card(1, "dummy", 0)]
+    st.hand = [Card(1, "influence0", 0)]
     st.towns["b"].troops = 2
     with pytest.raises(IllegalMove, match="no cards there"):
         apply_insurgency_turn(
@@ -169,7 +171,7 @@ def test_insurgency_cannot_resolve_a_town_with_no_cards():
 
 def test_insurgency_may_resolve_a_town_it_seeded_this_turn():
     st = state()
-    st.hand = [Card(1, "influence", 1), Card(2, "influence", 1)]
+    st.hand = [Card(1, "influence1", 1), Card(2, "influence1", 1)]
     st.towns["a"].troops = 0
     apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0, 1]}, resolve="a"))
     assert st.towns["a"].resolved
@@ -181,7 +183,7 @@ def test_insurgency_may_resolve_a_town_it_seeded_this_turn():
 
 def test_entire_hand_must_be_placed():
     st = state()
-    st.hand = [Card(1, "influence", 1), Card(2, "dummy", 0)]
+    st.hand = [Card(1, "influence1", 1), Card(2, "influence0", 0)]
     with pytest.raises(IllegalMove, match="entire hand"):
         apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
 
@@ -190,7 +192,7 @@ def test_cards_cannot_be_placed_in_a_resolved_town():
     st = state()
     st.towns["a"].troops = 1
     resolve_town(st, "a", Side.EMPIRE)
-    st.hand = [Card(1, "influence", 1)]
+    st.hand = [Card(1, "influence1", 1)]
     with pytest.raises(IllegalMove, match="resolved"):
         apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
 
@@ -199,7 +201,7 @@ def test_placed_cards_land_on_top_of_the_pile():
     """Decision 8: new cards go on top, so the Empire reads them first."""
     st = state()
     seed_pile(st, "a", dummies=2)
-    st.hand = [Card(99, "influence", 1)]
+    st.hand = [Card(99, "influence1", 1)]
     apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
     assert st.towns["a"].pile[0].uid == 99
 
@@ -239,7 +241,7 @@ def test_a_look_is_never_spent_on_a_card_already_face_up():
     assert len(st.towns["a"].revealed) == 2
 
     # A new card lands on top of an empty face-down pile and is read next turn.
-    st.hand = [Card(99, "influence", 1)]
+    st.hand = [Card(99, "influence1", 1)]
     st.to_move = Side.INSURGENCY
     apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
     apply_empire_turn(st, EmpireTurn())
@@ -291,7 +293,7 @@ def test_the_empire_reads_the_newest_card_first():
     st = state()
     st.towns["a"].troops = 1
     seed_pile(st, "a", dummies=3)
-    st.hand = [Card(99, "influence", 1)]
+    st.hand = [Card(99, "influence1", 1)]
     apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0]}))
     apply_empire_turn(st, EmpireTurn())
     assert [c.uid for c in st.towns["a"].revealed] == [99]

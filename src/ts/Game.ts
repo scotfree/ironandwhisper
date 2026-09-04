@@ -131,7 +131,7 @@ export class Game {
         }
 
         element.innerHTML = this.hand.map(card => {
-            const label = card.influence && card.influence > 0 ? String(card.influence) : '·';
+            const label = String(card.influence ?? 0);
             const staged = assigned[card.id] ? ' staged' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
             return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
