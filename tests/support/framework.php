@@ -45,7 +45,15 @@ namespace Bga\GameFramework {
 
         public function inc(string $name, int $step): int
         {
-            $this->values[$name] = (int) ($this->values[$name] ?? 0) + $step;
+            // BGA refuses to increment a global that was never set, with
+            // "is not a numeric value". Mirroring that here turns a bug that
+            // used to reach the Studio into a failing test.
+            if (!array_key_exists($name, $this->values)) {
+                throw new \RuntimeException(
+                    "Error when incrementing a global variable: {$name} is not a numeric value."
+                );
+            }
+            $this->values[$name] = (int) $this->values[$name] + $step;
             return $this->values[$name];
         }
 

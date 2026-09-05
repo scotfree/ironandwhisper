@@ -675,6 +675,9 @@ class Game extends \Bga\GameFramework\Table
 
         $this->setToMove($this->scenario->firstPlayer);
         $this->bga->globals->set(self::G_ROUND, 1);
+        // Must exist before anything increments it: BGA refuses to inc a global
+        // that was never set, rather than treating it as zero.
+        $this->bga->globals->set(self::G_BOT_SCORE, 0);
 
         // Seat order does not decide who starts: the scenario does, and NextTurn
         // activates whoever is to move. BGA still wants an active player to

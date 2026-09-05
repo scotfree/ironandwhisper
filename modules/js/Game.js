@@ -977,11 +977,16 @@ class Game {
         town.winner = args.winner;
         town.resolvedInfluence = args.influence;
         town.resolvedStrength = args.strength;
-        // Resolution turns the whole town face up.
-        town.revealed = args.pile;
+        // Only the loser's commitment leaves. The Empire keeps its garrison in
+        // a town it wins, so zeroing troops here made them vanish until the
+        // next turn's notification put them back.
+        town.troops -= args.troopsLost;
         town.pile = [];
         town.pileSize = 0;
-        town.troops = 0;
+        // Captured cards are taken off the board; cards the Insurgency held
+        // stay, face up.
+        town.revealed = args.winner === 'empire' ? [] : args.pile;
+        town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
     }
     async notif_deckCount(args) {

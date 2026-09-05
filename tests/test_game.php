@@ -532,3 +532,53 @@ function test_the_payload_says_which_side_it_was_built_for(): void
     assertSame(Rules::INSURGENCY, datasFor($game, P_TWO)['you']);
     assertSame(null, datasFor($game, 999999)['you'], 'a spectator is nobody');
 }
+
+function test_the_resolution_notification_says_what_actually_left(): void
+{
+    // The client rebuilds a town from this, so getting it wrong makes pieces
+    // vanish. Only the loser's commitment leaves.
+    $game = newGame();
+    enterNextTurn($game);
+    $hand = $game->board->handCardIds();
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+
+    // Everlan: two troops, one weak card. The Empire wins and keeps them.
+    insurgencyTurn($game)->actCommitTurn(
+        ['everlan' => array_slice($hand, 0, 1), 'joss' => array_slice($hand, 1)],
+        null,
+        $insurgency,
+    );
+    enterNextTurn($game);
+    $game->bga->notify->clear();
+    empireTurn($game)->actCommitTurn([], [], 'everlan', [], $empire);
+
+    $args = $game->bga->notify->of('townResolved')[0]['args'];
+    assertSame(Rules::EMPIRE, $args['winner']);
+    assertSame(0, $args['troopsLost'], 'the winner loses nothing');
+    assertTrue($args['cardsTaken'] > 0, 'and takes the cards');
+    assertSame(2, $game->board->towns()['everlan']['troops'], 'the garrison is still there');
+}
+
+function test_a_town_the_insurgency_takes_reports_the_troops_lost(): void
+{
+    $game = newGame();
+    enterNextTurn($game);
+    $hand = $game->board->handCardIds();
+
+    // Four cards into Belmar, where one troop stands: enough to beat 3 strength.
+    insurgencyTurn($game)->actCommitTurn(
+        ['belmar' => array_slice($hand, 0, 4), 'joss' => array_slice($hand, 4)],
+        'belmar',
+        $game->playerIdForSide(Rules::INSURGENCY),
+    );
+
+    $args = $game->bga->notify->of('townResolved')[0]['args'];
+    if ($args['winner'] === Rules::INSURGENCY) {
+        assertSame(1, $args['troopsLost'], 'the garrison is what left');
+        assertSame(0, $game->board->towns()['belmar']['troops']);
+    } else {
+        assertSame(0, $args['troopsLost'], 'the Empire held, so nothing of its left');
+        assertSame(1, $game->board->towns()['belmar']['troops']);
+    }
+}
