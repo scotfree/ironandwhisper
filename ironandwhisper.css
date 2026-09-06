@@ -56,14 +56,15 @@
   cursor: default;
 }
 .iaw-town.selectable {
-  border-color: #2e7d32;
-  background: #eaf5ea;
+  border-color: #0a84ff;
+  background: rgb(90.3921568627%, 95.1764705882%, 100%);
   cursor: pointer;
-  box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.28);
+  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
 }
 .iaw-town.selected {
-  border-color: #1565c0;
-  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.35);
+  border-color: rgb(0%, 36.8099239696%, 73.9215686275%);
+  background: rgb(78.862745098%, 89.3882352941%, 100%);
+  box-shadow: 0 0 0 6px rgba(10, 132, 255, 0.45);
 }
 .iaw-town.resolved {
   opacity: 0.85;
@@ -111,7 +112,7 @@
 }
 
 .iaw-town-pending {
-  color: #1565c0;
+  color: rgb(0%, 39.7976790716%, 79.9215686275%);
   font-weight: bold;
   min-height: 14px;
 }
@@ -212,8 +213,8 @@
 }
 
 .iaw-town.drag-over {
-  border-color: #1565c0;
-  background: #e8f1fb;
+  border-color: rgb(0%, 36.8099239696%, 73.9215686275%);
+  background: rgb(84.6274509804%, 92.2823529412%, 100%);
 }
 
 .iaw-card.dragging {
@@ -263,6 +264,7 @@
 .iaw-town-supply {
   font-size: 10px;
   color: rgb(37.1625780357%, 21.8807702453%, 55.5702101468%);
+  font-variant-numeric: tabular-nums;
 }
 
 .iaw-supply {
@@ -270,7 +272,16 @@
   padding: 0 3px;
   border-radius: 3px;
   background: rgb(93.0352941176%, 90.9647058824%, 95.5294117647%);
-  font-variant-numeric: tabular-nums;
+  font-weight: bold;
+}
+.iaw-supply.over {
+  background: #b3261e;
+  color: #fff;
+}
+
+.iaw-contribution {
+  margin-left: 2px;
+  opacity: 0.75;
 }
 
 .iaw-produce {
@@ -282,7 +293,7 @@
   stroke-width: 5;
 }
 
-.iaw-supply.denied {
+.iaw-contribution.denied {
   background: none;
   color: #999;
   text-decoration: line-through;

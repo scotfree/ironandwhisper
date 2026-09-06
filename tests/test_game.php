@@ -242,7 +242,11 @@ function test_the_winner_keeps_its_commitment_and_takes_the_losers(): void
     assertTrue($towns['everlan']['resolved']);
     assertSame(Rules::EMPIRE, $towns['everlan']['winner']);
     assertSame(2, $towns['everlan']['troops'], 'the winner keeps its garrison');
-    assertSame(6, $towns['everlan']['resolvedStrength'], 'two infantry at strength 3');
+    assertSame(
+        2 * $game->scenario->unitStrength(),
+        $towns['everlan']['resolvedStrength'],
+        'two infantry, whatever a troop is worth',
+    );
     assertSame(0, Rules::townCardCount($towns['everlan']), "the loser's cards are taken");
     assertSame(
         $towns['everlan']['resolvedInfluence'],

@@ -121,8 +121,8 @@ export class BoardView {
             <div id="${this.townElementId(town.id)}" class="iaw-town"
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
                 <div class="iaw-town-name">${town.label}</div>
-                <div class="iaw-town-supply"></div>
                 <div class="iaw-town-troops"></div>
+                <div class="iaw-town-supply"></div>
                 <div class="iaw-town-pile"></div>
                 <div class="iaw-town-revealed"></div>
                 <div class="iaw-town-result"></div>
@@ -269,26 +269,31 @@ export class BoardView {
         const revealed = element.querySelector('.iaw-town-revealed') as HTMLElement;
         revealed.innerHTML = town.revealed.map(card => this.cardHtml(card)).join('');
 
+        // A resolved town's colour says who took it, which is all that still
+        // matters; the numbers are in the log.
         const result = element.querySelector('.iaw-town-result') as HTMLElement;
-        result.textContent = town.resolved
-            ? `${town.resolvedInfluence} : ${town.resolvedStrength}`
-            : '';
+        result.textContent = '';
 
-        // Supply reads as "what this town adds / what its network can hold".
+        // Supply reads as "troops standing / troops this network can hold
+        // (what this town contributes)". The first two numbers are the same for
+        // every town in a network, which is what makes a network visible.
         const network = this.networkOf(townId);
         const definition = this.scenario.towns[townId];
         const denied = town.resolved && town.winner === 'insurgency';
         const supply = element.querySelector('.iaw-town-supply') as HTMLElement;
-        supply.innerHTML = `
-            <span class="iaw-supply${denied ? ' denied' : ''}"
-                  title="${denied
-                      ? _('Taken by the Insurgency: supplies nothing, builds nothing')
-                      : _('Supply: this town, and its network')}"
-                >${this.supplyOf(townId)}${network ? `/${network.ceiling}` : ''}</span>
-            ${definition.production > 0 && !denied
-                ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
-                : ''}
-        `;
+        supply.innerHTML = network
+            ? `<span class="iaw-supply${network.troops > network.ceiling ? ' over' : ''}"
+                     title="${_('Troops standing, what this network supports, and what this town adds')}"
+                  >${network.troops}/${network.ceiling}</span>
+               <span class="iaw-contribution${denied ? ' denied' : ''}"
+                     title="${denied
+                         ? _('Taken by the Insurgency: supplies nothing, builds nothing')
+                         : _('What this town adds to the network')}"
+                  >(${this.supplyOf(townId)})</span>
+               ${definition.production > 0 && !denied
+                   ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
+                   : ''}`
+            : '';
 
         const pending = element.querySelector('.iaw-town-pending') as HTMLElement;
         pending.textContent = this.pending[townId] ?? '';

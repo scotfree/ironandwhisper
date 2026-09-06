@@ -36,7 +36,20 @@ but its framework idioms are obsolete.
 PHP.** Changing their shape means changing both. That sharing is the whole reason the
 tuning work transfers.
 
-**Balance is roughly even and entirely untested by humans.** 500 bot games put the Empire
+**`baseline` is currently set for feel, not for balance.** Cards are 0 or 1, a troop is
+strength 1 and costs 1 supply, every town supplies 2 — deliberately minimal so the shape of
+the game can be played. At those numbers the Empire wins about **2%**. Do not read anything
+into a game played on them. The tuned-ish settings are in the git history at `dedba1a`.
+
+**Troop strength against card value is the lever, not the Insurgency's economy.** Cutting
+influence from 36 to 18 made the Empire *worse* (2% to 0.3%), because the Empire scores by
+capturing influence — a poorer Insurgency is a smaller prize. What moves it is how much a
+garrison is worth: at strength 1 a lone troop is beaten by two cards, at strength 3 it
+takes four. Every parameter sweep so far has found a **cliff** rather than a curve, in the
+same place each time — where the bots' strategy flips — so treat single measurements
+either side of it with suspicion.
+
+**Balance was, before the simplification, roughly even and entirely untested by humans.** 500 bot games put the Empire
 at 49% in Python and 52% in PHP. Getting there needed a *heterogeneous* map: balance sits
 on a cliff between 2.5 and 3.0 supply-troops per ordinary town, and a uniform map lands on
 one side or the other. Raising the capitals instead moves it the wrong way — concentrated

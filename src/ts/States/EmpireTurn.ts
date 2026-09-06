@@ -183,7 +183,8 @@ export class EmpireTurn {
     // -- display ------------------------------------------------------------
 
     private refresh(): void {
-        this.bga.statusBar.setTitle(this.title());
+        const title = this.title();
+        this.bga.statusBar.setTitle(title.text, title.args);
 
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.
@@ -207,16 +208,25 @@ export class EmpireTurn {
         this.buttons();
     }
 
-    private title(): string {
+    /**
+     * The title carries the whole state of the marching interaction, because
+     * the highlights alone were too easy to miss: which click the game is
+     * waiting for, and from where.
+     */
+    private title(): { text: string; args?: any } {
         if (this.step === 'build') {
-            return _('${you} may build: click a highlighted town, again for another troop');
+            return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
         if (this.step === 'resolve') {
-            return _('${you} must choose a town to resolve');
+            return { text: _('${you} must choose a town to resolve') };
         }
-        return this.source === null
-            ? _('${you} may march: click a town with troops')
-            : _('${you} may march: click a neighbouring town');
+        if (this.source === null) {
+            return { text: _('${you} must select a town to move troops from') };
+        }
+        return {
+            text: _('${you} must select where to move troops from ${town} to'),
+            args: { town: this.townLabel(this.source) },
+        };
     }
 
     private selectableTowns(): string[] {
@@ -263,7 +273,10 @@ export class EmpireTurn {
                         : _('None of them are standing over a pile this turn.')}</div>`);
 
         if (this.step === 'move') {
-            lines.push(`<div class="iaw-hint">${_('Click a town with troops, then a neighbour. Click the same neighbour again to send another troop.')}</div>`);
+            lines.push(this.source === null
+                ? `<div class="iaw-hint">${_('Click a town with troops to march from. Highlighted towns are the ones that have any.')}</div>`
+                : `<div class="iaw-hint">${_('Click a neighbour to send a troop there, again to send another.')}
+                   ${_('Click')} <b>${this.townLabel(this.source)}</b> ${_('again to march from somewhere else instead.')}</div>`);
         }
 
         return lines.join('');

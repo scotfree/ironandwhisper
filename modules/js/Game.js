@@ -98,8 +98,8 @@ class BoardView {
             <div id="${this.townElementId(town.id)}" class="iaw-town"
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
                 <div class="iaw-town-name">${town.label}</div>
-                <div class="iaw-town-supply"></div>
                 <div class="iaw-town-troops"></div>
+                <div class="iaw-town-supply"></div>
                 <div class="iaw-town-pile"></div>
                 <div class="iaw-town-revealed"></div>
                 <div class="iaw-town-result"></div>
@@ -222,25 +222,30 @@ class BoardView {
         pile.innerHTML = town.pile.map(card => this.cardHtml(card)).join('');
         const revealed = element.querySelector('.iaw-town-revealed');
         revealed.innerHTML = town.revealed.map(card => this.cardHtml(card)).join('');
+        // A resolved town's colour says who took it, which is all that still
+        // matters; the numbers are in the log.
         const result = element.querySelector('.iaw-town-result');
-        result.textContent = town.resolved
-            ? `${town.resolvedInfluence} : ${town.resolvedStrength}`
-            : '';
-        // Supply reads as "what this town adds / what its network can hold".
+        result.textContent = '';
+        // Supply reads as "troops standing / troops this network can hold
+        // (what this town contributes)". The first two numbers are the same for
+        // every town in a network, which is what makes a network visible.
         const network = this.networkOf(townId);
         const definition = this.scenario.towns[townId];
         const denied = town.resolved && town.winner === 'insurgency';
         const supply = element.querySelector('.iaw-town-supply');
-        supply.innerHTML = `
-            <span class="iaw-supply${denied ? ' denied' : ''}"
-                  title="${denied
-            ? _('Taken by the Insurgency: supplies nothing, builds nothing')
-            : _('Supply: this town, and its network')}"
-                >${this.supplyOf(townId)}${network ? `/${network.ceiling}` : ''}</span>
-            ${definition.production > 0 && !denied
-            ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
-            : ''}
-        `;
+        supply.innerHTML = network
+            ? `<span class="iaw-supply${network.troops > network.ceiling ? ' over' : ''}"
+                     title="${_('Troops standing, what this network supports, and what this town adds')}"
+                  >${network.troops}/${network.ceiling}</span>
+               <span class="iaw-contribution${denied ? ' denied' : ''}"
+                     title="${denied
+                ? _('Taken by the Insurgency: supplies nothing, builds nothing')
+                : _('What this town adds to the network')}"
+                  >(${this.supplyOf(townId)})</span>
+               ${definition.production > 0 && !denied
+                ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
+                : ''}`
+            : '';
         const pending = element.querySelector('.iaw-town-pending');
         pending.textContent = this.pending[townId] ?? '';
         element.classList.toggle('pending', Boolean(this.pending[townId]));
@@ -483,7 +488,8 @@ class EmpireTurn {
     }
     // -- display ------------------------------------------------------------
     refresh() {
-        this.bga.statusBar.setTitle(this.title());
+        const title = this.title();
+        this.bga.statusBar.setTitle(title.text, title.args);
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.
         const delta = {};
@@ -501,16 +507,25 @@ class EmpireTurn {
         this.game.setStagingText(this.stagingHtml());
         this.buttons();
     }
+    /**
+     * The title carries the whole state of the marching interaction, because
+     * the highlights alone were too easy to miss: which click the game is
+     * waiting for, and from where.
+     */
     title() {
         if (this.step === 'build') {
-            return _('${you} may build: click a highlighted town, again for another troop');
+            return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
         if (this.step === 'resolve') {
-            return _('${you} must choose a town to resolve');
+            return { text: _('${you} must choose a town to resolve') };
         }
-        return this.source === null
-            ? _('${you} may march: click a town with troops')
-            : _('${you} may march: click a neighbouring town');
+        if (this.source === null) {
+            return { text: _('${you} must select a town to move troops from') };
+        }
+        return {
+            text: _('${you} must select where to move troops from ${town} to'),
+            args: { town: this.townLabel(this.source) },
+        };
     }
     selectableTowns() {
         const all = Object.keys(this.game.board.allTowns());
@@ -548,7 +563,10 @@ class EmpireTurn {
             ? _('This turn they will read in') + ': ' + looking.map(id => this.townLabel(id)).join(', ')
             : _('None of them are standing over a pile this turn.')}</div>`);
         if (this.step === 'move') {
-            lines.push(`<div class="iaw-hint">${_('Click a town with troops, then a neighbour. Click the same neighbour again to send another troop.')}</div>`);
+            lines.push(this.source === null
+                ? `<div class="iaw-hint">${_('Click a town with troops to march from. Highlighted towns are the ones that have any.')}</div>`
+                : `<div class="iaw-hint">${_('Click a neighbour to send a troop there, again to send another.')}
+                   ${_('Click')} <b>${this.townLabel(this.source)}</b> ${_('again to march from somewhere else instead.')}</div>`);
         }
         return lines.join('');
     }

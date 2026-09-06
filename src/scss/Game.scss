@@ -12,6 +12,10 @@
 // half strength so the board reads as territory at a glance.
 $empire: #6b3fa0;
 $insurgency: #2e7d4f;
+
+// Purple and green mean *whose*. Interaction gets a colour of its own, so
+// "you can click this" is never confused with "this belongs to somebody".
+$ui: #0a84ff;
 $ink: #2b2b2b;
 $paper: #efe7d7;
 
@@ -72,15 +76,17 @@ $paper: #efe7d7;
     // Loud on purpose. On the Empire's first turn exactly one town is a legal
     // target, and a subtle highlight among twelve reads as "nothing to do".
     &.selectable {
-        border-color: #2e7d32;
-        background: #eaf5ea;
+        border-color: $ui;
+        background: color.mix($ui, #fff, 10%);
         cursor: pointer;
-        box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.28);
+        box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
     }
 
+    // The one you have picked, distinct from the ones you could pick.
     &.selected {
-        border-color: #1565c0;
-        box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.35);
+        border-color: color.adjust($ui, $lightness: -15%);
+        background: color.mix($ui, #fff, 22%);
+        box-shadow: 0 0 0 6px rgba(10, 132, 255, 0.45);
     }
 
     // A town that has already been fought over is out of the game: readable,
@@ -134,7 +140,7 @@ $paper: #efe7d7;
 }
 
 .iaw-town-pending {
-    color: #1565c0;
+    color: color.adjust($ui, $lightness: -12%);
     font-weight: bold;
     min-height: 14px;
 }
@@ -251,8 +257,8 @@ $paper: #efe7d7;
 }
 
 .iaw-town.drag-over {
-    border-color: #1565c0;
-    background: #e8f1fb;
+    border-color: color.adjust($ui, $lightness: -15%);
+    background: color.mix($ui, #fff, 16%);
 }
 
 .iaw-card.dragging {
@@ -305,10 +311,12 @@ $paper: #efe7d7;
     fill: $empire;
 }
 
-// Supply and production, read straight off the town.
+// Supply and production, read straight off the town: troops standing, what the
+// network holds, and what this town adds.
 .iaw-town-supply {
     font-size: 10px;
     color: color.adjust($empire, $lightness: -5%);
+    font-variant-numeric: tabular-nums;
 }
 
 .iaw-supply {
@@ -316,7 +324,18 @@ $paper: #efe7d7;
     padding: 0 3px;
     border-radius: 3px;
     background: color.mix($empire, #fff, 12%);
-    font-variant-numeric: tabular-nums;
+    font-weight: bold;
+
+    // Over the ceiling: these troops starve at the end of the turn.
+    &.over {
+        background: #b3261e;
+        color: #fff;
+    }
+}
+
+.iaw-contribution {
+    margin-left: 2px;
+    opacity: 0.75;
 }
 
 .iaw-produce {
@@ -331,7 +350,7 @@ $paper: #efe7d7;
 }
 
 // A town the rebels took: still ground, still passable, but it feeds nothing.
-.iaw-supply.denied {
+.iaw-contribution.denied {
     background: none;
     color: #999;
     text-decoration: line-through;
