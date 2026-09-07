@@ -101,6 +101,17 @@ final class Bots
             return ['placements' => [], 'resolve' => null];
         }
 
+        // Resolution happens first in the turn (Decision 4), so it is decided
+        // against the board as it stands, and a town resolved now cannot then
+        // be placed in.
+        $resolve = self::insurgencyResolution($scenario, $open);
+        if ($resolve !== null) {
+            unset($open[$resolve]);
+        }
+        if (!$open) {
+            return ['placements' => [], 'resolve' => $resolve];
+        }
+
         // Cards are graded, so commit by value rather than by count: spending
         // three ones where a three would do wastes two cards. Biggest first
         // reaches a threshold with the fewest cards, leaving more for elsewhere.
@@ -173,38 +184,24 @@ final class Bots
             $placements[$townId][] = $cardId;
         }
 
-        return [
-            'placements' => $placements,
-            'resolve' => self::insurgencyResolution($scenario, $open, $hand, $placements),
-        ];
+        return ['placements' => $placements, 'resolve' => $resolve];
     }
 
     /**
-     * Resolve where the placement just made wins, and the prize is worth taking.
+     * Cash a town we have already beaten, if the garrison is worth taking.
      *
      * @param array<string, array> $open
-     * @param array<int, array{id: int, influence: int}> $hand
-     * @param array<string, int[]> $placements
      */
-    private static function insurgencyResolution(
-        Scenario $scenario,
-        array $open,
-        array $hand,
-        array $placements,
-    ): ?string {
-        $influenceOfCard = [];
-        foreach ($hand as $card) {
-            $influenceOfCard[(int) $card['id']] = (int) $card['influence'];
-        }
-
+    private static function insurgencyResolution(Scenario $scenario, array $open): ?string
+    {
         $resolve = null;
         $best = self::INSURGENCY_MIN_SCORE - 1;
 
         foreach ($open as $townId => $town) {
-            $influence = Rules::townInfluence($town);
-            foreach ($placements[$townId] ?? [] as $cardId) {
-                $influence += $influenceOfCard[$cardId] ?? 0;
+            if (Rules::townCardCount($town) === 0) {
+                continue;
             }
+            $influence = Rules::townInfluence($town);
             $strength = Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
 
             // Only worth cashing if we beat the garrison, and the garrison was
@@ -242,13 +239,14 @@ final class Bots
             }
         }
 
-        $produce = self::empireProduction($scenario, $towns);
-        $moves = self::empireMoves($scenario, $towns, $estimateOf);
+        // Resolution happens first in the turn (Decision 4), so it is judged on
+        // the troops standing now — there is no marching in and cashing out.
+        $resolve = self::empireResolution($scenario, $towns, $open, $estimateOf);
 
         return [
-            'produce' => $produce,
-            'moves' => $moves,
-            'resolve' => self::empireResolution($scenario, $towns, $open, $estimateOf, $produce, $moves),
+            'produce' => self::empireProduction($scenario, $towns),
+            'moves' => self::empireMoves($scenario, $towns, $estimateOf),
+            'resolve' => $resolve,
         ];
     }
 
@@ -328,43 +326,28 @@ final class Bots
     }
 
     /**
-     * Judge resolutions against where the troops will BE, not where they are:
-     * generation and movement both happen first (Decision 4).
+     * Cash a town we already hold and believe we win, before doing anything
+     * else this turn (Decision 4).
      *
      * @param array<string, array> $towns
      * @param string[] $open
      * @param array<string, float> $estimateOf
-     * @param array<int, array{from: string, to: string, count: int}> $moves
      */
     private static function empireResolution(
         Scenario $scenario,
         array $towns,
         array $open,
         array $estimateOf,
-        array $produce,
-        array $moves,
     ): ?string {
-        $projected = [];
-        foreach ($towns as $townId => $town) {
-            $projected[$townId] = (int) $town['troops'];
-        }
-        foreach ($produce as $townId => $count) {
-            $projected[$townId] += $count;
-        }
-        foreach ($moves as $move) {
-            $projected[$move['from']] -= $move['count'];
-            $projected[$move['to']] += $move['count'];
-        }
-
         $resolve = null;
         $best = -1.0;
 
         foreach ($open as $townId) {
-            if ($projected[$townId] <= 0) {
+            if ($towns[$townId]['troops'] <= 0) {
                 continue;
             }
             $estimate = $estimateOf[$townId];
-            $strength = Rules::townStrength($projected[$townId], $scenario->unitStrength());
+            $strength = Rules::townStrength((int) $towns[$townId]['troops'], $scenario->unitStrength());
             if ($strength < $estimate * self::EMPIRE_CONFIDENCE) {
                 continue;
             }

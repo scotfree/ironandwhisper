@@ -389,7 +389,26 @@ def apply_insurgency_turn(state: GameState, turn: InsurgencyTurn) -> None:
     if state.to_move is not Side.INSURGENCY:
         raise IllegalMove("not the Insurgency's turn")
 
-    # The whole hand must be placed (Decision 6).
+    # 1. Resolve first, against the board as the opponent left it (Decision 4).
+    #    Declaring before you act is what stops a turn being "place exactly
+    #    enough, then cash out" with nothing the other side can do about it.
+    if turn.resolve is not None:
+        if not _can_declare(state, turn.resolve, Side.INSURGENCY):
+            raise IllegalMove(
+                f"Insurgency cannot declare {turn.resolve}: no cards there, "
+                f"or already resolved"
+            )
+        resolve_town(state, turn.resolve, Side.INSURGENCY)
+
+    # 2. Place. The whole hand must go out (Decision 6) — unless resolving just
+    #    closed the last open town, in which case there is nowhere legal left
+    #    and the game is about to end anyway.
+    if not state.unresolved:
+        if turn.placements:
+            raise IllegalMove("no unresolved towns left to place into")
+        state.to_move = Side.EMPIRE
+        return
+
     placed_indices: list[int] = []
     for town_id, indices in turn.placements.items():
         if town_id not in state.towns:
@@ -419,14 +438,6 @@ def apply_insurgency_turn(state: GameState, turn: InsurgencyTurn) -> None:
         )
         state.log.append(f"R{state.round_number}: Insurgency places {summary}")
 
-    if turn.resolve is not None:
-        if not _can_declare(state, turn.resolve, Side.INSURGENCY):
-            raise IllegalMove(
-                f"Insurgency cannot declare {turn.resolve}: no cards there, "
-                f"or already resolved"
-            )
-        resolve_town(state, turn.resolve, Side.INSURGENCY)
-
     state.to_move = Side.EMPIRE
 
 
@@ -436,9 +447,21 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
 
     scenario = state.scenario
 
-    # 1. Build. A town can raise troops if the Empire stands there and the town
-    #    can produce; how many is capped by the town's production and by the
-    #    spare ceiling of the network it belongs to.
+    # 1. Resolve first, against the board as the opponent left it (Decision 4).
+    #    You cannot march in and cash out in the same turn: whatever you commit
+    #    has to survive the Insurgency's reply before you can collect on it.
+    if turn.resolve is not None:
+        if not _can_declare(state, turn.resolve, Side.EMPIRE):
+            raise IllegalMove(
+                f"Empire cannot declare {turn.resolve}: no troops there, "
+                f"or already resolved"
+            )
+        resolve_town(state, turn.resolve, Side.EMPIRE)
+
+    # 2. Build. A town can raise troops if the Empire holds it and it can
+    #    produce. Building past the ceiling is allowed: attrition at the end of
+    #    the turn is what settles it, so you may build now and march out to the
+    #    supply that will feed them.
     for town_id, count in turn.produce.items():
         if count <= 0:
             raise IllegalMove("produce count must be positive")
@@ -459,7 +482,7 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         town.troops += count
         state.log.append(f"R{state.round_number}: Empire builds {count} at {town.label}")
 
-    # 2. Move. Record departures first so we can work out who stayed still.
+    # 3. Move. Record departures first so we can work out who stayed still.
     departed: dict[str, int] = {}
     for src, dst, quantity in turn.moves:
         if quantity <= 0:
@@ -490,7 +513,7 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         )
         state.log.append(f"R{state.round_number}: Empire moves {summary}")
 
-    # 3. Look. Every troop that did not move peeks; peeks stack per town.
+    # 4. Look. Every troop that did not move peeks; peeks stack per town.
     for town in state.towns.values():
         if town.resolved or not town.pile:  # nothing left face down to read
             continue
@@ -502,15 +525,6 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         if stationary <= 0:
             continue
         _peek(state, town, stationary * scenario.unit.peek)
-
-    # 4. Optionally resolve.
-    if turn.resolve is not None:
-        if not _can_declare(state, turn.resolve, Side.EMPIRE):
-            raise IllegalMove(
-                f"Empire cannot declare {turn.resolve}: no troops there, "
-                f"or already resolved"
-            )
-        resolve_town(state, turn.resolve, Side.EMPIRE)
 
     # 5. Starve anything the networks can no longer support.
     _attrition(state, turn.disband)

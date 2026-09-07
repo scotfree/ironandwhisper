@@ -94,20 +94,19 @@ class RandomInsurgency:
         self.resolve_chance = resolve_chance
 
     def choose(self, state: GameState) -> InsurgencyTurn:
-        open_towns = [t.id for t in state.unresolved]
-        placements: dict[str, list[int]] = {}
-        for index in range(len(state.hand)):
-            town_id = self.rng.choice(open_towns)
-            placements.setdefault(town_id, []).append(index)
-
+        # Resolution comes first in the turn, so it is judged on the board as
+        # the Empire left it, and a town resolved now cannot then be placed in.
         resolve = None
         options = legal_resolutions(state, Side.INSURGENCY)
-        # Placements land before the resolution check, so a town we just seeded
-        # is a legal target even if it was empty a moment ago.
-        seeded = [t for t in placements if t not in options]
-        options = options + seeded
         if options and self.rng.random() < self.resolve_chance:
             resolve = self.rng.choice(options)
+
+        open_towns = [t.id for t in state.unresolved if t.id != resolve]
+        placements: dict[str, list[int]] = {}
+        if open_towns:
+            for index in range(len(state.hand)):
+                town_id = self.rng.choice(open_towns)
+                placements.setdefault(town_id, []).append(index)
 
         return InsurgencyTurn(placements=placements, resolve=resolve)
 
@@ -182,6 +181,14 @@ class HeuristicInsurgency:
         strength_of = state.strength_in
         open_towns = [t for t in state.unresolved]
 
+        # Resolution happens first in the turn (Decision 4), so it is decided
+        # against the board as it stands, not against what we are about to do.
+        resolve = self._resolution(state, open_towns, strength_of)
+        if resolve is not None:
+            open_towns = [t for t in open_towns if t.id != resolve]
+        if not open_towns:
+            return InsurgencyTurn(placements={}, resolve=resolve)
+
         # Cards are graded, so commit by value rather than by count: spending
         # three ones where a three would do wastes two cards. Biggest first
         # reaches a threshold with the fewest cards, leaving more for elsewhere.
@@ -235,18 +242,20 @@ class HeuristicInsurgency:
             town = self.rng.choice(bait_towns)
             placements.setdefault(town.id, []).append(index)
 
-        # Resolve where we now win and the prize is worth taking.
+        return InsurgencyTurn(placements=placements, resolve=resolve)
+
+    def _resolution(self, state, open_towns, strength_of) -> str | None:
+        """Cash a town we have already beaten, if the garrison is worth taking."""
         resolve = None
         best_value = self.min_score - 1
         for town in open_towns:
-            influence = state.influence_in(town.id) + sum(
-                state.hand[i].influence for i in placements.get(town.id, [])
-            )
+            if town.card_count == 0:
+                continue
+            influence = state.influence_in(town.id)
             strength = strength_of(town.id)
             if influence > strength and strength > best_value:
                 best_value, resolve = strength, town.id
-
-        return InsurgencyTurn(placements=placements, resolve=resolve)
+        return resolve
 
 
 class HeuristicEmpire:
@@ -268,6 +277,23 @@ class HeuristicEmpire:
     def choose(self, state: GameState) -> EmpireTurn:
         belief = EmpireBelief(state)
         open_towns = [t for t in state.unresolved]
+
+        # Resolution happens first in the turn (Decision 4), so it is judged on
+        # the troops standing now — there is no marching in and cashing out.
+        resolve = None
+        best_value = -1.0
+        for town in open_towns:
+            if town.troops <= 0:
+                continue
+            estimate = belief.estimated_influence(town.id)
+            strength = town.troops * state.scenario.unit.strength
+            if strength < estimate * self.confidence:
+                continue
+            if not self.shrink and estimate < self.min_score:
+                continue
+            value = estimate if not self.shrink else estimate + 1.0
+            if value > best_value:
+                best_value, resolve = value, town.id
 
         def attractiveness(town) -> float:
             return belief.estimated_influence(town.id)
@@ -308,25 +334,6 @@ class HeuristicEmpire:
                 continue  # hold: we think we win here already
             if belief.estimated_influence(best) > estimate:
                 moves.append((town.id, best, town.troops))
-
-        # Resolve where we believe we win by enough. The engine generates and
-        # moves before resolving, so judge against where the troops will BE,
-        # not where they are now.
-        projected = project_troops(state, produce, moves)
-        resolve = None
-        best_value = -1.0
-        for town in open_towns:
-            if projected[town.id] <= 0:
-                continue
-            estimate = belief.estimated_influence(town.id)
-            strength = projected[town.id] * state.scenario.unit.strength
-            if strength < estimate * self.confidence:
-                continue
-            if not self.shrink and estimate < self.min_score:
-                continue
-            value = estimate if not self.shrink else estimate + 1.0
-            if value > best_value:
-                best_value, resolve = value, town.id
 
         return EmpireTurn(produce=produce, moves=moves, resolve=resolve)
 

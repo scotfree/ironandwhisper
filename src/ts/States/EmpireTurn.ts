@@ -19,7 +19,7 @@ export class EmpireTurn {
     private moves: StagedMove[] = [];
     private source: string | null = null;
     private resolveTarget: string | null = null;
-    private step: 'build' | 'move' | 'resolve' = 'build';
+    private step: 'resolve' | 'build' | 'move' = 'resolve';
     private args: EmpireTurnArgs;
 
     constructor(
@@ -67,8 +67,12 @@ export class EmpireTurn {
         this.moves = [];
         this.source = null;
         this.resolveTarget = null;
-        // Skip straight to marching if there is nothing worth building.
-        this.step = this.buildable().length > 0 ? 'build' : 'move';
+        // Resolution is the first thing in the turn (Decision 4): it is judged
+        // on the board as the Insurgency left it, so it has to be settled
+        // before anything moves.
+        this.step = this.args.resolvable.length > 0
+            ? 'resolve'
+            : (this.buildable().length > 0 ? 'build' : 'move');
     }
 
     /** Towns that can build at least one troop this turn. */
@@ -108,15 +112,16 @@ export class EmpireTurn {
         }
 
         if (this.step === 'resolve') {
-            if (this.canResolve(townId)) {
-                this.resolveTarget = townId;
+            // Toggle, so a mis-click is undone by clicking the same town again.
+            if (this.args.resolvable.includes(townId)) {
+                this.resolveTarget = this.resolveTarget === townId ? null : townId;
             }
             this.refresh();
             return;
         }
 
         if (this.source === null) {
-            if (this.projected(townId) > 0) {
+            if (this.marchableFrom().includes(townId)) {
                 this.source = townId;
             }
             this.refresh();
@@ -146,8 +151,17 @@ export class EmpireTurn {
         }
     }
 
-    private canResolve(townId: string): boolean {
-        return this.projected(townId) > 0 && !this.game.board.getTown(townId).resolved;
+    /**
+     * Towns troops may march out of.
+     *
+     * A town staged for resolution is excluded: the server resolves first, and
+     * if the Insurgency wins there the garrison is gone before the march would
+     * happen, which would make the whole turn illegal.
+     */
+    private marchableFrom(): string[] {
+        return Object.keys(this.game.board.allTowns()).filter(
+            townId => this.projected(townId) > 0 && townId !== this.resolveTarget,
+        );
     }
 
     /**
@@ -218,7 +232,7 @@ export class EmpireTurn {
             return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
         if (this.step === 'resolve') {
-            return { text: _('${you} must choose a town to resolve') };
+            return { text: _('${you} may resolve a town held since the start of the turn') };
         }
         if (this.source === null) {
             return { text: _('${you} must select a town to move troops from') };
@@ -236,18 +250,22 @@ export class EmpireTurn {
             return this.buildable().filter(id => this.buildRoom(id) > 0);
         }
         if (this.step === 'resolve') {
-            return all.filter(townId => this.canResolve(townId));
+            return this.args.resolvable;
         }
         if (this.source !== null) {
             return this.game.board.neighborsOf(this.source);
         }
-        return all.filter(townId => this.projected(townId) > 0);
+        return this.marchableFrom();
     }
 
     private stagingHtml(): string {
         const lines: string[] = [];
 
         const built = Object.entries(this.produce).filter(([, count]) => count > 0);
+        lines.push(this.resolveTarget
+            ? `<div>${_('Resolving')} <b>${this.townLabel(this.resolveTarget)}</b> ${_('first')}</div>`
+            : `<div>${_('Resolving nothing')}</div>`);
+
         lines.push(built.length
             ? built.map(([townId, count]) =>
                 `<div>${_('Building')} ${count} ${_('at')} <b>${this.townLabel(townId)}</b></div>`).join('')
@@ -300,25 +318,17 @@ export class EmpireTurn {
         if (this.step === 'resolve') {
             this.bga.statusBar.addActionButton(
                 this.resolveTarget
-                    ? _('Confirm and resolve') + ' ' + this.townLabel(this.resolveTarget)
-                    : _('Pick a town to resolve'),
-                () => this.commit(),
-                { disabled: this.resolveTarget === null },
+                    ? _('Resolve') + ' ' + this.townLabel(this.resolveTarget)
+                    : _('Resolve nothing this turn'),
+                () => {
+                    this.step = this.buildable().length > 0 ? 'build' : 'move';
+                    this.refresh();
+                },
             );
-            this.bga.statusBar.addActionButton(_('Back'), () => {
-                this.step = 'move';
-                this.resolveTarget = null;
-                this.refresh();
-            }, { color: 'secondary' });
             return;
         }
 
         this.bga.statusBar.addActionButton(_('Confirm turn'), () => this.commit());
-        this.bga.statusBar.addActionButton(_('Resolve a town…'), () => {
-            this.step = 'resolve';
-            this.source = null;
-            this.refresh();
-        }, { color: 'secondary' });
 
         if (this.buildable().length) {
             this.bga.statusBar.addActionButton(_('Build…'), () => {

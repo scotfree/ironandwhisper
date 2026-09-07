@@ -281,8 +281,25 @@ class Game extends \Bga\GameFramework\Table
         // parameters travel as strings, and there is no null on the wire.
         $resolve = $resolve === '' ? null : $resolve;
 
+        // Resolution happens first, against the board as the Empire left it
+        // (Decision 4). Otherwise a turn is "place exactly enough, then cash
+        // out", with nothing the other side can do about it.
+        if ($resolve !== null) {
+            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::INSURGENCY)) {
+                throw new UserException(clienttranslate('You have no cards in that town, or it is already resolved'));
+            }
+            $this->resolveTown($resolve, Rules::INSURGENCY);
+        }
+
         $towns = $this->board->towns();
         $hand = $this->board->handCardIds();
+
+        // Resolving may have closed the last open town, in which case there is
+        // nowhere legal to place and the game is about to end anyway.
+        if (!Rules::unresolvedTownIds($towns)) {
+            $this->setToMove(Rules::EMPIRE);
+            return;
+        }
 
         try {
             Rules::validatePlacements($towns, $hand, $placements);
@@ -326,15 +343,6 @@ class Game extends \Bga\GameFramework\Table
             'cards' => $placed,
         ]);
 
-        if ($resolve !== null) {
-            // Checked after placement: a town seeded a moment ago is a legal
-            // target, even though it was empty at the start of the turn.
-            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::INSURGENCY)) {
-                throw new UserException(clienttranslate('You have no cards in that town, or it is already resolved'));
-            }
-            $this->resolveTown($resolve, Rules::INSURGENCY);
-        }
-
         $this->setToMove(Rules::EMPIRE);
     }
 
@@ -355,6 +363,17 @@ class Game extends \Bga\GameFramework\Table
         int $actorId,
     ): void {
         $resolve = $resolve === '' ? null : $resolve;
+
+        // Resolution happens first (Decision 4): no marching in and cashing
+        // out on arrival. What you commit has to survive a reply.
+        if ($resolve !== null) {
+            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::EMPIRE)) {
+                throw new UserException(
+                    clienttranslate('You have no troops in that town, or it is already resolved')
+                );
+            }
+            $this->resolveTown($resolve, Rules::EMPIRE);
+        }
 
         $towns = $this->board->towns();
         $moves = $this->normalizeMoves($moves);
@@ -435,15 +454,6 @@ class Game extends \Bga\GameFramework\Table
         ]);
 
         $this->empireLooks($towns, $plan['arrivals'], $actorId);
-
-        if ($resolve !== null) {
-            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::EMPIRE)) {
-                throw new UserException(
-                    clienttranslate('You have no troops in that town, or it is already resolved')
-                );
-            }
-            $this->resolveTown($resolve, Rules::EMPIRE);
-        }
 
         // Starve anything the networks can no longer supply. End of turn, not
         // start, so a line cut by the Insurgency can be answered: the Empire

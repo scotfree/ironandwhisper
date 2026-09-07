@@ -57,6 +57,20 @@ function test_the_opening_turn_draws_a_full_hand_for_the_insurgency(): void
     );
 }
 
+/**
+ * Place the whole hand into one town and hand the turn over, so the pile is
+ * there at the *start* of a later turn — which is when resolution is judged.
+ */
+function seedTown(Game $game, string $townId): void
+{
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(
+        [$townId => $game->board->handCardIds()],
+        null,
+        $game->playerIdForSide(Rules::INSURGENCY),
+    );
+}
+
 // -- the Insurgency turn ----------------------------------------------------
 
 function test_the_insurgency_must_empty_its_hand(): void
@@ -97,18 +111,41 @@ function test_placed_cards_land_on_top_in_the_order_given(): void
     assertSame(Rules::EMPIRE, $game->toMove());
 }
 
-function test_the_insurgency_may_resolve_a_town_it_seeded_this_turn(): void
+function test_a_town_cannot_be_resolved_on_the_turn_it_was_seeded(): void
 {
+    // Decision 4: resolution happens first, against the board as the Empire
+    // left it. Otherwise a turn is "place exactly enough, then cash out".
     $game = newGame();
     enterNextTurn($game);
     $hand = $game->board->handCardIds();
-    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
 
-    // Ashford was empty a moment ago; placement lands before the check.
-    insurgencyTurn($game)->actCommitTurn(['ashford' => $hand], 'ashford', $insurgency);
+    assertThrows(
+        UserException::class,
+        fn() => insurgencyTurn($game)->actCommitTurn(
+            ['ashford' => $hand],
+            'ashford',
+            $game->playerIdForSide(Rules::INSURGENCY),
+        ),
+    );
+}
+
+function test_a_town_seeded_last_turn_may_be_resolved(): void
+{
+    $game = newGame();
+    seedTown($game, 'ashford');
+
+    // The Empire's turn passes, then the Insurgency cashes what was already there.
+    enterNextTurn($game);
+    empireTurn($game)->actCommitTurn([], [], null, [], $game->playerIdForSide(Rules::EMPIRE));
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(
+        ['belmar' => $game->board->handCardIds()],
+        'ashford',
+        $game->playerIdForSide(Rules::INSURGENCY),
+    );
 
     $towns = $game->board->towns();
-    assertTrue($towns['ashford']['resolved'], 'the town it just seeded is a legal target');
+    assertTrue($towns['ashford']['resolved']);
     assertSame(Rules::INSURGENCY, $towns['ashford']['winner'], 'undefended, so any influence takes it');
 }
 
@@ -306,15 +343,19 @@ function test_the_empire_keeps_what_it_has_peeked_at(): void
 function test_a_resolved_pile_is_face_up_to_both_players(): void
 {
     $game = newGame();
+    seedTown($game, 'ashford');
     enterNextTurn($game);
-    $hand = $game->board->handCardIds();
-    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
-    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    empireTurn($game)->actCommitTurn([], [], null, [], $game->playerIdForSide(Rules::EMPIRE));
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(
+        ['belmar' => $game->board->handCardIds()],
+        'ashford',
+        $game->playerIdForSide(Rules::INSURGENCY),
+    );
 
-    insurgencyTurn($game)->actCommitTurn(['everlan' => $hand], 'everlan', $insurgency);
-
-    $view = datasFor($game, $empire);
-    foreach ($view['towns']['everlan']['pile'] as $card) {
+    $view = datasFor($game, $game->playerIdForSide(Rules::EMPIRE));
+    assertSame(0, $view['towns']['ashford']['pileSize'], 'nothing left face down');
+    foreach ($view['towns']['ashford']['revealed'] as $card) {
         assertTrue($card['type'] !== null, 'Decision 9: resolution makes the deck countable');
     }
 }
@@ -503,11 +544,12 @@ function test_an_empty_string_means_no_resolution(): void
 function test_a_spectator_sees_only_what_has_been_resolved(): void
 {
     $game = newGame();
+    seedTown($game, 'ashford');
     enterNextTurn($game);
-    $hand = $game->board->handCardIds();
-
+    empireTurn($game)->actCommitTurn([], [], null, [], $game->playerIdForSide(Rules::EMPIRE));
+    enterNextTurn($game);
     insurgencyTurn($game)->actCommitTurn(
-        ['ashford' => array_slice($hand, 0, 4), 'belmar' => array_slice($hand, 4)],
+        ['belmar' => $game->board->handCardIds()],
         'ashford',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
@@ -566,13 +608,16 @@ function test_the_resolution_notification_says_what_actually_left(): void
 
 function test_a_town_the_insurgency_takes_reports_the_troops_lost(): void
 {
+    // The whole hand into Belmar, where one troop stands, then resolve it on
+    // the following turn — resolution is judged before this turn's placements.
     $game = newGame();
+    seedTown($game, 'belmar');
     enterNextTurn($game);
-    $hand = $game->board->handCardIds();
-
-    // Four cards into Belmar, where one troop stands: enough to beat 3 strength.
+    empireTurn($game)->actCommitTurn([], [], null, [], $game->playerIdForSide(Rules::EMPIRE));
+    enterNextTurn($game);
+    $game->bga->notify->clear();
     insurgencyTurn($game)->actCommitTurn(
-        ['belmar' => array_slice($hand, 0, 4), 'joss' => array_slice($hand, 4)],
+        ['joss' => $game->board->handCardIds()],
         'belmar',
         $game->playerIdForSide(Rules::INSURGENCY),
     );

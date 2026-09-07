@@ -211,11 +211,15 @@ Resolved towns are never contested again, so a town the Empire won and garrisons
 >
 > The complexity that motivated the experiment came from an earlier version of this decision in which frozen troops still anchored generation, forcing two categories of troop. Dropping *that* gives the same simplicity — one integer per town, set to zero on resolution — while keeping the budget game.
 
-### 4. Resolution is a free action, once per turn
+### 4. Resolution is free, once per turn, and happens *first*
 
-**Why:** making it cost a whole turn is too expensive for the Empire, whose turn also carries generation, and would force an awkward ruling on whether generation still happens. One per turn caps the rate at two towns per round, ample for a twelve-town map.
+Declare before you do anything else. A resolution is judged on the board as your opponent left it: the Empire cannot march in and cash out on arrival, and the Insurgency cannot place exactly enough and then collect.
 
-This permits place-then-immediately-resolve — the Insurgency drops five influence on a lone troop and cashes 3 points. That is acceptable because it is self-limiting: a small snipe scores small by definition. Big scores still require letting the pot build.
+**Why free and once per turn:** making it cost a whole turn is too expensive for the Empire, and impossible to price for the Insurgency, which is compelled to place its whole hand every turn (Decision 6) and so has nothing to trade away. One per turn caps the rate at two towns per round, ample for a twelve-town map.
+
+**Why first:** because it was the last thing, and that made every resolution risk-free. Whoever declared did so with complete knowledge and no reply — the Empire marched a single troop into a lightly-held town and took it on arrival; the Insurgency dropped exactly enough influence on a garrison and cashed it in the same breath. Moving resolution to the start of the turn fixes both with an ordering rather than a restriction: what you commit has to survive your opponent's turn before you can collect on it.
+
+The consequence worth knowing is that your opponent gets the first shot at anything you just committed. March into a seeded town and the rebels may resolve it before you can. That is the cost of advancing, and the game had no such cost before.
 
 ### 5. You may only resolve a town where you have presence
 

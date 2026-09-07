@@ -194,17 +194,39 @@ def test_insurgency_cannot_resolve_a_town_with_no_cards():
         )
 
 
-def test_insurgency_may_resolve_a_town_it_seeded_this_turn():
+def test_a_town_cannot_be_resolved_on_the_turn_it_was_seeded():
+    """Decision 4: resolution happens first, against the board as it stands.
+
+    Otherwise a turn is "place exactly enough, then cash out", with nothing the
+    other side can do about it — the same snipe the Empire could make by
+    marching in and resolving on arrival.
+    """
     st = state()
-    st.hand = [Card(1, "influence1", 1), Card(2, "influence1", 1)]
-    st.towns["a"].troops = 0
-    apply_insurgency_turn(st, InsurgencyTurn(placements={"a": [0, 1]}, resolve="a"))
-    assert st.towns["a"].resolved
+    st.hand = [Card(1, "influence1", 1)]
+
+    with pytest.raises(IllegalMove, match="no cards there"):
+        apply_insurgency_turn(st, InsurgencyTurn(placements={"b": [0]}, resolve="b"))
 
 
-# ---------------------------------------------------------------------------
-# Placement (Decision 6)
-# ---------------------------------------------------------------------------
+def test_the_empire_cannot_march_in_and_resolve_on_arrival():
+    st = state()
+    st.towns["a"].troops = 1
+    seed_pile(st, "b", influence=1)
+    st.to_move = Side.EMPIRE
+
+    with pytest.raises(IllegalMove, match="no troops there"):
+        apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)], resolve="b"))
+
+
+def test_what_was_standing_at_the_start_of_the_turn_may_be_resolved():
+    st = state()
+    st.towns["b"].troops = 1
+    seed_pile(st, "b", influence=1)
+    st.to_move = Side.EMPIRE
+
+    apply_empire_turn(st, EmpireTurn(resolve="b"))
+    assert st.towns["b"].resolved
+
 
 def test_entire_hand_must_be_placed():
     st = state()
