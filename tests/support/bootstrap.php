@@ -17,6 +17,7 @@ require_once $root . '/modules/php/View.php';
 require_once $root . '/modules/php/Game.php';
 require_once $root . '/modules/php/States/EndScore.php';
 require_once $root . '/modules/php/States/NextTurn.php';
+require_once $root . '/modules/php/States/Resolve.php';
 require_once $root . '/modules/php/States/InsurgencyTurn.php';
 require_once $root . '/modules/php/States/EmpireTurn.php';
 
@@ -26,6 +27,7 @@ use Bga\Games\IronAndWhisper\Rules;
 use Bga\Games\IronAndWhisper\States\EmpireTurn;
 use Bga\Games\IronAndWhisper\States\InsurgencyTurn;
 use Bga\Games\IronAndWhisper\States\NextTurn;
+use Bga\Games\IronAndWhisper\States\Resolve;
 
 const P_ONE = 2345001;
 const P_TWO = 2345002;
@@ -98,6 +100,12 @@ function insurgencyTurn(Game $game): InsurgencyTurn
 function empireTurn(Game $game): EmpireTurn
 {
     return new EmpireTurn($game);
+}
+
+/** The resolution phase, which both sides pass through before their turn. */
+function resolvePhase(Game $game): Resolve
+{
+    return new Resolve($game);
 }
 
 function playerFor(Game $game, string $side): int

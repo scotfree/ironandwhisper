@@ -53,6 +53,13 @@ class NextTurn extends GameState
                 $this->game->giveExtraTime($playerId);
                 $this->gamestate->changeActivePlayer($playerId);
 
+                // The resolution phase comes first when there is anything to
+                // resolve, and is skipped entirely when there is not — a state
+                // whose only legal answer is "no" is a click for nothing.
+                if (Rules::legalResolutions($board->towns(), $side)) {
+                    return Resolve::class;
+                }
+
                 return $side === Rules::INSURGENCY ? InsurgencyTurn::class : EmpireTurn::class;
             }
 

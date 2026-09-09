@@ -35,16 +35,15 @@ $paper: #efe7d7;
     border-radius: 6px;
 }
 
-// The face-up cards a garrison has read, lying beside the pile.
-.iaw-town-revealed {
+// The face-down stack and the face-up one, side by side. A fixed height so a
+// town does not grow as it fills — which is what laying the cards out did.
+.iaw-town-cards {
     display: flex;
-    flex-wrap: wrap;
     justify-content: center;
-    gap: 2px;
-    margin-top: 3px;
-    padding-top: 3px;
-    border-top: 1px dashed color.adjust($paper, $lightness: -22%);
-    min-height: 4px;
+    align-items: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+    min-height: 26px;
 }
 
 #iaw-roads {
@@ -125,14 +124,6 @@ $paper: #efe7d7;
     font-weight: bold;
 }
 
-.iaw-town-pile {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 2px;
-    margin-top: 3px;
-}
-
 .iaw-town-result {
     margin-top: 2px;
     font-variant-numeric: tabular-nums;
@@ -143,6 +134,63 @@ $paper: #efe7d7;
     color: color.adjust($ui, $lightness: -12%);
     font-weight: bold;
     min-height: 14px;
+}
+
+/********* the stacks on a town *********/
+
+// Drawn as a card with two more behind it, so a stack reads as a stack at a
+// glance and the number on the front is its height.
+.iaw-stack {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 20px;
+    height: 24px;
+    padding: 0 5px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+    font-size: 12px;
+    line-height: 1;
+    box-shadow:
+        2px 2px 0 -1px #fff,
+        2px 2px 0 0 rgba(0, 0, 0, 0.35),
+        4px 4px 0 -1px #fff,
+        4px 4px 0 0 rgba(0, 0, 0, 0.25);
+
+    &.face-down {
+        background: repeating-linear-gradient(45deg,
+            $insurgency, $insurgency 3px,
+            color.adjust($insurgency, $lightness: 8%) 3px,
+            color.adjust($insurgency, $lightness: 8%) 6px);
+        border-color: color.adjust($insurgency, $lightness: -10%);
+        color: #fff;
+        font-weight: bold;
+    }
+
+    &.face-up {
+        background: #fff;
+        border-color: color.adjust($insurgency, $lightness: -14%);
+        color: $ink;
+    }
+}
+
+// How many cards are in the stack.
+.iaw-stack-count {
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
+// What the face-up ones are worth, which is the reason to have looked. Carries
+// the Insurgency's colour so it never reads as a second count.
+.iaw-stack-sum {
+    padding: 1px 3px;
+    border-radius: 2px;
+    background: color.adjust($insurgency, $lightness: -6%);
+    color: #fff;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
 /********* cards *********/
@@ -270,14 +318,6 @@ $paper: #efe7d7;
     color: #666;
     font-size: 12px;
     line-height: 1.4;
-}
-
-// No divider until there is something to divide.
-.iaw-town-revealed:empty {
-    border-top: none;
-    min-height: 0;
-    padding-top: 0;
-    margin-top: 0;
 }
 
 // What this turn would change, shown against what is already there.

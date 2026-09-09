@@ -123,8 +123,7 @@ export class BoardView {
                 <div class="iaw-town-name">${town.label}</div>
                 <div class="iaw-town-troops"></div>
                 <div class="iaw-town-supply"></div>
-                <div class="iaw-town-pile"></div>
-                <div class="iaw-town-revealed"></div>
+                <div class="iaw-town-cards"></div>
                 <div class="iaw-town-result"></div>
                 <div class="iaw-town-pending"></div>
             </div>
@@ -261,13 +260,12 @@ export class BoardView {
                 : `<span class="iaw-troop-delta">${delta > 0 ? '+' : '-'}${Math.abs(delta)}</span>`}</span>`
             : '';
 
-        // Two areas, as on a table: the face-down stack, and the cards a
-        // garrison has turned over lying face up beside it.
-        const pile = element.querySelector('.iaw-town-pile') as HTMLElement;
-        pile.innerHTML = town.pile.map(card => this.cardHtml(card)).join('');
-
-        const revealed = element.querySelector('.iaw-town-revealed') as HTMLElement;
-        revealed.innerHTML = town.revealed.map(card => this.cardHtml(card)).join('');
+        // Two stacks, as on a table: what is still face down, and what a
+        // garrison has turned over lying face up beside it. Laying every card
+        // out individually made a well-seeded town enormous, and the only thing
+        // that could be read off the row was its length — which is the count.
+        const cards = element.querySelector('.iaw-town-cards') as HTMLElement;
+        cards.innerHTML = this.faceDownHtml(town) + this.faceUpHtml(town);
 
         // A resolved town's colour says who took it, which is all that still
         // matters; the numbers are in the log.
@@ -301,16 +299,43 @@ export class BoardView {
     }
 
     /**
-     * A face-down card is drawn as a blank. Everything in the revealed row is
-     * face up by definition, so it always arrives with a face.
+     * The face-down stack: a height and nothing else.
+     *
+     * The Insurgency is still *sent* the faces — it placed the cards, and the
+     * server has no reason to withhold them — but nobody is shown them. Once a
+     * card is down it is down, for the player who put it there as much as for
+     * the one who has to guess, and remembering the board is part of the game.
      */
-    private cardHtml(card: CardView): string {
-        if (card.type === null) {
-            return '<span class="iaw-card face-down"></span>';
+    private faceDownHtml(town: TownView): string {
+        if (town.pileSize === 0) {
+            return '';
         }
-        // Show the value, including zero: with graded cards, "worth nothing"
-        // is information rather than an absence of it.
-        return `<span class="iaw-card ${card.type}">${card.influence ?? 0}</span>`;
+        return `<span class="iaw-stack face-down"
+                      title="${town.pileSize} ${_('face down')}"
+                 ><span class="iaw-stack-count">${town.pileSize}</span></span>`;
+    }
+
+    /**
+     * The face-up stack: how many, and what they add up to.
+     *
+     * The sum is the whole reason the Empire looks, so it is on the stack
+     * rather than left to be worked out; the individual values are on the
+     * tooltip for anyone who wants to check the arithmetic. Everything here is
+     * public — face-up cards are on the table.
+     */
+    private faceUpHtml(town: TownView): string {
+        const cards = town.revealed;
+        if (cards.length === 0) {
+            return '';
+        }
+
+        const values = cards.map(card => card.influence ?? 0);
+        const total = values.reduce((sum, value) => sum + value, 0);
+
+        return `<span class="iaw-stack face-up"
+                      title="${_('Face up')}: ${values.join(', ')}"
+                 ><span class="iaw-stack-count">${cards.length}</span
+                 ><span class="iaw-stack-sum">${total}</span></span>`;
     }
 
     // -- interaction --------------------------------------------------------

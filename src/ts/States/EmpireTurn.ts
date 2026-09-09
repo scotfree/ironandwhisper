@@ -1,11 +1,15 @@
 import { Game } from "../Game";
 
 /**
- * The Empire raises a troop, marches, and may resolve — in that order, because
- * that is the order the rules apply them and a resolution is judged against
- * where troops end up, not where they started (Decision 4).
+ * The Empire raises a troop and marches.
  *
- * The turn is presented as that sequence rather than as free-form modes. With
+ * Any resolution happened in the Resolve state before this one, so the board
+ * here is final — which is what lets a garrison that just won its town march
+ * straight back out of it. While the resolution was staged with the rest of the
+ * turn, the client could not know whether those troops would still exist, and
+ * had to forbid the march for no reason it could give.
+ *
+ * The turn is presented as a sequence rather than as free-form modes. With
  * modes, a player looking at the board on turn one sees a single faintly
  * highlighted town and no indication that raising is a thing they may do.
  *
@@ -18,8 +22,7 @@ export class EmpireTurn {
     private produce: Record<string, number> = {};
     private moves: StagedMove[] = [];
     private source: string | null = null;
-    private resolveTarget: string | null = null;
-    private step: 'resolve' | 'build' | 'move' = 'resolve';
+    private step: 'build' | 'move' = 'build';
     private args: EmpireTurnArgs;
 
     constructor(
@@ -34,7 +37,6 @@ export class EmpireTurn {
         this.args = {
             production: args?.production ?? {},
             networks: args?.networks ?? [],
-            resolvable: args?.resolvable ?? [],
         };
         this.reset();
 
@@ -66,13 +68,7 @@ export class EmpireTurn {
         this.produce = {};
         this.moves = [];
         this.source = null;
-        this.resolveTarget = null;
-        // Resolution is the first thing in the turn (Decision 4): it is judged
-        // on the board as the Insurgency left it, so it has to be settled
-        // before anything moves.
-        this.step = this.args.resolvable.length > 0
-            ? 'resolve'
-            : (this.buildable().length > 0 ? 'build' : 'move');
+        this.step = this.buildable().length > 0 ? 'build' : 'move';
     }
 
     /** Towns that can build at least one troop this turn. */
@@ -111,15 +107,6 @@ export class EmpireTurn {
             return;
         }
 
-        if (this.step === 'resolve') {
-            // Toggle, so a mis-click is undone by clicking the same town again.
-            if (this.args.resolvable.includes(townId)) {
-                this.resolveTarget = this.resolveTarget === townId ? null : townId;
-            }
-            this.refresh();
-            return;
-        }
-
         if (this.source === null) {
             if (this.marchableFrom().includes(townId)) {
                 this.source = townId;
@@ -151,16 +138,10 @@ export class EmpireTurn {
         }
     }
 
-    /**
-     * Towns troops may march out of.
-     *
-     * A town staged for resolution is excluded: the server resolves first, and
-     * if the Insurgency wins there the garrison is gone before the march would
-     * happen, which would make the whole turn illegal.
-     */
+    /** Towns troops may march out of. */
     private marchableFrom(): string[] {
         return Object.keys(this.game.board.allTowns()).filter(
-            townId => this.projected(townId) > 0 && townId !== this.resolveTarget,
+            townId => this.projected(townId) > 0,
         );
     }
 
@@ -213,10 +194,7 @@ export class EmpireTurn {
         this.game.board.setMoveArrows(this.moves);
 
         this.game.board.setSelectable(this.selectableTowns());
-        this.game.board.setSelected(
-            this.step === 'resolve' && this.resolveTarget ? [this.resolveTarget]
-                : this.source ? [this.source] : [],
-        );
+        this.game.board.setSelected(this.source ? [this.source] : []);
 
         this.game.setStagingText(this.stagingHtml());
         this.buttons();
@@ -231,9 +209,6 @@ export class EmpireTurn {
         if (this.step === 'build') {
             return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
-        if (this.step === 'resolve') {
-            return { text: _('${you} may resolve a town held since the start of the turn') };
-        }
         if (this.source === null) {
             return { text: _('${you} must select a town to move troops from') };
         }
@@ -244,13 +219,8 @@ export class EmpireTurn {
     }
 
     private selectableTowns(): string[] {
-        const all = Object.keys(this.game.board.allTowns());
-
         if (this.step === 'build') {
             return this.buildable().filter(id => this.buildRoom(id) > 0);
-        }
-        if (this.step === 'resolve') {
-            return this.args.resolvable;
         }
         if (this.source !== null) {
             return this.game.board.neighborsOf(this.source);
@@ -262,10 +232,6 @@ export class EmpireTurn {
         const lines: string[] = [];
 
         const built = Object.entries(this.produce).filter(([, count]) => count > 0);
-        lines.push(this.resolveTarget
-            ? `<div>${_('Resolving')} <b>${this.townLabel(this.resolveTarget)}</b> ${_('first')}</div>`
-            : `<div>${_('Resolving nothing')}</div>`);
-
         lines.push(built.length
             ? built.map(([townId, count]) =>
                 `<div>${_('Building')} ${count} ${_('at')} <b>${this.townLabel(townId)}</b></div>`).join('')
@@ -315,19 +281,6 @@ export class EmpireTurn {
             return;
         }
 
-        if (this.step === 'resolve') {
-            this.bga.statusBar.addActionButton(
-                this.resolveTarget
-                    ? _('Resolve') + ' ' + this.townLabel(this.resolveTarget)
-                    : _('Resolve nothing this turn'),
-                () => {
-                    this.step = this.buildable().length > 0 ? 'build' : 'move';
-                    this.refresh();
-                },
-            );
-            return;
-        }
-
         this.bga.statusBar.addActionButton(_('Confirm turn'), () => this.commit());
 
         if (this.buildable().length) {
@@ -354,7 +307,6 @@ export class EmpireTurn {
         this.bga.actions.performAction('actCommitTurn', {
             produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
-            resolve: this.resolveTarget ?? '',
             // Attrition falls where the server decides unless told otherwise;
             // choosing which garrison starves is not yet exposed here.
             disband: JSON.stringify({}),

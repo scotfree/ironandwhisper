@@ -100,8 +100,7 @@ class BoardView {
                 <div class="iaw-town-name">${town.label}</div>
                 <div class="iaw-town-troops"></div>
                 <div class="iaw-town-supply"></div>
-                <div class="iaw-town-pile"></div>
-                <div class="iaw-town-revealed"></div>
+                <div class="iaw-town-cards"></div>
                 <div class="iaw-town-result"></div>
                 <div class="iaw-town-pending"></div>
             </div>
@@ -216,12 +215,12 @@ class BoardView {
             ? `<span class="iaw-troops">${town.troops}${delta === 0 ? ''
                 : `<span class="iaw-troop-delta">${delta > 0 ? '+' : '-'}${Math.abs(delta)}</span>`}</span>`
             : '';
-        // Two areas, as on a table: the face-down stack, and the cards a
-        // garrison has turned over lying face up beside it.
-        const pile = element.querySelector('.iaw-town-pile');
-        pile.innerHTML = town.pile.map(card => this.cardHtml(card)).join('');
-        const revealed = element.querySelector('.iaw-town-revealed');
-        revealed.innerHTML = town.revealed.map(card => this.cardHtml(card)).join('');
+        // Two stacks, as on a table: what is still face down, and what a
+        // garrison has turned over lying face up beside it. Laying every card
+        // out individually made a well-seeded town enormous, and the only thing
+        // that could be read off the row was its length — which is the count.
+        const cards = element.querySelector('.iaw-town-cards');
+        cards.innerHTML = this.faceDownHtml(town) + this.faceUpHtml(town);
         // A resolved town's colour says who took it, which is all that still
         // matters; the numbers are in the log.
         const result = element.querySelector('.iaw-town-result');
@@ -251,16 +250,40 @@ class BoardView {
         element.classList.toggle('pending', Boolean(this.pending[townId]));
     }
     /**
-     * A face-down card is drawn as a blank. Everything in the revealed row is
-     * face up by definition, so it always arrives with a face.
+     * The face-down stack: a height and nothing else.
+     *
+     * The Insurgency is still *sent* the faces — it placed the cards, and the
+     * server has no reason to withhold them — but nobody is shown them. Once a
+     * card is down it is down, for the player who put it there as much as for
+     * the one who has to guess, and remembering the board is part of the game.
      */
-    cardHtml(card) {
-        if (card.type === null) {
-            return '<span class="iaw-card face-down"></span>';
+    faceDownHtml(town) {
+        if (town.pileSize === 0) {
+            return '';
         }
-        // Show the value, including zero: with graded cards, "worth nothing"
-        // is information rather than an absence of it.
-        return `<span class="iaw-card ${card.type}">${card.influence ?? 0}</span>`;
+        return `<span class="iaw-stack face-down"
+                      title="${town.pileSize} ${_('face down')}"
+                 ><span class="iaw-stack-count">${town.pileSize}</span></span>`;
+    }
+    /**
+     * The face-up stack: how many, and what they add up to.
+     *
+     * The sum is the whole reason the Empire looks, so it is on the stack
+     * rather than left to be worked out; the individual values are on the
+     * tooltip for anyone who wants to check the arithmetic. Everything here is
+     * public — face-up cards are on the table.
+     */
+    faceUpHtml(town) {
+        const cards = town.revealed;
+        if (cards.length === 0) {
+            return '';
+        }
+        const values = cards.map(card => card.influence ?? 0);
+        const total = values.reduce((sum, value) => sum + value, 0);
+        return `<span class="iaw-stack face-up"
+                      title="${_('Face up')}: ${values.join(', ')}"
+                 ><span class="iaw-stack-count">${cards.length}</span
+                 ><span class="iaw-stack-sum">${total}</span></span>`;
     }
     // -- interaction --------------------------------------------------------
     onTownClick(handler) {
@@ -330,11 +353,15 @@ class BoardView {
 }
 
 /**
- * The Empire raises a troop, marches, and may resolve — in that order, because
- * that is the order the rules apply them and a resolution is judged against
- * where troops end up, not where they started (Decision 4).
+ * The Empire raises a troop and marches.
  *
- * The turn is presented as that sequence rather than as free-form modes. With
+ * Any resolution happened in the Resolve state before this one, so the board
+ * here is final — which is what lets a garrison that just won its town march
+ * straight back out of it. While the resolution was staged with the rest of the
+ * turn, the client could not know whether those troops would still exist, and
+ * had to forbid the march for no reason it could give.
+ *
+ * The turn is presented as a sequence rather than as free-form modes. With
  * modes, a player looking at the board on turn one sees a single faintly
  * highlighted town and no indication that raising is a thing they may do.
  *
@@ -350,8 +377,7 @@ class EmpireTurn {
         this.produce = {};
         this.moves = [];
         this.source = null;
-        this.resolveTarget = null;
-        this.step = 'resolve';
+        this.step = 'build';
     }
     onEnteringState(args, isCurrentPlayerActive) {
         // Defensive: a throw in here takes the whole handler with it, and the
@@ -359,7 +385,6 @@ class EmpireTurn {
         this.args = {
             production: args?.production ?? {},
             networks: args?.networks ?? [],
-            resolvable: args?.resolvable ?? [],
         };
         this.reset();
         if (!isCurrentPlayerActive) {
@@ -386,13 +411,7 @@ class EmpireTurn {
         this.produce = {};
         this.moves = [];
         this.source = null;
-        this.resolveTarget = null;
-        // Resolution is the first thing in the turn (Decision 4): it is judged
-        // on the board as the Insurgency left it, so it has to be settled
-        // before anything moves.
-        this.step = this.args.resolvable.length > 0
-            ? 'resolve'
-            : (this.buildable().length > 0 ? 'build' : 'move');
+        this.step = this.buildable().length > 0 ? 'build' : 'move';
     }
     /** Towns that can build at least one troop this turn. */
     buildable() {
@@ -420,14 +439,6 @@ class EmpireTurn {
             // Click again to build another, while supply and the town allow it.
             if (this.buildRoom(townId) > 0) {
                 this.produce[townId] = (this.produce[townId] ?? 0) + 1;
-            }
-            this.refresh();
-            return;
-        }
-        if (this.step === 'resolve') {
-            // Toggle, so a mis-click is undone by clicking the same town again.
-            if (this.args.resolvable.includes(townId)) {
-                this.resolveTarget = this.resolveTarget === townId ? null : townId;
             }
             this.refresh();
             return;
@@ -460,15 +471,9 @@ class EmpireTurn {
             this.moves.push({ from, to, count: 1 });
         }
     }
-    /**
-     * Towns troops may march out of.
-     *
-     * A town staged for resolution is excluded: the server resolves first, and
-     * if the Insurgency wins there the garrison is gone before the march would
-     * happen, which would make the whole turn illegal.
-     */
+    /** Towns troops may march out of. */
     marchableFrom() {
-        return Object.keys(this.game.board.allTowns()).filter(townId => this.projected(townId) > 0 && townId !== this.resolveTarget);
+        return Object.keys(this.game.board.allTowns()).filter(townId => this.projected(townId) > 0);
     }
     /**
      * Troops as they will stand once this turn is committed.
@@ -514,8 +519,7 @@ class EmpireTurn {
         this.game.board.setTroopDelta(delta);
         this.game.board.setMoveArrows(this.moves);
         this.game.board.setSelectable(this.selectableTowns());
-        this.game.board.setSelected(this.step === 'resolve' && this.resolveTarget ? [this.resolveTarget]
-            : this.source ? [this.source] : []);
+        this.game.board.setSelected(this.source ? [this.source] : []);
         this.game.setStagingText(this.stagingHtml());
         this.buttons();
     }
@@ -528,9 +532,6 @@ class EmpireTurn {
         if (this.step === 'build') {
             return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
-        if (this.step === 'resolve') {
-            return { text: _('${you} may resolve a town held since the start of the turn') };
-        }
         if (this.source === null) {
             return { text: _('${you} must select a town to move troops from') };
         }
@@ -540,12 +541,8 @@ class EmpireTurn {
         };
     }
     selectableTowns() {
-        const all = Object.keys(this.game.board.allTowns());
         if (this.step === 'build') {
             return this.buildable().filter(id => this.buildRoom(id) > 0);
-        }
-        if (this.step === 'resolve') {
-            return this.args.resolvable;
         }
         if (this.source !== null) {
             return this.game.board.neighborsOf(this.source);
@@ -555,9 +552,6 @@ class EmpireTurn {
     stagingHtml() {
         const lines = [];
         const built = Object.entries(this.produce).filter(([, count]) => count > 0);
-        lines.push(this.resolveTarget
-            ? `<div>${_('Resolving')} <b>${this.townLabel(this.resolveTarget)}</b> ${_('first')}</div>`
-            : `<div>${_('Resolving nothing')}</div>`);
         lines.push(built.length
             ? built.map(([townId, count]) => `<div>${_('Building')} ${count} ${_('at')} <b>${this.townLabel(townId)}</b></div>`).join('')
             : `<div>${_('Building nothing')}</div>`);
@@ -598,15 +592,6 @@ class EmpireTurn {
             }, { color: 'secondary' });
             return;
         }
-        if (this.step === 'resolve') {
-            this.bga.statusBar.addActionButton(this.resolveTarget
-                ? _('Resolve') + ' ' + this.townLabel(this.resolveTarget)
-                : _('Resolve nothing this turn'), () => {
-                this.step = this.buildable().length > 0 ? 'build' : 'move';
-                this.refresh();
-            });
-            return;
-        }
         this.bga.statusBar.addActionButton(_('Confirm turn'), () => this.commit());
         if (this.buildable().length) {
             this.bga.statusBar.addActionButton(_('Build…'), () => {
@@ -628,7 +613,6 @@ class EmpireTurn {
         this.bga.actions.performAction('actCommitTurn', {
             produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
-            resolve: this.resolveTarget ?? '',
             // Attrition falls where the server decides unless told otherwise;
             // choosing which garrison starves is not yet exposed here.
             disband: JSON.stringify({}),
@@ -643,6 +627,9 @@ class EmpireTurn {
  * the client stages the assignment locally and sends it in a single action,
  * which is also what makes the PHP a direct port of the simulator's
  * InsurgencyTurn.
+ *
+ * Any resolution happened in the Resolve state before this one, so `openTowns`
+ * is already final: a town resolved this turn is simply not in it.
  */
 class InsurgencyTurn {
     constructor(game, bga) {
@@ -652,21 +639,14 @@ class InsurgencyTurn {
         this.assigned = {};
         this.order = [];
         this.selectedCard = null;
-        this.resolveTarget = null;
-        /**
-         * Resolution is settled before any cards go down (Decision 4), so the turn
-         * has two steps rather than a placement with an optional afterthought.
-         */
-        this.step = 'resolve';
     }
     onEnteringState(args, isCurrentPlayerActive) {
         this.args = {
             openTowns: args?.openTowns ?? [],
-            resolvable: args?.resolvable ?? [],
         };
         this.reset();
         this.bga.statusBar.setTitle(isCurrentPlayerActive
-            ? _('${you} may resolve a town, then must place the entire hand')
+            ? _('${you} must place the entire hand')
             : _('${actplayer} must place the whole hand'));
         if (!isCurrentPlayerActive) {
             this.game.setStagingText(`<div class="iaw-hint">${_('The Insurgency is placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`);
@@ -687,27 +667,14 @@ class InsurgencyTurn {
         this.assigned = {};
         this.order = [];
         this.selectedCard = null;
-        this.resolveTarget = null;
-        this.step = this.args.resolvable.length > 0 ? 'resolve' : 'assign';
     }
     // -- staging ------------------------------------------------------------
     onCardClick(cardId) {
-        if (this.step === 'resolve') {
-            return;
-        }
         this.selectedCard = this.selectedCard === cardId ? null : cardId;
         this.refresh();
     }
     onTownClick(townId) {
-        if (this.step === 'resolve') {
-            // Toggle, so a mis-click is undone by clicking the same town again.
-            if (this.args.resolvable.includes(townId)) {
-                this.resolveTarget = this.resolveTarget === townId ? null : townId;
-                this.refresh();
-            }
-            return;
-        }
-        if (!this.placeableTowns().includes(townId)) {
+        if (!this.args.openTowns.includes(townId)) {
             return;
         }
         // Clicking a town with no card picked places the next one waiting, which
@@ -719,7 +686,7 @@ class InsurgencyTurn {
         this.assign(cardId, townId);
     }
     onCardDropped(townId, cardId) {
-        if (this.step === 'resolve' || !this.placeableTowns().includes(townId)) {
+        if (!this.args.openTowns.includes(townId)) {
             return;
         }
         this.assign(cardId, townId);
@@ -733,13 +700,6 @@ class InsurgencyTurn {
     unassigned() {
         return this.game.hand.filter(card => this.assigned[card.id] === undefined);
     }
-    /**
-     * Towns cards may go into. A town being resolved this turn is not one:
-     * the server resolves first, and a resolved town takes no cards.
-     */
-    placeableTowns() {
-        return this.args.openTowns.filter(townId => townId !== this.resolveTarget);
-    }
     // -- display ------------------------------------------------------------
     refresh() {
         const pending = {};
@@ -749,50 +709,23 @@ class InsurgencyTurn {
         });
         this.game.board.setPending(pending);
         this.game.renderHand(this.assigned);
-        if (this.step === 'resolve') {
-            this.game.board.setSelectable(this.args.resolvable);
-            this.game.board.setSelected(this.resolveTarget ? [this.resolveTarget] : []);
-        }
-        else {
-            this.game.board.setSelectable(this.placeableTowns());
-            this.game.board.setSelected(this.resolveTarget ? [this.resolveTarget] : []);
-        }
+        this.game.board.setSelectable(this.args.openTowns);
+        this.game.board.setSelected([]);
         const remaining = this.unassigned().length;
-        if (this.step === 'resolve') {
-            this.game.setStagingText(this.resolveTarget
-                ? `<div><b>${_('Resolving')} ${this.townLabel(this.resolveTarget)}</b></div>
-                   <div class="iaw-hint">${_('Judged on the cards already there — this turn\'s go down afterwards.')}</div>`
-                : `<div><b>${_('Resolve a town first, or none')}</b></div>
-                   <div class="iaw-hint">${_('Only towns you already had cards in can be resolved.')}</div>`);
-            this.buttons(remaining);
-            return;
-        }
         this.game.setStagingText(remaining > 0
             ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
                <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
             : `<div><b>${_('The whole hand is placed.')}</b></div>
-               <div class="iaw-hint">${_('Confirm, or choose a town to resolve first.')}</div>`);
+               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`);
         this.buttons(remaining);
     }
     buttons(remaining) {
         this.bga.statusBar.removeActionButtons();
-        if (this.step === 'resolve') {
-            this.bga.statusBar.addActionButton(this.resolveTarget
-                ? _('Resolve') + ' ' + this.townLabel(this.resolveTarget)
-                : _('Resolve nothing this turn'), () => {
-                this.step = 'assign';
-                this.refresh();
-            });
-            return;
-        }
         this.bga.statusBar.addActionButton(_('Confirm placement'), () => this.commit(), { disabled: remaining > 0 });
         this.bga.statusBar.addActionButton(_('Reset'), () => {
             this.reset();
             this.refresh();
         }, { color: 'secondary' });
-    }
-    townLabel(townId) {
-        return this.bga.gameui.gamedatas.scenario.towns[townId].label;
     }
     // -- sending ------------------------------------------------------------
     commit() {
@@ -805,8 +738,84 @@ class InsurgencyTurn {
         });
         this.bga.actions.performAction('actCommitTurn', {
             placements: JSON.stringify(placements),
-            resolve: this.resolveTarget ?? '',
         });
+    }
+}
+
+/**
+ * The resolution phase: the first thing either side does on its turn, and a
+ * phase of its own rather than a step staged with the rest.
+ *
+ * That is the whole point. A resolution is judged on the board as your opponent
+ * left it (Decision 4), and when it was staged alongside the turn the client
+ * could not know how it would come out — so it had to forbid placing into the
+ * town, and forbid marching out of it, with no way to explain why. Sending it
+ * on its own means the board the player then plans against is the real one.
+ *
+ * The price is that a resolution cannot be taken back, which is why it takes a
+ * click to choose and a button to commit.
+ */
+class Resolve {
+    constructor(game, bga) {
+        this.game = game;
+        this.bga = bga;
+        this.target = null;
+    }
+    onEnteringState(args, isCurrentPlayerActive) {
+        this.args = {
+            side: args?.side ?? 'empire',
+            resolvable: args?.resolvable ?? [],
+        };
+        this.target = null;
+        if (!isCurrentPlayerActive) {
+            this.bga.statusBar.setTitle(_('${actplayer} may resolve a town'));
+            this.game.setStagingText(`<div class="iaw-hint">${_('Your opponent is deciding whether to resolve a town.')}</div>`);
+            return;
+        }
+        this.game.board.onTownClick(townId => this.onTownClick(townId));
+        this.refresh();
+    }
+    onLeavingState() {
+        this.target = null;
+        this.game.board.clearInteraction();
+        this.game.setStagingText('');
+    }
+    onTownClick(townId) {
+        // Toggle, so a mis-click is undone by clicking the same town again.
+        if (this.args.resolvable.includes(townId)) {
+            this.target = this.target === townId ? null : townId;
+            this.refresh();
+        }
+    }
+    refresh() {
+        this.bga.statusBar.setTitle(_('${you} may resolve one town, before anything else happens'));
+        this.game.board.setSelectable(this.args.resolvable);
+        this.game.board.setSelected(this.target ? [this.target] : []);
+        this.game.setStagingText(this.stagingHtml());
+        this.buttons();
+    }
+    stagingHtml() {
+        const explanation = this.args.side === 'empire'
+            ? _('A town you garrison is judged now, against the cards standing in it. Win and you keep the garrison and the town; lose and the troops are gone.')
+            : _('A town you already have cards in is judged now, against the garrison standing in it. This turn\'s cards are not down yet and do not count.');
+        if (!this.target) {
+            return `<div><b>${_('Resolve a town, or none')}</b></div>
+                    <div class="iaw-hint">${explanation}</div>
+                    <div class="iaw-hint">${_('It happens at once, and cannot be taken back.')}</div>`;
+        }
+        return `<div><b>${_('Resolving')} ${this.townLabel(this.target)}</b></div>
+                <div class="iaw-hint">${explanation}</div>
+                <div class="iaw-hint">${_('It happens at once, and cannot be taken back.')}</div>`;
+    }
+    buttons() {
+        this.bga.statusBar.removeActionButtons();
+        this.bga.statusBar.addActionButton(this.target
+            ? _('Resolve') + ' ' + this.townLabel(this.target)
+            : _('Resolve'), () => this.bga.actions.performAction('actResolve', { town: this.target }), { disabled: this.target === null });
+        this.bga.statusBar.addActionButton(_('Resolve nothing this turn'), () => this.bga.actions.performAction('actSkipResolve', {}), { color: 'secondary' });
+    }
+    townLabel(townId) {
+        return this.bga.gameui.gamedatas.scenario.towns[townId].label;
     }
 }
 
@@ -828,6 +837,7 @@ class Game {
         this.bot = null;
         this.handClickHandler = () => { };
         this.bga = bga;
+        this.bga.states.register('Resolve', new Resolve(this, bga));
         this.bga.states.register('InsurgencyTurn', new InsurgencyTurn(this, bga));
         this.bga.states.register('EmpireTurn', new EmpireTurn(this, bga));
     }

@@ -100,7 +100,11 @@ function test_the_bot_takes_its_turn_before_the_human_is_asked(): void
     $game = newSoloGame(Game::SIDES_FIRST_IS_EMPIRE);
     $next = enterNextTurn($game);
 
-    assertSame(EmpireTurnClass(), $next, 'the human is asked for the Empire turn');
+    assertSame(
+        \Bga\Games\IronAndWhisper\States\Resolve::class,
+        $next,
+        'the human is asked to resolve first — it garrisons towns it could close',
+    );
     assertSame(P_ONE, $game->gamestate->activePlayerId, 'and it is the human who is active');
 
     $placed = 0;
@@ -108,11 +112,6 @@ function test_the_bot_takes_its_turn_before_the_human_is_asked(): void
         $placed += Rules::townCardCount($town);
     }
     assertSame(5, $placed, 'the bot placed its whole hand first');
-}
-
-function EmpireTurnClass(): string
-{
-    return \Bga\Games\IronAndWhisper\States\EmpireTurn::class;
 }
 
 function test_the_bot_scores_without_a_player_row(): void

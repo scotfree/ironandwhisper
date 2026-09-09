@@ -53,16 +53,18 @@ There are no capitals. See [Decision 2](#2-troop-generation--one-per-turn-anywhe
 
 The **Insurgency takes the first turn.** Players then alternate. On a turn, a player does **everything** available to their side, rather than a single action.
 
+Resolution comes first on both turns and is settled before anything else happens (Decision 4) — a phase of its own, not a decision held over until the end.
+
 ### Insurgency turn
 1. Draw a full hand up to the **hand size**.
-2. Place **the entire hand** face-down into unresolved town piles — any mix of influence and dummy cards, any number of towns, any number of cards into the same town.
-3. Optionally declare a **resolution** on one town where the Insurgency has at least one card.
+2. Optionally declare a **resolution** on one town where the Insurgency has at least one card. It resolves at once, on the pile as it already stands: this turn's cards are not down yet and do not count.
+3. Place **the entire hand** face-down into unresolved town piles — any mix of influence and dummy cards, any number of towns, any number of cards into the same town. A town resolved in step 2 is closed and takes none of them.
 
 ### Empire turn
-1. **Generate**: add one new troop to any town that already contains at least one Empire troop. If the Empire has no troops left anywhere, it may instead raise the troop in any unresolved town.
-2. **Move troops**: any or all troops may move up to their Movement in edges. Troops are not required to move. Resolved towns are ordinary terrain — pacified and passable, simply no longer contestable.
-3. **Look**: any troop that did *not* move this turn may spend its Peek to secretly examine cards in its town.
-4. Optionally declare a **resolution** on one town where the Empire has at least one troop.
+1. Optionally declare a **resolution** on one town where the Empire has at least one troop. It resolves at once, against the cards already standing there.
+2. **Generate**: add one new troop to any town that already contains at least one Empire troop. If the Empire has no troops left anywhere, it may instead raise the troop in any unresolved town.
+3. **Move troops**: any or all troops may move up to their Movement in edges. Troops are not required to move. Resolved towns are ordinary terrain — pacified and passable, simply no longer contestable. A garrison that just *won* its town in step 1 may march straight out of it.
+4. **Look**: any troop that did *not* move this turn may spend its Peek to secretly examine cards in its town.
 
 ---
 
@@ -220,6 +222,8 @@ Declare before you do anything else. A resolution is judged on the board as your
 **Why first:** because it was the last thing, and that made every resolution risk-free. Whoever declared did so with complete knowledge and no reply — the Empire marched a single troop into a lightly-held town and took it on arrival; the Insurgency dropped exactly enough influence on a garrison and cashed it in the same breath. Moving resolution to the start of the turn fixes both with an ordering rather than a restriction: what you commit has to survive your opponent's turn before you can collect on it.
 
 The consequence worth knowing is that your opponent gets the first shot at anything you just committed. March into a seeded town and the rebels may resolve it before you can. That is the cost of advancing, and the game had no such cost before.
+
+**Why a phase of its own.** First in the rules is not the same as first on the screen. While the resolution was staged alongside the rest of the turn and sent with it, nobody could know how it would come out while they were planning around it — so the town being resolved had to be closed to placement and closed as a march origin, and neither restriction could be explained. Taking the resolution as a separate action, applied immediately, removes both: the cards turn over, the score moves, and the board everyone then plans against is the real one. It costs the ability to change your mind, which is why it is asked for on its own.
 
 ### 5. You may only resolve a town where you have presence
 

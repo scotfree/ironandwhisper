@@ -1,6 +1,7 @@
 import { BoardView } from "./BoardView";
 import { EmpireTurn } from "./States/EmpireTurn";
 import { InsurgencyTurn } from "./States/InsurgencyTurn";
+import { Resolve } from "./States/Resolve";
 
 /**
  * Iron and Whisper — client entry point.
@@ -29,6 +30,7 @@ export class Game {
     constructor(bga: Bga<IronAndWhisperPlayer, IronAndWhisperGamedatas>) {
         this.bga = bga;
 
+        this.bga.states.register('Resolve', new Resolve(this, bga));
         this.bga.states.register('InsurgencyTurn', new InsurgencyTurn(this, bga));
         this.bga.states.register('EmpireTurn', new EmpireTurn(this, bga));
     }

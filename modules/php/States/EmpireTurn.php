@@ -1,10 +1,14 @@
 <?php
 /**
- * The Empire's turn: raise a troop, move, look, then optionally resolve.
+ * The Empire's turn: raise a troop, move, look.
  *
- * Ported from apply_empire_turn() in sim/engine.py. The order matters — a
- * resolution is judged against where troops *will be*, not where they were at
- * the start of the turn (Decision 4).
+ * Any resolution has already happened, in the Resolve state before this one, so
+ * the board here is final. That is what lets a garrison that just *won* its
+ * town march straight back out of it: while the resolution was staged with the
+ * rest of the turn, the client could not know whether those troops would still
+ * exist, and had to forbid the march.
+ *
+ * Ported from apply_empire_turn() in sim/engine.py.
  */
 declare(strict_types=1);
 
@@ -27,7 +31,7 @@ class EmpireTurn extends GameState
             id: 11,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} must move'),
-            descriptionMyTurn: clienttranslate('${you} may raise a troop and move, and may then resolve one town'),
+            descriptionMyTurn: clienttranslate('${you} may raise a troop and move'),
         );
     }
 
@@ -38,7 +42,6 @@ class EmpireTurn extends GameState
         return [
             'production' => self::productionOffer($towns, $this->game->scenario),
             'networks' => self::networkView($towns, $this->game->scenario),
-            'resolvable' => Rules::legalResolutions($towns, Rules::EMPIRE),
         ];
     }
 
@@ -54,11 +57,10 @@ class EmpireTurn extends GameState
     public function actCommitTurn(
         #[JsonParam] array $produce,
         #[JsonParam] array $moves,
-        ?string $resolve,
         #[JsonParam] array $disband,
         int $activePlayerId,
     ) {
-        $this->game->applyEmpireTurn($produce, $moves, $resolve, $disband, $activePlayerId);
+        $this->game->applyEmpireTurn($produce, $moves, null, $disband, $activePlayerId);
 
         return NextTurn::class;
     }
@@ -114,6 +116,6 @@ class EmpireTurn extends GameState
      */
     public function zombie(int $playerId)
     {
-        return $this->actCommitTurn([], [], null, [], $playerId);
+        return $this->actCommitTurn([], [], [], $playerId);
     }
 }

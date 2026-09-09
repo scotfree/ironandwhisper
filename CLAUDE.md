@@ -35,9 +35,17 @@ it fails, and `ironandwhisper.md` Decision 2 records why.
 **Resolution happens first in a turn, and is judged on the board as your opponent left
 it** (Decision 4). It used to be last, which made every resolution risk-free: the Empire
 marched a troop in and took the town on arrival, the Insurgency placed exactly enough and
-cashed it in the same breath. Do not move it back, and do not let a town staged for
-resolution also be a march origin or a placement target — the server resolves first, so the
-rest of that turn would be illegal.
+cashed it in the same breath. Do not move it back.
+
+**Resolution is its own phase and its own action, applied immediately** — the `Resolve`
+state (12), which both sides pass through before their turn proper whenever they have
+anything resolvable. It was once staged with the rest of the turn and sent in the same
+action, and the client then had to guess at its own outcome: it forbade placing into the
+town being resolved and forbade marching out of it, because it could not know whether the
+garrison would survive. Resolving first *and separately* removes both restrictions — a
+garrison that wins its town may march straight back out of it. Do not fold it back into
+`actCommitTurn`: that would also reopen resolving twice in one turn, which the phase
+prevents structurally.
 
 **This BGA skeleton is a framework generation newer than zoomquest's.** See the section
 below before assuming anything carries over. zoomquest is a useful reference for *shape*
@@ -99,8 +107,13 @@ Done:
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Bots`, `Board`, `View`, `Game`,
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
-  supply and network drawn on the board, a log with a line per action.
-- **72 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+  supply and network drawn on the board, a log with a line per action. A town draws its
+  cards as **two stacks** — face down with a height, face up with a height and the influence
+  they total, individual values on the tooltip. Laying every card out made a well-seeded
+  town enormous, and the row's only readable property was its length. The Insurgency is
+  still *sent* its own face-down cards and is simply not shown them: once a card is down it
+  is down, and remembering the board is part of the game.
+- **75 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 
 Not done, in rough order of how much it hurts:
@@ -259,12 +272,18 @@ methods, so it is held to the same validation and emits the same notifications a
 It also sidesteps the question of whether a hand-constructed state object gets the
 framework's services injected — it does not have to, because nothing hand-constructs one.
 
-**The state machine** is three states plus the framework's own:
+**The state machine** is four states plus the framework's own:
 
-- `InsurgencyTurn` (10) — `actCommitTurn(placements, resolve)`. The optional resolution
-  first, then the whole hand in one action, because placement is one simultaneous decision.
-- `EmpireTurn` (11) — `actCommitTurn(produce, moves, resolve, disband)`. The optional
-  resolution first, then building, marching, automatic looking, and attrition last.
+- `Resolve` (12) — `actResolve(town)` or `actSkipResolve()`. Entered from `NextTurn` before
+  either turn state, and only when `Rules::legalResolutions` finds something: a state whose
+  only legal answer is "no" is a click for nothing. It applies the resolution at once and
+  returns the mover's turn state — or `NextTurn`, if that was the last open town.
+  The Empire is offered this phase nearly every turn, because a garrison can always close
+  the town it stands in, empty or not; that is board-shrinking, and it is a real move.
+- `InsurgencyTurn` (10) — `actCommitTurn(placements)`. The whole hand in one action,
+  because placement is one simultaneous decision.
+- `EmpireTurn` (11) — `actCommitTurn(produce, moves, disband)`. Building, marching,
+  automatic looking, and attrition last.
 - `NextTurn` (90) — upkeep: refill the hand, detect the end, hand over to the other side.
   This is `prepare_turn()`; it runs *before* a player is asked for anything, which is why
   the hand refill and the end of the game both live here. **A bot's turn happens inside
@@ -396,8 +415,8 @@ ones a PHP port is most likely to break:
   troop there, Insurgency needs a card in the pile. Without this the Empire freezes empty
   towns from anywhere for free.
 - **Empire wins ties** (Decision 7).
-- **Resolution is a free action, once per turn** (Decision 4), taken after generation and
-  movement — so judge resolutions against where troops *will be*, not where they are.
+- **Resolution is a free action, once per turn** (Decision 4), taken *before* generation
+  and movement, and judged on the board as the opponent left it.
 - **Deck exhaustion ends the game and resolves every remaining town at once** (Decision 1).
   Unresolved towns are deferred, never safe.
 
@@ -418,9 +437,13 @@ Constraints the port itself introduced:
 - **The face-down pile is the only secret.** `View::pileView` sends its contents to the
   Insurgency alone; everyone else gets ids with null types. Face-up cards are public by
   definition and go out to all.
-- **The client sends an empty string where it means null.** BGA action parameters travel as
-  strings, so both turn actions normalise `''` to `null` before anything else happens.
-  Without that, "resolve nothing" looks like a request to resolve a town named `""`.
+- **`applyInsurgencyTurn` and `applyEmpireTurn` still take a `$resolve`, and a person never
+  fills it in.** It is the bot's and the simulator's shape — `engine.py` applies a whole
+  turn in one call — and it routes through `Game::declareResolution` exactly as the
+  `Resolve` state does, so both are held to the same presence check. A human's resolution
+  has already happened by the time either is reached. ("Resolve nothing" used to be an
+  empty string on the wire, since BGA action parameters have no null; `actSkipResolve` is
+  an action of its own and there is no string left to get wrong.)
 - **Don't change state ids casually.** BGA discovers state classes by scanning
   `modules/php/States/`, so a stale file on the server is a live state class.
 

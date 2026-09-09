@@ -80,16 +80,20 @@ interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
     round: number;
 }
 
+/** The resolution phase, which both sides pass through before their turn. */
+interface ResolveArgs {
+    side: Side;
+    resolvable: string[];
+}
+
 interface InsurgencyTurnArgs {
     openTowns: string[];
-    resolvable: string[];
 }
 
 interface EmpireTurnArgs {
     /** Town id => how many troops it may build this turn, ceiling included. */
     production: Record<string, number>;
     networks: { towns: string[]; ceiling: number; troops: number }[];
-    resolvable: string[];
 }
 
 /** A move staged in the client, before it is sent. */

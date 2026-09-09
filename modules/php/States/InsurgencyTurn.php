@@ -1,6 +1,10 @@
 <?php
 /**
- * The Insurgency's turn: seed the whole hand, then optionally resolve.
+ * The Insurgency's turn: seed the whole hand.
+ *
+ * Any resolution has already happened, in the Resolve state before this one, so
+ * the board here is final — a town resolved this turn is simply closed, and
+ * falls out of `openTowns` like any other.
  *
  * Ported from apply_insurgency_turn() in sim/engine.py.
  */
@@ -25,7 +29,7 @@ class InsurgencyTurn extends GameState
             id: 10,
             type: StateType::ACTIVE_PLAYER,
             description: clienttranslate('${actplayer} must place the whole hand'),
-            descriptionMyTurn: clienttranslate('${you} must place your entire hand, and may then resolve one town'),
+            descriptionMyTurn: clienttranslate('${you} must place your entire hand'),
         );
     }
 
@@ -37,14 +41,13 @@ class InsurgencyTurn extends GameState
             // Every card must be placed (Decision 6), so the only real choice
             // is how to split them across the towns still open.
             'openTowns' => Rules::unresolvedTownIds($towns),
-            'resolvable' => Rules::legalResolutions($towns, Rules::INSURGENCY),
         ];
     }
 
     /**
-     * Commit the whole turn at once: the placement is one simultaneous
-     * decision, and the optional resolution is judged against the board as it
-     * stands after the cards land.
+     * Commit the placement in one action: every card goes out every turn
+     * (Decision 6), so splitting the hand across the open towns is one
+     * simultaneous decision.
      *
      * The work is in Game::applyInsurgencyTurn, so that a bot takes its turn
      * through the same code and the same validation as a person.
@@ -55,10 +58,9 @@ class InsurgencyTurn extends GameState
     #[PossibleAction]
     public function actCommitTurn(
         #[JsonParam] array $placements,
-        ?string $resolve,
         int $activePlayerId,
     ) {
-        $this->game->applyInsurgencyTurn($placements, $resolve, $activePlayerId);
+        $this->game->applyInsurgencyTurn($placements, null, $activePlayerId);
 
         return NextTurn::class;
     }
@@ -81,7 +83,6 @@ class InsurgencyTurn extends GameState
 
         return $this->actCommitTurn(
             [$this->getRandomZombieChoice($open) => $hand],
-            null,
             $playerId,
         );
     }

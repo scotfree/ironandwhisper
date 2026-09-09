@@ -19,15 +19,13 @@
   border-radius: 6px;
 }
 
-.iaw-town-revealed {
+.iaw-town-cards {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 2px;
-  margin-top: 3px;
-  padding-top: 3px;
-  border-top: 1px dashed rgb(81.1540616246%, 71.731092437%, 52.8851540616%);
-  min-height: 4px;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  min-height: 26px;
 }
 
 #iaw-roads {
@@ -97,14 +95,6 @@
   font-weight: bold;
 }
 
-.iaw-town-pile {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2px;
-  margin-top: 3px;
-}
-
 .iaw-town-result {
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
@@ -115,6 +105,48 @@
   color: rgb(0%, 39.7976790716%, 79.9215686275%);
   font-weight: bold;
   min-height: 14px;
+}
+
+/********* the stacks on a town *********/
+.iaw-stack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 20px;
+  height: 24px;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+  line-height: 1;
+  box-shadow: 2px 2px 0 -1px #fff, 2px 2px 0 0 rgba(0, 0, 0, 0.35), 4px 4px 0 -1px #fff, 4px 4px 0 0 rgba(0, 0, 0, 0.25);
+}
+.iaw-stack.face-down {
+  background: repeating-linear-gradient(45deg, #2e7d4f, #2e7d4f 3px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 3px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 6px);
+  border-color: rgb(12.6590987272%, 34.3997248022%, 21.740626075%);
+  color: #fff;
+  font-weight: bold;
+}
+.iaw-stack.face-up {
+  background: #fff;
+  border-color: rgb(10.5070519436%, 28.5517715858%, 18.0447196422%);
+  color: #2b2b2b;
+}
+
+.iaw-stack-count {
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+}
+
+.iaw-stack-sum {
+  padding: 1px 3px;
+  border-radius: 2px;
+  background: rgb(14.8111455108%, 40.2476780186%, 25.4365325077%);
+  color: #fff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 /********* cards *********/
@@ -226,13 +258,6 @@
   color: #666;
   font-size: 12px;
   line-height: 1.4;
-}
-
-.iaw-town-revealed:empty {
-  border-top: none;
-  min-height: 0;
-  padding-top: 0;
-  margin-top: 0;
 }
 
 .iaw-troop-delta {

@@ -201,6 +201,26 @@ class Game extends \Bga\GameFramework\Table
     // -- resolution ---------------------------------------------------------
 
     /**
+     * Take the resolution a player has declared.
+     *
+     * The one gate for a declared resolution: presence is checked here and the
+     * town is resolved here, whether the declaration came from the Resolve
+     * state, from a bot, or from a test. Nothing else may call resolveTown for
+     * a *declared* resolution — end-of-game sweeps are the only exception, and
+     * they pass a null declarer.
+     */
+    public function declareResolution(string $townId, string $side): void
+    {
+        if (!Rules::canDeclare($this->board->towns(), $townId, $side)) {
+            throw new UserException($side === Rules::EMPIRE
+                ? clienttranslate('You have no troops in that town, or it is already resolved')
+                : clienttranslate('You have no cards in that town, or it is already resolved'));
+        }
+
+        $this->resolveTown($townId, $side);
+    }
+
+    /**
      * Flip a pile, score it, and freeze the town.
      *
      * Shared by all three callers: the Insurgency declaring, the Empire
@@ -268,27 +288,23 @@ class Game extends \Bga\GameFramework\Table
     // in the right state and hands off.
 
     /**
-     * The Insurgency seeds its whole hand, then optionally resolves.
+     * The Insurgency resolves, then seeds its whole hand.
      *
-     * Ported from apply_insurgency_turn() in sim/engine.py.
+     * Ported from apply_insurgency_turn() in sim/engine.py, which is why the
+     * resolution is still a parameter here: a bot's whole turn arrives in one
+     * call. A person's resolution has already been taken in the Resolve state
+     * and this is reached with $resolve null.
      *
      * @param array<string, int[]> $placements town id => card ids, in the order
      *                                         they go onto the pile (last on top)
      */
     public function applyInsurgencyTurn(array $placements, ?string $resolve, int $actorId): void
     {
-        // The client sends an empty string for "no resolution": BGA action
-        // parameters travel as strings, and there is no null on the wire.
-        $resolve = $resolve === '' ? null : $resolve;
-
         // Resolution happens first, against the board as the Empire left it
-        // (Decision 4). Otherwise a turn is "place exactly enough, then cash
-        // out", with nothing the other side can do about it.
-        if ($resolve !== null) {
-            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::INSURGENCY)) {
-                throw new UserException(clienttranslate('You have no cards in that town, or it is already resolved'));
-            }
-            $this->resolveTown($resolve, Rules::INSURGENCY);
+        // (Decision 4). A person has already taken theirs in the Resolve state
+        // before this is reached; a bot hands both halves over at once.
+        if ($resolve !== null && $resolve !== '') {
+            $this->declareResolution($resolve, Rules::INSURGENCY);
         }
 
         $towns = $this->board->towns();
@@ -347,11 +363,14 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * The Empire raises, marches, looks, then optionally resolves — in that
-     * order, because a resolution is judged against where troops end up
+     * The Empire resolves, then raises, marches and looks — in that order,
+     * because a resolution is judged on the board as the Insurgency left it
      * (Decision 4).
      *
-     * Ported from apply_empire_turn() in sim/engine.py.
+     * Ported from apply_empire_turn() in sim/engine.py, which is why the
+     * resolution is still a parameter here: a bot's whole turn arrives in one
+     * call. A person's resolution has already been taken in the Resolve state
+     * and this is reached with $resolve null.
      *
      * @param array<int, array{from: string, to: string, count: int}> $moves
      */
@@ -362,17 +381,12 @@ class Game extends \Bga\GameFramework\Table
         array $disband,
         int $actorId,
     ): void {
-        $resolve = $resolve === '' ? null : $resolve;
-
         // Resolution happens first (Decision 4): no marching in and cashing
-        // out on arrival. What you commit has to survive a reply.
-        if ($resolve !== null) {
-            if (!Rules::canDeclare($this->board->towns(), $resolve, Rules::EMPIRE)) {
-                throw new UserException(
-                    clienttranslate('You have no troops in that town, or it is already resolved')
-                );
-            }
-            $this->resolveTown($resolve, Rules::EMPIRE);
+        // out on arrival. What you commit has to survive a reply. A person has
+        // already taken theirs in the Resolve state; a bot hands both halves
+        // over at once.
+        if ($resolve !== null && $resolve !== '') {
+            $this->declareResolution($resolve, Rules::EMPIRE);
         }
 
         $towns = $this->board->towns();
