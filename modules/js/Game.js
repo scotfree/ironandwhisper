@@ -24,7 +24,8 @@ class BoardView {
         /** Called after any redraw, so the panels beside the board can follow. */
         this.changeHandler = () => { };
         /** Extra text shown on a town while a turn is being staged. */
-        this.pending = {};
+        /** Town id => cards the Insurgency is staging for it this turn. */
+        this.cardDelta = {};
         /** Signed troop changes being staged, shown on the troop badge as 2+1. */
         this.troopDelta = {};
         this.towns = towns;
@@ -112,7 +113,6 @@ class BoardView {
                     <div class="iaw-town-rebel"></div>
                     <div class="iaw-town-empire"></div>
                 </div>
-                <div class="iaw-town-pending"></div>
             </div>
         `;
     }
@@ -335,12 +335,9 @@ class BoardView {
         // Rebels down the left, Empire down the right, so which side a number
         // belongs to can be read off the board without reading the number.
         const rebel = element.querySelector('.iaw-town-rebel');
-        rebel.innerHTML = this.faceDownHtml(town) + this.faceUpHtml(town);
+        rebel.innerHTML = this.faceDownHtml(townId, town) + this.faceUpHtml(town);
         const empire = element.querySelector('.iaw-town-empire');
         empire.innerHTML = this.troopsHtml(townId, town) + this.supplyHtml(townId, town, denied);
-        const pending = element.querySelector('.iaw-town-pending');
-        pending.textContent = this.pending[townId] ?? '';
-        element.classList.toggle('pending', Boolean(this.pending[townId]));
         this.changeHandler();
     }
     /**
@@ -392,13 +389,24 @@ class BoardView {
      * card is down it is down, for the player who put it there as much as for
      * the one who has to guess, and remembering the board is part of the game.
      */
-    faceDownHtml(town) {
-        if (town.pileSize === 0) {
+    faceDownHtml(townId, town) {
+        const delta = this.cardDelta[townId] ?? 0;
+        if (town.pileSize === 0 && delta === 0) {
             return '';
         }
-        return `<span class="iaw-stack face-down"
-                      title="${town.pileSize} ${_('face down')}"
-                 ><span class="iaw-stack-count">${town.pileSize}</span></span>`;
+        // Beside the pile, not across the bottom of the box: the change reads
+        // against the number it changes, exactly as the garrison's does on the
+        // Empire side. A town with no pile yet still shows the marker, or the
+        // first card placed anywhere would land invisibly.
+        const stack = town.pileSize > 0
+            ? `<span class="iaw-stack face-down"
+                     title="${town.pileSize} ${_('face down')}"
+                ><span class="iaw-stack-count">${town.pileSize}</span></span>`
+            : '';
+        const change = delta === 0 ? ''
+            : `<span class="iaw-card-delta"
+                     title="${_('Cards you are placing here this turn')}">+${delta}</span>`;
+        return `<div class="iaw-pile-row">${stack}${change}</div>`;
     }
     /**
      * The face-up stack: how many, and what they add up to.
@@ -479,8 +487,9 @@ class BoardView {
             element?.classList.toggle('selected', townIds.includes(townId));
         });
     }
-    setPending(pending) {
-        this.pending = pending;
+    /** @param delta town id => cards being staged onto that town this turn */
+    setCardDelta(delta) {
+        this.cardDelta = delta;
         this.updateAll();
     }
     /** @param delta town id => signed troop change being staged this turn */
@@ -513,7 +522,7 @@ class BoardView {
     }
     clearInteraction() {
         this.dropHandler = null;
-        this.pending = {};
+        this.cardDelta = {};
         this.troopDelta = {};
         this.setMoveArrows([]);
         this.setSelectable([]);
@@ -944,23 +953,44 @@ class InsurgencyTurn {
     }
     // -- display ------------------------------------------------------------
     refresh() {
-        const pending = {};
+        const delta = {};
         Object.values(this.assigned).forEach(townId => {
-            const count = Object.values(this.assigned).filter(target => target === townId).length;
-            pending[townId] = `+${count}`;
+            delta[townId] = (delta[townId] ?? 0) + 1;
         });
-        this.game.board.setPending(pending);
+        this.game.board.setCardDelta(delta);
         this.game.renderHand(this.assigned);
         this.game.board.setSelectable(this.args.openTowns);
         this.game.board.setSelected([]);
         const remaining = this.unassigned().length;
         this.game.setStagingText((remaining > 0
-            ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
-               <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
-            : `<div><b>${_('The whole hand is placed.')}</b></div>
-               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`)
+            ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>`
+            : `<div><b>${_('The whole hand is placed.')}</b></div>`)
+            + this.placementsHtml()
+            + (remaining > 0
+                ? `<div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
+                : `<div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`)
             + endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
         this.buttons(remaining);
+    }
+    /**
+     * One line per staged card, in the order they were placed.
+     *
+     * The Empire's box lists its marches, and placement deserves the same: "+2"
+     * on a town says how many but not which, and which is the whole decision.
+     * The order is real information too — the last card onto a town is the top
+     * of its pile, which is what a look reads first — so these are listed in
+     * placement order rather than grouped by town.
+     */
+    placementsHtml() {
+        return this.order.map(cardId => {
+            const card = this.game.cardById(cardId);
+            const value = card?.influence ?? 0;
+            return `<div>${_('Influence')} ${value} ${_('to')}
+                    <b>${this.townLabel(this.assigned[cardId])}</b></div>`;
+        }).join('');
+    }
+    townLabel(townId) {
+        return this.bga.gameui.gamedatas.scenario.towns[townId].label;
     }
     buttons(remaining) {
         this.bga.statusBar.removeActionButtons();

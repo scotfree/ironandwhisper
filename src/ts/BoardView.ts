@@ -27,7 +27,8 @@ export class BoardView {
     private changeHandler: () => void = () => {};
 
     /** Extra text shown on a town while a turn is being staged. */
-    private pending: Record<string, string> = {};
+    /** Town id => cards the Insurgency is staging for it this turn. */
+    private cardDelta: Record<string, number> = {};
 
     /** Signed troop changes being staged, shown on the troop badge as 2+1. */
     private troopDelta: Record<string, number> = {};
@@ -138,7 +139,6 @@ export class BoardView {
                     <div class="iaw-town-rebel"></div>
                     <div class="iaw-town-empire"></div>
                 </div>
-                <div class="iaw-town-pending"></div>
             </div>
         `;
     }
@@ -397,14 +397,10 @@ export class BoardView {
         // Rebels down the left, Empire down the right, so which side a number
         // belongs to can be read off the board without reading the number.
         const rebel = element.querySelector('.iaw-town-rebel') as HTMLElement;
-        rebel.innerHTML = this.faceDownHtml(town) + this.faceUpHtml(town);
+        rebel.innerHTML = this.faceDownHtml(townId, town) + this.faceUpHtml(town);
 
         const empire = element.querySelector('.iaw-town-empire') as HTMLElement;
         empire.innerHTML = this.troopsHtml(townId, town) + this.supplyHtml(townId, town, denied);
-
-        const pending = element.querySelector('.iaw-town-pending') as HTMLElement;
-        pending.textContent = this.pending[townId] ?? '';
-        element.classList.toggle('pending', Boolean(this.pending[townId]));
 
         this.changeHandler();
     }
@@ -463,13 +459,26 @@ export class BoardView {
      * card is down it is down, for the player who put it there as much as for
      * the one who has to guess, and remembering the board is part of the game.
      */
-    private faceDownHtml(town: TownView): string {
-        if (town.pileSize === 0) {
+    private faceDownHtml(townId: string, town: TownView): string {
+        const delta = this.cardDelta[townId] ?? 0;
+        if (town.pileSize === 0 && delta === 0) {
             return '';
         }
-        return `<span class="iaw-stack face-down"
-                      title="${town.pileSize} ${_('face down')}"
-                 ><span class="iaw-stack-count">${town.pileSize}</span></span>`;
+
+        // Beside the pile, not across the bottom of the box: the change reads
+        // against the number it changes, exactly as the garrison's does on the
+        // Empire side. A town with no pile yet still shows the marker, or the
+        // first card placed anywhere would land invisibly.
+        const stack = town.pileSize > 0
+            ? `<span class="iaw-stack face-down"
+                     title="${town.pileSize} ${_('face down')}"
+                ><span class="iaw-stack-count">${town.pileSize}</span></span>`
+            : '';
+        const change = delta === 0 ? ''
+            : `<span class="iaw-card-delta"
+                     title="${_('Cards you are placing here this turn')}">+${delta}</span>`;
+
+        return `<div class="iaw-pile-row">${stack}${change}</div>`;
     }
 
     /**
@@ -563,8 +572,9 @@ export class BoardView {
         });
     }
 
-    setPending(pending: Record<string, string>): void {
-        this.pending = pending;
+    /** @param delta town id => cards being staged onto that town this turn */
+    setCardDelta(delta: Record<string, number>): void {
+        this.cardDelta = delta;
         this.updateAll();
     }
 
@@ -601,7 +611,7 @@ export class BoardView {
 
     clearInteraction(): void {
         this.dropHandler = null;
-        this.pending = {};
+        this.cardDelta = {};
         this.troopDelta = {};
         this.setMoveArrows([]);
         this.setSelectable([]);

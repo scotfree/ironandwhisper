@@ -247,14 +247,11 @@ $board: #e6e6e8;
     font-weight: bold;
 }
 
-.iaw-town-pending {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 1px;
-    color: color.adjust($ui, $lightness: -12%);
-    font-weight: bold;
-    text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+// The face-down stack and whatever is being staged onto it, on one line.
+.iaw-pile-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
 }
 
 /********* the stacks on a town *********/
@@ -552,12 +549,21 @@ $board: #e6e6e8;
     line-height: 1.4;
 }
 
-// What this turn would change, shown against what is already there.
-.iaw-troop-delta {
+// What this turn would change, shown against what is already there. One rule
+// for both sides on purpose: a staged change should read the same whether it is
+// a garrison growing or a pile being seeded, so only the colour differs.
+.iaw-troop-delta,
+.iaw-card-delta {
     margin-left: 2px;
     font-size: 10px;
     font-weight: normal;
     opacity: 0.9;
+}
+
+.iaw-card-delta {
+    color: $insurgency;
+    font-weight: bold;
+    opacity: 1;
 }
 
 // Marches being staged, drawn along the roads they follow.

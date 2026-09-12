@@ -155,14 +155,10 @@
   font-weight: bold;
 }
 
-.iaw-town-pending {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 1px;
-  color: rgb(0%, 39.7976790716%, 79.9215686275%);
-  font-weight: bold;
-  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+.iaw-pile-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 /********* the stacks on a town *********/
@@ -413,11 +409,18 @@
   line-height: 1.4;
 }
 
-.iaw-troop-delta {
+.iaw-troop-delta,
+.iaw-card-delta {
   margin-left: 2px;
   font-size: 10px;
   font-weight: normal;
   opacity: 0.9;
+}
+
+.iaw-card-delta {
+  color: #2e7d4f;
+  font-weight: bold;
+  opacity: 1;
 }
 
 #iaw-move-arrows .iaw-move-arrow {

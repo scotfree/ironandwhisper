@@ -110,26 +110,49 @@ export class InsurgencyTurn {
     // -- display ------------------------------------------------------------
 
     private refresh(): void {
-        const pending: Record<string, string> = {};
+        const delta: Record<string, number> = {};
         Object.values(this.assigned).forEach(townId => {
-            const count = Object.values(this.assigned).filter(target => target === townId).length;
-            pending[townId] = `+${count}`;
+            delta[townId] = (delta[townId] ?? 0) + 1;
         });
 
-        this.game.board.setPending(pending);
+        this.game.board.setCardDelta(delta);
         this.game.renderHand(this.assigned);
         this.game.board.setSelectable(this.args.openTowns);
         this.game.board.setSelected([]);
 
         const remaining = this.unassigned().length;
         this.game.setStagingText((remaining > 0
-            ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
-               <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
-            : `<div><b>${_('The whole hand is placed.')}</b></div>
-               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`)
+            ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>`
+            : `<div><b>${_('The whole hand is placed.')}</b></div>`)
+            + this.placementsHtml()
+            + (remaining > 0
+                ? `<div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
+                : `<div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`)
             + endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
 
         this.buttons(remaining);
+    }
+
+    /**
+     * One line per staged card, in the order they were placed.
+     *
+     * The Empire's box lists its marches, and placement deserves the same: "+2"
+     * on a town says how many but not which, and which is the whole decision.
+     * The order is real information too — the last card onto a town is the top
+     * of its pile, which is what a look reads first — so these are listed in
+     * placement order rather than grouped by town.
+     */
+    private placementsHtml(): string {
+        return this.order.map(cardId => {
+            const card = this.game.cardById(cardId);
+            const value = card?.influence ?? 0;
+            return `<div>${_('Influence')} ${value} ${_('to')}
+                    <b>${this.townLabel(this.assigned[cardId])}</b></div>`;
+        }).join('');
+    }
+
+    private townLabel(townId: string): string {
+        return this.bga.gameui.gamedatas.scenario.towns[townId].label;
     }
 
     private buttons(remaining: number): void {

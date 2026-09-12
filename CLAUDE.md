@@ -172,7 +172,14 @@ Done:
 - **The town box reads spatially**: rebels down the left (face-down stack above face-up),
   Empire down the right (pawn and count, then supply over the town's own contribution),
   production mark beside the name. Which side a number belongs to is legible from where it
-  sits before the number is read.
+  sits before the number is read. **A staged change reads the same on both sides** —
+  `.iaw-troop-delta` and `.iaw-card-delta` share one rule and differ only in colour, each
+  sitting beside the number it changes. The rebel marker used to be `.iaw-town-pending`, a
+  grey strip across the bottom of the box with no styling attached to its `pending` class;
+  a real game found that nobody could see where their cards were going. The Insurgency's
+  turn box now also lists one line per staged card, in placement order — "+2" says how many
+  and not which, and which is the whole decision; the order matters too, since the last card
+  onto a town is the top of its pile and the first thing a look reads.
 - **An army list beside the board**, one entry per Empire supply network: a large pawn, the
   network named for the town holding most of it, and "N troops use N supply of M
   available." It turns red when the army is over its ceiling. The point is the *split* — a
