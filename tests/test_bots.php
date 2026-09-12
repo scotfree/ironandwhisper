@@ -111,7 +111,7 @@ function test_the_bot_takes_its_turn_before_the_human_is_asked(): void
     foreach ($game->board->towns() as $town) {
         $placed += Rules::townCardCount($town);
     }
-    assertSame(5, $placed, 'the bot placed its whole hand first');
+    assertSame($game->scenario->handSize, $placed, 'the bot placed its whole hand first');
 }
 
 function test_the_bot_scores_without_a_player_row(): void
@@ -174,15 +174,26 @@ function test_bots_play_whole_games_without_breaking_a_rule(): void
 
         $influence = 0;
         foreach ($game->board->towns() as $townId => $town) {
-            assertTrue($town['resolved'], "seed {$seed}: {$townId} left unresolved");
+            assertTrue(
+                $town['resolved'] || Rules::townIsUncontested($town),
+                "seed {$seed}: {$townId} had something in it and was left unresolved",
+            );
             $influence += $town['resolvedInfluence'];
         }
 
-        assertSame(0, $game->board->deckCount(), "seed {$seed}: the deck is spent");
-        assertSame(
-            $game->scenario->totalInfluence(),
-            $influence,
-            "seed {$seed}: every card was placed and counted",
+        // A game can now end before the deck does: the board can run out, and
+        // so can the Empire, which at these parameters it usually does. The
+        // conservation check still has to hold either way.
+        assertTrue(
+            $influence <= $game->scenario->totalInfluence(),
+            "seed {$seed}: more influence resolved than exists",
         );
+        if ($game->board->deckCount() === 0) {
+            assertSame(
+                $game->scenario->totalInfluence(),
+                $influence,
+                "seed {$seed}: a game that ran the clock out places and counts every card",
+            );
+        }
     }
 }

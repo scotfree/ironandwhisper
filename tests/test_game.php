@@ -17,6 +17,12 @@ use Bga\Games\IronAndWhisper\States\InsurgencyTurn;
 use Bga\Games\IronAndWhisper\States\NextTurn;
 use Bga\Games\IronAndWhisper\States\Resolve;
 
+/** What the scenario says Everlan starts with. Derived, not written down. */
+function startingGarrison(Game $game, string $townId = 'everlan'): int
+{
+    return $game->scenario->empireStart[$townId];
+}
+
 // -- setup ------------------------------------------------------------------
 
 function test_setup_builds_the_map_the_deck_and_the_garrison(): void
@@ -26,7 +32,7 @@ function test_setup_builds_the_map_the_deck_and_the_garrison(): void
 
     assertSame(12, count($towns), 'grid12 has twelve towns');
     assertSame(60, $game->board->deckCount(), 'the deck is the clock: 60 cards, 12 turns');
-    assertSame(2, $towns['everlan']['troops'], 'empire_start garrisons Everlan');
+    assertSame(startingGarrison($game), $towns['everlan']['troops'], 'empire_start garrisons Everlan');
     assertSame(1, $towns['belmar']['troops'], 'and its neighbour, so it starts connected');
     assertSame(0, $towns['ashford']['troops']);
     assertSame(0, count($game->board->hand()), 'the hand is drawn in NextTurn, not at setup');
@@ -49,9 +55,11 @@ function test_the_opening_turn_draws_a_full_hand_for_the_insurgency(): void
     $game = newGame();
     $next = enterNextTurn($game);
 
+    $handSize = $game->scenario->handSize;
+
     assertSame(InsurgencyTurn::class, $next);
-    assertSame(5, count($game->board->hand()), 'hand_size cards');
-    assertSame(55, $game->board->deckCount());
+    assertSame($handSize, count($game->board->hand()), 'hand_size cards');
+    assertSame(60 - $handSize, $game->board->deckCount());
     assertSame(
         $game->playerIdForSide(Rules::INSURGENCY),
         $game->gamestate->activePlayerId,
@@ -68,6 +76,7 @@ function seedTown(Game $game, string $townId): void
     enterNextTurn($game);
     insurgencyTurn($game)->actCommitTurn(
         [$townId => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
 }
@@ -83,7 +92,11 @@ function test_the_insurgency_must_empty_its_hand(): void
 
     assertThrows(
         UserException::class,
-        fn() => insurgencyTurn($game)->actCommitTurn(['ashford' => array_slice($hand, 0, 3)], $insurgency),
+        fn() => insurgencyTurn($game)->actCommitTurn(
+            ['ashford' => array_slice($hand, 0, count($hand) - 1)],
+            '0',
+            $insurgency,
+        ),
         'Decision 6: the whole hand goes out every turn',
     );
 }
@@ -97,6 +110,7 @@ function test_placed_cards_land_on_top_in_the_order_given(): void
 
     insurgencyTurn($game)->actCommitTurn(
         ['ashford' => array_slice($hand, 0, 2), 'belmar' => array_slice($hand, 2)],
+        '0',
         $insurgency,
     );
 
@@ -106,7 +120,7 @@ function test_placed_cards_land_on_top_in_the_order_given(): void
         array_column($towns['ashford']['pile'], 'id'),
         'cards go on one at a time, so the last one given is on top',
     );
-    assertSame(3, count($towns['belmar']['pile']));
+    assertSame(count($hand) - 2, count($towns['belmar']['pile']));
     assertSame(0, count($game->board->hand()), 'the hand is empty afterwards');
     assertSame(Rules::EMPIRE, $game->toMove());
 }
@@ -140,12 +154,13 @@ function test_a_town_seeded_last_turn_may_be_resolved(): void
 
     // The Empire's turn passes, then the Insurgency cashes what was already there.
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
 
     assertSame(Resolve::class, enterNextTurn($game), 'there is something to resolve');
     assertSame(InsurgencyTurn::class, resolvePhase($game)->actResolve('ashford'));
     insurgencyTurn($game)->actCommitTurn(
         ['belmar' => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
 
@@ -159,7 +174,7 @@ function test_the_insurgency_cannot_resolve_a_town_it_is_not_in(): void
     $game = newGame();
     seedTown($game, 'ashford');
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
     enterNextTurn($game);
 
     assertSame(
@@ -184,7 +199,7 @@ function test_a_resolved_town_takes_no_more_cards_that_turn(): void
     $game = newGame();
     seedTown($game, 'ashford');
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
     enterNextTurn($game);
     resolvePhase($game)->actResolve('ashford');
 
@@ -197,6 +212,7 @@ function test_a_resolved_town_takes_no_more_cards_that_turn(): void
         UserException::class,
         fn() => insurgencyTurn($game)->actCommitTurn(
             ['ashford' => $game->board->handCardIds()],
+            '0',
             $insurgency,
         ),
     );
@@ -216,6 +232,7 @@ function test_a_garrison_that_wins_its_town_may_still_march_out_of_it(): void
     // One card into Everlan, where two troops stand: the Empire takes it.
     insurgencyTurn($game)->actCommitTurn(
         ['everlan' => array_slice($hand, 0, 1), 'joss' => array_slice($hand, 1)],
+        '0',
         $insurgency,
     );
     enterNextTurn($game);
@@ -223,17 +240,18 @@ function test_a_garrison_that_wins_its_town_may_still_march_out_of_it(): void
 
     $towns = $game->board->towns();
     assertSame(Rules::EMPIRE, $towns['everlan']['winner']);
-    assertSame(2, $towns['everlan']['troops'], 'the winner keeps its garrison');
+    assertSame(startingGarrison($game), $towns['everlan']['troops'], 'the winner keeps its garrison');
 
     empireTurn($game)->actCommitTurn(
         [],
         [['from' => 'everlan', 'to' => 'draymoor', 'count' => 1]],
         [],
+        '0',
         $empire,
     );
 
     $towns = $game->board->towns();
-    assertSame(1, $towns['everlan']['troops']);
+    assertSame(startingGarrison($game) - 1, $towns['everlan']['troops']);
     assertSame(1, $towns['draymoor']['troops'], 'it marched out of the town it just won');
 }
 
@@ -269,30 +287,37 @@ function test_the_empire_builds_moves_and_looks(): void
     $empire = $game->playerIdForSide(Rules::EMPIRE);
 
     // Seed Everlan, where the Empire's three troops stand.
-    insurgencyTurn($game)->actCommitTurn(['everlan' => $hand], $insurgency);
+    insurgencyTurn($game)->actCommitTurn(['everlan' => $hand], '0', $insurgency);
     enterNextTurn($game);
 
     $before = array_column($game->board->towns()['everlan']['pile'], 'id');
     $game->bga->notify->clear();
 
+    // Build one, then march out everything above two, so exactly two troops
+    // stay put and read — leaving a pile for the Empire to still be ignorant of
+    // whatever the starting garrison happens to be.
+    $stationary = 2;
+    $marched = startingGarrison($game) + 1 - $stationary;
+
     empireTurn($game)->actCommitTurn(
         ['everlan' => 1],
-        [['from' => 'everlan', 'to' => 'draymoor', 'count' => 1]],
+        [['from' => 'everlan', 'to' => 'draymoor', 'count' => $marched]],
         [],
+        '0',
         $empire,
     );
 
     $towns = $game->board->towns();
-    assertSame(2, $towns['everlan']['troops'], '2 + 1 built - 1 marched away');
-    assertSame(1, $towns['draymoor']['troops']);
+    assertSame($stationary, $towns['everlan']['troops'], 'built one, marched the rest out');
+    assertSame($marched, $towns['draymoor']['troops']);
 
     assertSame(
-        array_slice($before, 0, 2),
+        array_slice($before, 0, $stationary),
         array_column($towns['everlan']['revealed'], 'id'),
-        'two troops stayed put, so the top two cards went face up',
+        'the troops that stayed put read that many cards off the top',
     );
     assertSame(
-        array_slice($before, 2),
+        array_slice($before, $stationary),
         array_column($towns['everlan']['pile'], 'id'),
         'and the pile holds only what is still unknown',
     );
@@ -306,11 +331,11 @@ function test_turning_cards_face_up_is_public(): void
     $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
     $empire = $game->playerIdForSide(Rules::EMPIRE);
 
-    insurgencyTurn($game)->actCommitTurn(['everlan' => $hand], $insurgency);
+    insurgencyTurn($game)->actCommitTurn(['everlan' => $hand], '0', $insurgency);
     enterNextTurn($game);
     $game->bga->notify->clear();
 
-    empireTurn($game)->actCommitTurn([], [], [], $empire);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
 
     // The cards are face up on the table, so this goes to the room. The
     // Insurgency could compute it anyway: it knows what it placed and troop
@@ -318,7 +343,11 @@ function test_turning_cards_face_up_is_public(): void
     $sent = $game->bga->notify->of('cardsRevealed');
     assertSame(1, count($sent));
     assertSame('all', $sent[0]['scope'], 'face up means face up to everyone');
-    assertSame(2, count($sent[0]['args']['revealed']['everlan']), 'two troops read two cards');
+    assertSame(
+        startingGarrison($game),
+        count($sent[0]['args']['revealed']['everlan']),
+        'every stationary troop reads a card',
+    );
 
     foreach ($sent[0]['args']['revealed']['everlan'] as $card) {
         assertTrue($card['type'] !== null, 'and they carry their faces');
@@ -333,12 +362,12 @@ function test_a_troop_that_marched_in_does_not_look(): void
     $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
     $empire = $game->playerIdForSide(Rules::EMPIRE);
 
-    insurgencyTurn($game)->actCommitTurn(['belmar' => $hand], $insurgency);
+    insurgencyTurn($game)->actCommitTurn(['belmar' => $hand], '0', $insurgency);
     enterNextTurn($game);
     $game->bga->notify->clear();
 
     // All three troops march from Everlan into the seeded town.
-    empireTurn($game)->actCommitTurn([], [['from' => 'everlan', 'to' => 'belmar', 'count' => 2]], [], $empire);
+    empireTurn($game)->actCommitTurn([], [['from' => 'everlan', 'to' => 'belmar', 'count' => 2]], [], '0', $empire);
 
     assertSame([], $game->bga->notify->of('peekResult'), 'they arrived, so they saw nothing');
 }
@@ -348,12 +377,12 @@ function test_the_empire_cannot_build_where_it_has_no_presence(): void
     $game = newGame();
     enterNextTurn($game);
     $hand = $game->board->handCardIds();
-    insurgencyTurn($game)->actCommitTurn(['ashford' => $hand], $game->playerIdForSide(Rules::INSURGENCY));
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $hand], '0', $game->playerIdForSide(Rules::INSURGENCY));
     enterNextTurn($game);
 
     assertThrows(
         UserException::class,
-        fn() => empireTurn($game)->actCommitTurn(['ashford' => 1], [], [], $game->playerIdForSide(Rules::EMPIRE)),
+        fn() => empireTurn($game)->actCommitTurn(['ashford' => 1], [], [], '0', $game->playerIdForSide(Rules::EMPIRE)),
     );
 }
 
@@ -365,19 +394,19 @@ function test_the_winner_keeps_its_commitment_and_takes_the_losers(): void
     $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
     $empire = $game->playerIdForSide(Rules::EMPIRE);
 
-    insurgencyTurn($game)->actCommitTurn(['everlan' => array_slice($hand, 0, 2), 'belmar' => array_slice($hand, 2)], $insurgency);
+    insurgencyTurn($game)->actCommitTurn(['everlan' => array_slice($hand, 0, 2), 'belmar' => array_slice($hand, 2)], '0', $insurgency);
     enterNextTurn($game);
     resolvePhase($game)->actResolve('everlan');
-    empireTurn($game)->actCommitTurn([], [], [], $empire);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
 
     $towns = $game->board->towns();
     assertTrue($towns['everlan']['resolved']);
     assertSame(Rules::EMPIRE, $towns['everlan']['winner']);
-    assertSame(2, $towns['everlan']['troops'], 'the winner keeps its garrison');
+    assertSame(startingGarrison($game), $towns['everlan']['troops'], 'the winner keeps its garrison');
     assertSame(
-        2 * $game->scenario->unitStrength(),
+        startingGarrison($game) * $game->scenario->unitStrength(),
         $towns['everlan']['resolvedStrength'],
-        'two infantry, whatever a troop is worth',
+        'the whole garrison, whatever a troop is worth',
     );
     assertSame(0, Rules::townCardCount($towns['everlan']), "the loser's cards are taken");
     assertSame(
@@ -385,6 +414,179 @@ function test_the_winner_keeps_its_commitment_and_takes_the_losers(): void
         $game->bga->playerScore->get($empire),
         'the Empire banks the influence it suppressed, nothing more',
     );
+}
+
+// -- agreeing to end ---------------------------------------------------------
+
+function test_the_game_ends_when_both_sides_offer(): void
+{
+    // Not a pass in the turn-skipping sense — skipping would stop the deck
+    // draining, and the deck is the clock. This is a standing offer, and two
+    // standing offers end the game the way exhaustion does.
+    $game = newGame();
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(
+        ['ashford' => $game->board->handCardIds()],
+        '1',
+        $insurgency,
+    );
+
+    assertTrue($game->hasOfferedEnd(Rules::INSURGENCY));
+    assertFalse($game->endAgreed(), 'one offer is not an agreement');
+    assertSame(Resolve::class, enterNextTurn($game), 'so the game carries on');
+
+    resolvePhase($game)->actSkipResolve();
+    empireTurn($game)->actCommitTurn([], [], [], '1', $empire);
+
+    assertTrue($game->endAgreed());
+    assertSame(EndScore::class, enterNextTurn($game));
+    foreach ($game->board->towns() as $townId => $town) {
+        assertTrue(
+            $town['resolved'] || Rules::townIsUncontested($town),
+            "{$townId} had something in it and should have resolved with the rest",
+        );
+    }
+}
+
+function test_an_offer_to_end_stands_until_it_is_withdrawn(): void
+{
+    $game = newGame();
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(
+        ['ashford' => $game->board->handCardIds()],
+        '1',
+        $insurgency,
+    );
+
+    enterNextTurn($game);
+    resolvePhase($game)->actSkipResolve();
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+
+    assertTrue($game->hasOfferedEnd(Rules::INSURGENCY), 'still standing a round later');
+
+    enterNextTurn($game);
+    resolvePhase($game)->actSkipResolve();
+    insurgencyTurn($game)->actCommitTurn(
+        ['belmar' => $game->board->handCardIds()],
+        '0',
+        $insurgency,
+    );
+
+    assertFalse($game->hasOfferedEnd(Rules::INSURGENCY), 'and taken down on request');
+}
+
+function test_a_solo_game_ends_on_the_persons_offer_alone(): void
+{
+    // The bot has no opinion to give, so asking it to agree would mean a person
+    // could never end a game they had lost interest in.
+    $game = newSoloGame(Game::SIDES_FIRST_IS_EMPIRE);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+
+    $next = enterNextTurn($game);
+    if ($next === Resolve::class) {
+        resolvePhase($game)->actSkipResolve();
+    }
+    empireTurn($game)->actCommitTurn([], [], [], '1', $empire);
+
+    assertTrue($game->endAgreed(), 'one person, one offer');
+    assertSame(EndScore::class, enterNextTurn($game));
+}
+
+// -- attrition ---------------------------------------------------------------
+
+function test_a_starving_network_gets_a_turn_of_grace(): void
+{
+    // Massing is self-defeating without this: the troops you march in were fed
+    // by the towns you marched them out of. The warning turn is what makes it a
+    // decision rather than an ambush.
+    $game = newGame();
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
+
+    // Everything into Everlan, and Belmar abandoned — so Belmar's supply leaves
+    // the network at the same moment the troops arrive.
+    $game->board->adjustTroops(['everlan' => 5, 'belmar' => -1]);
+
+    $massed = startingGarrison($game) + 5;
+    // Everlan on its own supports this many; the rest are living on nothing.
+    $ceiling = intdiv($game->scenario->towns['everlan']['supply'], $game->scenario->supplyPerTroop);
+    $doomed = $massed - $ceiling;
+
+    enterNextTurn($game);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+
+    $towns = $game->board->towns();
+    assertSame($massed, $towns['everlan']['troops'], 'a turn of grace before anybody starves');
+    assertSame($doomed, $towns['everlan']['starving'], 'but the board says what is coming');
+    assertSame(0, $game->bga->playerScore->get($insurgency), 'and nothing is scored yet');
+
+    // Round again, having done nothing about it.
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
+    enterNextTurn($game);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+
+    $towns = $game->board->towns();
+    assertSame($ceiling, $towns['everlan']['troops'], 'starved down to what supply can hold');
+    assertSame(0, $towns['everlan']['starving'], 'and the warning is spent');
+    assertSame(
+        $doomed * $game->scenario->unitStrength(),
+        $game->bga->playerScore->get($insurgency),
+        'the Insurgency scores every troop that leaves the board',
+    );
+}
+
+function test_repairing_the_line_during_the_grace_turn_cancels_the_starve(): void
+{
+    // The mark is a forecast, not a reservation.
+    $game = newGame();
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
+    $game->board->adjustTroops(['everlan' => 1, 'belmar' => -1]);
+
+    $massed = startingGarrison($game) + 1;
+    $ceiling = intdiv($game->scenario->towns['everlan']['supply'], $game->scenario->supplyPerTroop);
+
+    enterNextTurn($game);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+    assertSame(
+        $massed - $ceiling,
+        $game->board->towns()['everlan']['starving'],
+        'more troops than Everlan alone can feed',
+    );
+
+    // March two back into Belmar, which brings its supply into the network.
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
+    enterNextTurn($game);
+    empireTurn($game)->actCommitTurn(
+        [],
+        [['from' => 'everlan', 'to' => 'belmar', 'count' => 2]],
+        [],
+        '0',
+        $empire,
+    );
+
+    $towns = $game->board->towns();
+    assertSame(
+        $massed,
+        $towns['everlan']['troops'] + $towns['belmar']['troops'],
+        'nobody starved',
+    );
+    assertSame(0, $towns['everlan']['starving'], 'and the warning is gone');
+    assertSame(0, $game->bga->playerScore->get($insurgency));
 }
 
 // -- what each side may see -------------------------------------------------
@@ -397,12 +599,12 @@ function test_the_empire_sees_pile_heights_but_not_faces(): void
     $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
     $empire = $game->playerIdForSide(Rules::EMPIRE);
 
-    insurgencyTurn($game)->actCommitTurn(['ashford' => $hand], $insurgency);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $hand], '0', $insurgency);
 
     $empireView = datasFor($game, $empire);
     $insurgencyView = datasFor($game, $insurgency);
 
-    assertSame(5, $empireView['towns']['ashford']['pileSize'], 'heights are public');
+    assertSame(count($hand), $empireView['towns']['ashford']['pileSize'], 'heights are public');
     foreach ($empireView['towns']['ashford']['pile'] as $card) {
         assertSame(null, $card['type'], 'but no face-down card shows its face');
     }
@@ -421,16 +623,27 @@ function test_the_empire_keeps_what_it_has_peeked_at(): void
     $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
     $empire = $game->playerIdForSide(Rules::EMPIRE);
 
-    insurgencyTurn($game)->actCommitTurn(['everlan' => $hand], $insurgency);
+    // Belmar, not Everlan: its single troop reads one card a turn, so the rest
+    // of the pile stays face down and there is something left to be hidden.
+    $garrison = startingGarrison($game, 'belmar');
+    insurgencyTurn($game)->actCommitTurn(['belmar' => $hand], '0', $insurgency);
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $empire);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
 
     $view = datasFor($game, $empire);
 
-    assertSame(2, count($view['towns']['everlan']['revealed']), 'two stationary troops read two cards');
-    assertSame(3, $view['towns']['everlan']['pileSize'], 'three are still face down');
-    assertSame(5, $view['towns']['everlan']['cardCount']);
-    foreach ($view['towns']['everlan']['pile'] as $card) {
+    assertSame(
+        $garrison,
+        count($view['towns']['belmar']['revealed']),
+        'every stationary troop reads a card',
+    );
+    assertSame(
+        count($hand) - $garrison,
+        $view['towns']['belmar']['pileSize'],
+        'the rest are still face down',
+    );
+    assertSame(count($hand), $view['towns']['belmar']['cardCount']);
+    foreach ($view['towns']['belmar']['pile'] as $card) {
         assertSame(null, $card['type'], 'and the Empire still cannot see those');
     }
 }
@@ -440,11 +653,12 @@ function test_a_resolved_pile_is_face_up_to_both_players(): void
     $game = newGame();
     seedTown($game, 'ashford');
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
     enterNextTurn($game);
     resolvePhase($game)->actResolve('ashford');
     insurgencyTurn($game)->actCommitTurn(
         ['belmar' => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
 
@@ -490,7 +704,7 @@ function playFullGame(Game $game): int
             foreach (array_values($game->board->handCardIds()) as $index => $cardId) {
                 $placements[$open[$index % count($open)]][] = $cardId;
             }
-            insurgencyTurn($game)->actCommitTurn($placements, $game->playerIdForSide(Rules::INSURGENCY));
+            insurgencyTurn($game)->actCommitTurn($placements, '0', $game->playerIdForSide(Rules::INSURGENCY));
             continue;
         }
 
@@ -508,9 +722,16 @@ function test_a_full_game_terminates_and_resolves_every_town(): void
 
     $towns = $game->board->towns();
     foreach ($towns as $townId => $town) {
-        assertTrue($town['resolved'], "{$townId} was left unresolved");
+        assertTrue(
+            $town['resolved'] || Rules::townIsUncontested($town),
+            "{$townId} had something in it and was left unresolved",
+        );
     }
-    assertSame(13, $game->round(), 'the deck is an exact clock: twelve Insurgency turns');
+    assertSame(
+        $game->scenario->turns() + 1,
+        $game->round(),
+        'the deck is an exact clock: deck_size / hand_size Insurgency turns',
+    );
     assertSame(0, $game->board->deckCount());
     assertSame(0, count($game->board->hand()));
 }
@@ -612,6 +833,7 @@ function test_a_zombie_empire_stands_still(): void
     enterNextTurn($game);
     insurgencyTurn($game)->actCommitTurn(
         ['everlan' => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
     enterNextTurn($game);
@@ -619,7 +841,7 @@ function test_a_zombie_empire_stands_still(): void
     empireTurn($game)->zombie($game->playerIdForSide(Rules::EMPIRE));
 
     $towns = $game->board->towns();
-    assertSame(2, $towns['everlan']['troops'], 'nothing raised, nothing moved');
+    assertSame(startingGarrison($game), $towns['everlan']['troops'], 'nothing raised, nothing moved');
     assertSame(2, $game->round(), 'but the turn passed and the clock advanced');
 }
 
@@ -633,17 +855,22 @@ function test_declining_to_resolve_is_an_action_of_its_own(): void
     enterNextTurn($game);
     insurgencyTurn($game)->actCommitTurn(
         ['everlan' => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
 
     assertSame(Resolve::class, enterNextTurn($game), 'the Empire stands over a seeded town');
     assertSame(EmpireTurn::class, resolvePhase($game)->actSkipResolve());
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
 
     foreach ($game->board->towns() as $town) {
         assertFalse($town['resolved'], 'nothing should have resolved');
     }
-    assertSame(2, $game->board->towns()['everlan']['troops'], 'and nothing should have been raised');
+    assertSame(
+        startingGarrison($game),
+        $game->board->towns()['everlan']['troops'],
+        'and nothing should have been raised',
+    );
 }
 
 function test_a_spectator_sees_only_what_has_been_resolved(): void
@@ -651,11 +878,12 @@ function test_a_spectator_sees_only_what_has_been_resolved(): void
     $game = newGame();
     seedTown($game, 'ashford');
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
     enterNextTurn($game);
     resolvePhase($game)->actResolve('ashford');
     insurgencyTurn($game)->actCommitTurn(
         ['belmar' => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
 
@@ -697,18 +925,23 @@ function test_the_resolution_notification_says_what_actually_left(): void
     // Everlan: two troops, one weak card. The Empire wins and keeps them.
     insurgencyTurn($game)->actCommitTurn(
         ['everlan' => array_slice($hand, 0, 1), 'joss' => array_slice($hand, 1)],
+        '0',
         $insurgency,
     );
     enterNextTurn($game);
     $game->bga->notify->clear();
     resolvePhase($game)->actResolve('everlan');
-    empireTurn($game)->actCommitTurn([], [], [], $empire);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
 
     $args = $game->bga->notify->of('townResolved')[0]['args'];
     assertSame(Rules::EMPIRE, $args['winner']);
     assertSame(0, $args['troopsLost'], 'the winner loses nothing');
     assertTrue($args['cardsTaken'] > 0, 'and takes the cards');
-    assertSame(2, $game->board->towns()['everlan']['troops'], 'the garrison is still there');
+    assertSame(
+        startingGarrison($game),
+        $game->board->towns()['everlan']['troops'],
+        'the garrison is still there',
+    );
 }
 
 function test_a_town_the_insurgency_takes_reports_the_troops_lost(): void
@@ -718,12 +951,13 @@ function test_a_town_the_insurgency_takes_reports_the_troops_lost(): void
     $game = newGame();
     seedTown($game, 'belmar');
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], $game->playerIdForSide(Rules::EMPIRE));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
     enterNextTurn($game);
     $game->bga->notify->clear();
     resolvePhase($game)->actResolve('belmar');
     insurgencyTurn($game)->actCommitTurn(
         ['joss' => $game->board->handCardIds()],
+        '0',
         $game->playerIdForSide(Rules::INSURGENCY),
     );
 

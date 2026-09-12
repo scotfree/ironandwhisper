@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The frame drawn around an ordinary town: a hut.
+
+  Edit this file in any vector app. Two things the client relies on:
+
+    * the viewBox is stretched to fill the town box, so draw at any size but
+      keep the proportions close to 120 x 104 or the silhouette will distort;
+    * the shoulder — where the roof meets the walls — sits at y = 26 of 104,
+      because everything the town displays is laid out below that line. Move it
+      and the name will collide with the roof.
+
+  One closed path. Stroke and fill are overridden by CSS so the frame can take
+  the colour of a selected or captured town; the values here are just so the
+  file looks right on its own.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 104" width="120" height="104">
+  <path d="M 3 101 L 3 26 L 60 4 L 117 26 L 117 101 Z"
+        fill="#ffffff" stroke="#000000" stroke-width="2"
+        stroke-linejoin="round" />
+</svg>

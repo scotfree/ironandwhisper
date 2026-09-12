@@ -29,7 +29,6 @@ from .engine import (
     apply_insurgency_turn,
     production_capacity,
     production_sites,
-    headroom,
     new_game,
     prepare_turn,
     winner,
@@ -68,7 +67,11 @@ def render_board(state: GameState, view: Side | None = None) -> str:
     lines.append("-" * len(header))
 
     for town in state.towns.values():
+        # A garrison under notice reads "6-5": what is standing, and what goes
+        # at the end of the Empire's next turn if the line is not repaired.
         troops = str(town.troops) if town.troops else "·"
+        if town.starving:
+            troops = f"{town.troops}-{town.starving}"
 
         pile_size = town.card_count
         intel = ""
@@ -277,10 +280,12 @@ class Table:
         self._require(Side.EMPIRE)
         town_id = self._town_id(town)
         if town_id not in production_sites(self.state):
-            raise IllegalMove(f"no Empire presence at {town}")
-        allowed = min(production_capacity(self.state, town_id), headroom(self.state, town_id))
+            raise IllegalMove(f"{town} builds nothing for the Empire")
+        # Production rate only. Supply caps what a network can keep, not what it
+        # can raise, and the overshoot is settled by attrition a turn later.
+        allowed = production_capacity(self.state, town_id)
         if allowed <= 0:
-            raise IllegalMove(f"{town} cannot build: no capacity or no supply")
+            raise IllegalMove(f"{town} cannot build: no capacity")
         self._pending_empire.produce[town_id] = allowed
 
     def move(self, src: str, dst: str, count: int = 1) -> None:

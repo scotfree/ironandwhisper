@@ -42,6 +42,8 @@ class EmpireTurn extends GameState
         return [
             'production' => self::productionOffer($towns, $this->game->scenario),
             'networks' => self::networkView($towns, $this->game->scenario),
+            'offeredEnd' => $this->game->hasOfferedEnd(Rules::EMPIRE),
+            'opponentOfferedEnd' => $this->game->hasOfferedEnd(Rules::INSURGENCY),
         ];
     }
 
@@ -58,15 +60,24 @@ class EmpireTurn extends GameState
         #[JsonParam] array $produce,
         #[JsonParam] array $moves,
         #[JsonParam] array $disband,
+        string $offerEnd,
         int $activePlayerId,
     ) {
+        // Carried with the turn rather than sent as an action of its own, so
+        // the offer cannot be made or withdrawn out of turn. BGA action
+        // parameters travel as strings, hence the comparison rather than a bool.
+        $this->game->setOfferEnd(Rules::EMPIRE, $offerEnd === '1', $activePlayerId);
         $this->game->applyEmpireTurn($produce, $moves, null, $disband, $activePlayerId);
 
         return NextTurn::class;
     }
 
     /**
-     * How many troops each town could build this turn, ceiling included.
+     * How many troops each town could build this turn.
+     *
+     * Its own production rate, and nothing about supply: a network's ceiling
+     * caps what it can keep, not what it can raise. Building past it is legal
+     * and the client warns about it instead of forbidding it.
      *
      * @param array<string, array> $towns
      * @return array<string, int>
@@ -74,17 +85,9 @@ class EmpireTurn extends GameState
     private static function productionOffer(array $towns, \Bga\Games\IronAndWhisper\Scenario $scenario): array
     {
         $offer = [];
-        $spare = [];
 
         foreach (Rules::productionSites($towns, $scenario->productionCost) as $site) {
-            $key = implode(',', Rules::componentOf($towns, $site));
-            if (!isset($spare[$key])) {
-                $spare[$key] = Rules::headroom($towns, $site, $scenario->supplyPerTroop);
-            }
-            $offer[$site] = min(
-                Rules::productionCapacity($towns, $site, $scenario->productionCost),
-                $spare[$key],
-            );
+            $offer[$site] = Rules::productionCapacity($towns, $site, $scenario->productionCost);
         }
 
         return $offer;
@@ -116,6 +119,6 @@ class EmpireTurn extends GameState
      */
     public function zombie(int $playerId)
     {
-        return $this->actCommitTurn([], [], [], $playerId);
+        return $this->actCommitTurn([], [], [], '0', $playerId);
     }
 }

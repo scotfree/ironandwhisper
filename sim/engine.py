@@ -74,6 +74,12 @@ class Town:
     resolved_influence: int = 0
     resolved_strength: int = 0
 
+    # How many of this town's troops are forecast to starve, worked out at the
+    # end of the Empire's last turn. A warning, not a reservation: the loss is
+    # recomputed from the live board when it actually falls, so repairing the
+    # supply line during the turn of grace cancels it entirely.
+    starving: int = 0
+
     @property
     def has_empire_presence(self) -> bool:
         """Whether the Empire may generate here."""
@@ -340,21 +346,56 @@ def troops_in(state: GameState, component: set[str]) -> int:
     return sum(state.towns[tid].troops for tid in component)
 
 
+def empire_holds(state: GameState, town_id: str) -> bool:
+    """Whether the town is the Empire's to build in — held, or taken.
+
+    Standing in a town counts, and so does having *won* it: a town the Empire
+    took at a resolution is permanently its ground, so it goes on building even
+    once the garrison has marched away or starved. A town that is merely empty
+    is nobody's, which is what stops the Empire drawing troops out of a factory
+    it has never been near.
+    """
+    town = state.towns[town_id]
+    if town.resolved:
+        return town.winner is Side.EMPIRE
+    return town.troops > 0
+
+
 def production_sites(state: GameState) -> list[str]:
-    """Towns the Empire holds that can build, and can afford to build."""
+    """Towns that can build for the Empire.
+
+    A *garrison* is not required, only presence or ownership. Requiring troops
+    on the spot was a chicken-and-egg: an Empire that lost the last troop in a
+    factory it had already won could never raise another there. What stops a
+    town building is nobody holding it, or the rebels having won it — denial is
+    permanent (Decision 2), and taking a production town is the only way to
+    switch it off for good.
+    """
     cost = state.scenario.production_cost
     return [
         t.id for t in state.towns.values()
-        if t.troops > 0 and town_production(state, t.id) >= cost
+        if town_production(state, t.id) >= cost > 0 and empire_holds(state, t.id)
     ]
 
 
 def production_capacity(state: GameState, town_id: str) -> int:
     """How many troops this town could raise this turn, ignoring the ceiling."""
     cost = state.scenario.production_cost
-    if state.towns[town_id].troops == 0 or cost <= 0:
+    if cost <= 0 or not empire_holds(state, town_id):
         return 0
     return town_production(state, town_id) // cost
+
+
+def empire_is_eliminated(state: GameState) -> bool:
+    """Whether the Empire can never act again.
+
+    No troops on the board and no town left that will build for it: there is no
+    move it could make for the rest of the game, so there is no game left.
+    """
+    return (
+        all(town.troops == 0 for town in state.towns.values())
+        and not production_sites(state)
+    )
 
 
 def headroom(state: GameState, town_id: str) -> int:
@@ -459,25 +500,21 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         resolve_town(state, turn.resolve, Side.EMPIRE)
 
     # 2. Build. A town can raise troops if the Empire holds it and it can
-    #    produce. Building past the ceiling is allowed: attrition at the end of
-    #    the turn is what settles it, so you may build now and march out to the
-    #    supply that will feed them.
+    #    produce. Supply is not checked here: building past the ceiling is
+    #    allowed, and attrition settles it — with a turn of grace, so an
+    #    overshoot is a stated risk rather than an instant loss, and you may
+    #    build now and march out to the supply that will feed them.
     for town_id, count in turn.produce.items():
         if count <= 0:
             raise IllegalMove("produce count must be positive")
         town = state.towns.get(town_id)
         if town is None:
             raise IllegalMove(f"unknown town {town_id!r}")
-        if town.troops == 0:
-            raise IllegalMove(f"cannot build at {town_id}: no Empire presence")
+        if not empire_holds(state, town_id):
+            raise IllegalMove(f"cannot build at {town_id}: the Empire does not hold it")
         if count > production_capacity(state, town_id):
             raise IllegalMove(
                 f"{town_id} can build {production_capacity(state, town_id)}, asked for {count}"
-            )
-        if count > headroom(state, town_id):
-            raise IllegalMove(
-                f"cannot build {count} at {town_id}: supply supports "
-                f"{headroom(state, town_id)} more"
             )
         town.troops += count
         state.log.append(f"R{state.round_number}: Empire builds {count} at {town.label}")
@@ -526,25 +563,24 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
             continue
         _peek(state, town, stationary * scenario.unit.peek)
 
-    # 5. Starve anything the networks can no longer support.
+    # 5. Starve anything the networks could not supply as of last turn, and
+    #    warn about anything they cannot supply now.
     _attrition(state, turn.disband)
 
     state.to_move = Side.INSURGENCY
     state.round_number += 1
 
 
-def _attrition(state: GameState, disband: dict[str, int]) -> None:
-    """Troops a network cannot supply starve, at the end of the Empire's turn.
+def attrition_plan(state: GameState, disband: dict[str, int]) -> dict[str, int]:
+    """Where a network's excess would be taken from, if it were taken now.
 
-    End of turn rather than start, so a cut made by the Insurgency can be
-    answered: the Empire gets one turn to march the line back together or to
-    accept the loss and consolidate.
-
-    Starved troops score for the Insurgency. That is not a special rule, it is
-    the general one — the Insurgency scores every Empire troop that leaves the
-    board, whether it was beaten off it or starved off it. Cutting a supply line
-    is a way of taking troops, so it pays like one.
+    Towns are worked in order of garrison size, largest first, so the loss
+    falls on the biggest stacks — with anything the Empire named in `disband`
+    moved to the front. Within a town there is no choice to make: a town holds a
+    count of troops, not troops.
     """
+    plan: dict[str, int] = {}
+
     for component in empire_components(state):
         over = troops_in(state, component) - ceiling(state, component)
         if over <= 0:
@@ -555,21 +591,72 @@ def _attrition(state: GameState, disband: dict[str, int]) -> None:
         order = [tid for tid in sorted(component) if disband.get(tid)]
         order += sorted(component, key=lambda tid: -state.towns[tid].troops)
 
-        starved = 0
+        taken = 0
         for town_id in order:
-            if starved >= over:
+            if taken >= over:
                 break
-            town = state.towns[town_id]
-            take = min(town.troops, over - starved, disband.get(town_id, town.troops))
-            town.troops -= take
-            starved += take
+            already = plan.get(town_id, 0)
+            available = state.towns[town_id].troops - already
+            # A town named in `disband` gives up that many and no more; one that
+            # is not named will give up everything it has if it comes to it.
+            cap = disband[town_id] - already if town_id in disband else available
+            take = min(available, over - taken, max(0, cap))
+            if take > 0:
+                plan[town_id] = already + take
+                taken += take
 
-        if starved:
-            state.scores[Side.INSURGENCY] += starved * state.scenario.unit.strength
-            state.log.append(
-                f"R{state.round_number}: {starved} Empire troops starve — "
-                f"supply cut to {ceiling(state, component)}"
-            )
+    return plan
+
+
+def _attrition(state: GameState, disband: dict[str, int]) -> None:
+    """Starve what was already warned about, then warn about the rest.
+
+    A network that cannot feed its troops does not starve them at once. It is
+    marked, the Empire gets its next turn to do something about it, and only if
+    it is still short at the end of *that* turn does anyone die. Immediate
+    attrition made massing self-defeating in a way nobody could see coming: the
+    troops you march in are fed by the towns you marched them out of, so
+    concentrating destroys the supply that would have fed the concentration, and
+    the loss landed after the player had stopped looking at the board.
+
+    With a turn of grace the same move becomes a decision. Mass this turn,
+    resolve at full strength next turn — resolution comes first (Decision 4) —
+    then either spread back out to re-occupy the supply or accept the loss.
+
+    The mark is a forecast, never a reservation: what actually falls is
+    recomputed here from the board as it stands, so repairing the line cancels
+    it and moving troops moves where it lands.
+
+    Starved troops score for the Insurgency. That is not a special rule, it is
+    the general one — the Insurgency scores every Empire troop that leaves the
+    board, whether it was beaten off it or starved off it. Cutting a supply line
+    is a way of taking troops, so it pays like one.
+    """
+    plan = attrition_plan(state, disband)
+
+    # Apply only to networks that were already carrying a warning. A network
+    # that has just gone short is marked below instead.
+    starved = 0
+    for component in empire_components(state):
+        if not any(state.towns[tid].starving for tid in component):
+            continue
+        for town_id in component:
+            take = plan.get(town_id, 0)
+            if take:
+                state.towns[town_id].troops -= take
+                starved += take
+
+    if starved:
+        state.scores[Side.INSURGENCY] += starved * state.scenario.unit.strength
+        state.log.append(
+            f"R{state.round_number}: {starved} Empire troops starve for want of supply"
+        )
+
+    # Whatever is still short is next turn's warning. Anything that came good
+    # is cleared, which is what makes repairing the line pay.
+    forecast = attrition_plan(state, disband)
+    for town in state.towns.values():
+        town.starving = forecast.get(town.id, 0)
 
 
 def _peek(state: GameState, town: Town, look_count: int) -> None:
@@ -602,6 +689,12 @@ def prepare_turn(state: GameState) -> None:
         _end_game(state, "every town resolved")
         return
 
+    # So can the Empire. Once it has no troops and nothing that will build any,
+    # the rest of the game is the Insurgency placing cards nobody will contest.
+    if empire_is_eliminated(state):
+        _end_game(state, "the Empire is eliminated")
+        return
+
     if state.to_move is Side.INSURGENCY:
         want = state.scenario.hand_size - len(state.hand)
         drawn = min(want, len(state.deck))
@@ -615,9 +708,23 @@ def prepare_turn(state: GameState) -> None:
             return
 
 
+def town_is_uncontested(town: Town) -> bool:
+    """Whether nobody has committed anything here — no troops, no cards."""
+    return town.troops == 0 and town.card_count == 0
+
+
 def _end_game(state: GameState, reason: str) -> None:
+    """Resolve everything anybody committed to, all at once.
+
+    A town neither side ever set foot in is left open. Presence is required to
+    declare a resolution (Decision 5), and that holds for the sweep too: such a
+    town is worth nothing to either side by definition, and handing it to
+    whoever wins ties is noise on the board and in the log.
+    """
     state.log.append(f"R{state.round_number}: game ends — {reason}")
     for town in list(state.unresolved):
+        if town_is_uncontested(town):
+            continue
         resolve_town(state, town.id, declared_by=None)
     state.game_over = True
 

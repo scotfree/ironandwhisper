@@ -47,12 +47,13 @@ export class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
+                    <div id="iaw-staging"></div>
+                    <div id="iaw-armies"></div>
                     <div id="iaw-clock"></div>
                     <div id="iaw-hand-area">
                         <div class="iaw-heading">${_('Hand')}</div>
                         <div id="iaw-hand"></div>
                     </div>
-                    <div id="iaw-staging"></div>
                 </div>
             </div>
         `);
@@ -63,7 +64,11 @@ export class Game {
             gamedatas.towns,
             this.side,
         );
+        this.board.onBoardChanged(() => this.renderArmies());
         this.board.render();
+        // The silhouettes are files, so they arrive after the first paint. The
+        // board is drawn and usable without them.
+        this.board.loadFrames();
 
         // The bot has no player record, so it gets a panel of its own rather
         // than a row in gamedatas.players.
@@ -110,6 +115,48 @@ export class Game {
             <div>${_('Turn')} ${Math.min(round, scenario.turns)} / ${scenario.turns}</div>
             <div>${_('Deck')}: ${deckCount} &nbsp; ${_('Hand')}: ${handCount}</div>
         `;
+    }
+
+    /**
+     * The Empire's armies, one per supply network.
+     *
+     * Usually there is one. When a line is cut there are two, and the split is
+     * the single most consequential thing on the board — each half now feeds
+     * itself or starves — so it is worth saying in words rather than leaving
+     * to be read off twelve separate supply badges.
+     */
+    renderArmies(): void {
+        const element = document.getElementById('iaw-armies');
+        if (!element) {
+            return;
+        }
+
+        const armies = this.board.armies();
+        if (!armies.length) {
+            element.innerHTML = '';
+            return;
+        }
+
+        element.innerHTML = armies.map(army => `
+            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}">
+                <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
+                <div class="iaw-army-detail">
+                    <div class="iaw-army-name">${army.name} ${_('Army')}</div>
+                    <div class="iaw-army-supply">${this.supplySentence(army)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Kept as one translatable sentence with placeholders rather than
+     * concatenated fragments, which no translator can reorder.
+     */
+    private supplySentence(army: ArmyView): string {
+        return _('${troops} troops use ${used} supply of ${available} available.')
+            .replace('${troops}', String(army.troops))
+            .replace('${used}', String(army.supplyUsed))
+            .replace('${available}', String(army.supplyAvailable));
     }
 
     onHandClick(handler: (cardId: number) => void): void {
@@ -208,6 +255,14 @@ export class Game {
     async notif_placedIn(args: unknown) {
     }
 
+    /**
+     * Someone put up or took down a standing offer to end the game. Log only —
+     * the turn states read the current offers from their args, so there is
+     * nothing to move on the board.
+     */
+    async notif_endOffered(args: unknown) {
+    }
+
     async notif_empireMoved(args: { troops: Record<string, number> }) {
         Object.entries(args.troops).forEach(([townId, troops]) => {
             this.board.getTown(townId).troops = troops;
@@ -264,6 +319,18 @@ export class Game {
         town.revealed = args.winner === 'empire' ? [] : args.pile;
         town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
+    }
+
+    /**
+     * Which garrisons are under notice. Sent every Empire turn, including when
+     * it is empty, because a repaired supply line has to clear the warning as
+     * visibly as breaking one raised it.
+     */
+    async notif_starvationWarning(args: { starving: Record<string, number> }) {
+        Object.keys(this.board.allTowns()).forEach(townId => {
+            this.board.getTown(townId).starving = args.starving[townId] ?? 0;
+            this.board.updateTown(townId);
+        });
     }
 
     async notif_deckCount(args: { deckCount: number; handCount: number }) {

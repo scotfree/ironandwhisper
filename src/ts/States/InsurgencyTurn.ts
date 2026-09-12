@@ -1,4 +1,5 @@
 import { Game } from "../Game";
+import { endOfferHtml, endOfferLabel } from "../EndOffer";
 
 /**
  * The Insurgency stages its whole hand, then commits.
@@ -16,6 +17,8 @@ export class InsurgencyTurn {
     private assigned: Record<number, string> = {};
     private order: number[] = [];
     private selectedCard: number | null = null;
+    /** Standing offer to end the game, sent with the turn. */
+    private offerEnd = false;
     private args: InsurgencyTurnArgs;
 
     constructor(
@@ -27,6 +30,8 @@ export class InsurgencyTurn {
     onEnteringState(args: InsurgencyTurnArgs, isCurrentPlayerActive: boolean) {
         this.args = {
             openTowns: args?.openTowns ?? [],
+            offeredEnd: args?.offeredEnd ?? false,
+            opponentOfferedEnd: args?.opponentOfferedEnd ?? false,
         };
         this.reset();
 
@@ -58,6 +63,8 @@ export class InsurgencyTurn {
         this.assigned = {};
         this.order = [];
         this.selectedCard = null;
+        // An offer stands until it is withdrawn, so it starts where it was left.
+        this.offerEnd = this.args.offeredEnd;
     }
 
     // -- staging ------------------------------------------------------------
@@ -115,11 +122,12 @@ export class InsurgencyTurn {
         this.game.board.setSelected([]);
 
         const remaining = this.unassigned().length;
-        this.game.setStagingText(remaining > 0
+        this.game.setStagingText((remaining > 0
             ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
                <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
             : `<div><b>${_('The whole hand is placed.')}</b></div>
-               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`);
+               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`)
+            + endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
 
         this.buttons(remaining);
     }
@@ -134,6 +142,11 @@ export class InsurgencyTurn {
         );
         this.bga.statusBar.addActionButton(_('Reset'), () => {
             this.reset();
+            this.refresh();
+        }, { color: 'secondary' });
+
+        this.bga.statusBar.addActionButton(endOfferLabel(this.offerEnd), () => {
+            this.offerEnd = !this.offerEnd;
             this.refresh();
         }, { color: 'secondary' });
     }
@@ -151,6 +164,7 @@ export class InsurgencyTurn {
 
         this.bga.actions.performAction('actCommitTurn', {
             placements: JSON.stringify(placements),
+            offerEnd: this.offerEnd ? '1' : '0',
         });
     }
 }

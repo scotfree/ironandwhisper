@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The Empire troop marker, drawn beside the garrison count.
+
+  Same convention as town.svg and city.svg: anything filled white takes the
+  game's fill for this piece, anything stroked black takes its outline colour,
+  and anything drawn in another colour is left alone. Here those resolve to the
+  Empire's purple rather than the town's, because the pawn is a piece rather
+  than ground.
+
+  Drawn in a 24 x 32 box; it is scaled to fit the badge, so keep the
+  proportions roughly square-ish or it will stretch.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="24" height="32">
+  <circle cx="12" cy="7.5" r="4.6"
+          fill="#ffffff" stroke="#000000" stroke-width="2" />
+  <path d="M 8 12.5 L 16 12.5 L 14.8 15.5 C 14.8 20, 17.5 23, 19.5 28 L 4.5 28
+           C 6.5 23, 9.2 20, 9.2 15.5 Z"
+        fill="#ffffff" stroke="#000000" stroke-width="2"
+        stroke-linejoin="round" />
+</svg>

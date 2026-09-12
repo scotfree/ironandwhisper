@@ -29,9 +29,15 @@
 -- resolved town always ends with 0. The three resolved_ columns record the
 -- fight after the fact so the board stays a readable history. winner holds
 -- empire, insurgency, or NULL while the town is still open.
+--
+-- starving is how many of this town's troops are forecast to starve, worked out
+-- at the end of the Empire's last turn. It is a warning rather than a
+-- reservation: the loss is recomputed when it falls, so repairing the supply
+-- line during the turn of grace clears it.
 CREATE TABLE IF NOT EXISTS `iaw_town` (
   `town_id` VARCHAR(32) NOT NULL,
   `troops` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  `starving` SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   `resolved` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `winner` VARCHAR(16) NULL DEFAULT NULL,
   `resolved_influence` SMALLINT UNSIGNED NOT NULL DEFAULT 0,

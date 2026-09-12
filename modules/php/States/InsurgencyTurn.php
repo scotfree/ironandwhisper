@@ -41,6 +41,8 @@ class InsurgencyTurn extends GameState
             // Every card must be placed (Decision 6), so the only real choice
             // is how to split them across the towns still open.
             'openTowns' => Rules::unresolvedTownIds($towns),
+            'offeredEnd' => $this->game->hasOfferedEnd(Rules::INSURGENCY),
+            'opponentOfferedEnd' => $this->game->hasOfferedEnd(Rules::EMPIRE),
         ];
     }
 
@@ -58,8 +60,13 @@ class InsurgencyTurn extends GameState
     #[PossibleAction]
     public function actCommitTurn(
         #[JsonParam] array $placements,
+        string $offerEnd,
         int $activePlayerId,
     ) {
+        // Carried with the turn rather than sent as an action of its own, so
+        // the offer cannot be made or withdrawn out of turn. BGA action
+        // parameters travel as strings, hence the comparison rather than a bool.
+        $this->game->setOfferEnd(Rules::INSURGENCY, $offerEnd === '1', $activePlayerId);
         $this->game->applyInsurgencyTurn($placements, null, $activePlayerId);
 
         return NextTurn::class;
@@ -83,6 +90,7 @@ class InsurgencyTurn extends GameState
 
         return $this->actCommitTurn(
             [$this->getRandomZombieChoice($open) => $hand],
+            '0',
             $playerId,
         );
     }

@@ -71,6 +71,11 @@ final class View
             $view[$townId] = [
                 'id' => $townId,
                 'troops' => $town['troops'],
+                // Public: the networks are computed from the board by anyone
+                // who can see it, so what a network cannot feed is public too.
+                // The Insurgency being able to see that the Empire has
+                // overextended is the tell that makes waiting it out a choice.
+                'starving' => $town['starving'],
                 'resolved' => $town['resolved'],
                 'winner' => $town['winner'],
                 'resolvedInfluence' => $town['resolvedInfluence'],

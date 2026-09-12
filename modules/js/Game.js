@@ -7,13 +7,22 @@
  */
 const CELL = 150;
 const PADDING = 70;
+// A town box is a fixed size, whatever it is holding. It used to grow as
+// troops, supply and cards arrived, so the map rearranged itself as the game
+// went on and no two towns were the same shape.
+const TOWN_WIDTH = 120;
+const TOWN_HEIGHT = 104;
 class BoardView {
     constructor(container, scenario, towns, viewerSide) {
         this.container = container;
         this.scenario = scenario;
         this.viewerSide = viewerSide;
+        /** The outlines, once img/town.svg, city.svg and pawn.svg have loaded. */
+        this.frames = null;
         this.clickHandler = () => { };
         this.dropHandler = null;
+        /** Called after any redraw, so the panels beside the board can follow. */
+        this.changeHandler = () => { };
         /** Extra text shown on a town while a turn is being staged. */
         this.pending = {};
         /** Signed troop changes being staged, shown on the troop badge as 2+1. */
@@ -90,21 +99,102 @@ class BoardView {
         const dx = this.px(to.x) - x;
         const dy = this.px(to.y) - y;
         // Half the town box, plus a little air.
-        const scale = Math.min(dx === 0 ? Infinity : 60 / Math.abs(dx), dy === 0 ? Infinity : 44 / Math.abs(dy));
+        const scale = Math.min(dx === 0 ? Infinity : (TOWN_WIDTH / 2 + 6) / Math.abs(dx), dy === 0 ? Infinity : (TOWN_HEIGHT / 2 + 6) / Math.abs(dy));
         return { x: x + dx * scale, y: y + dy * scale };
     }
     townHtml(town) {
         return `
             <div id="${this.townElementId(town.id)}" class="iaw-town"
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
-                <div class="iaw-town-name">${town.label}</div>
-                <div class="iaw-town-troops"></div>
-                <div class="iaw-town-supply"></div>
-                <div class="iaw-town-cards"></div>
-                <div class="iaw-town-result"></div>
+                <div class="iaw-town-frame">${this.frameSvg(town)}</div>
+                <div class="iaw-town-name"></div>
+                <div class="iaw-town-body">
+                    <div class="iaw-town-rebel"></div>
+                    <div class="iaw-town-empire"></div>
+                </div>
                 <div class="iaw-town-pending"></div>
             </div>
         `;
+    }
+    /**
+     * Load the two silhouettes and redraw with them.
+     *
+     * They are fetched rather than built from coordinates in here so they can
+     * be edited in a drawing app: img/town.svg and img/city.svg are ordinary
+     * files. Until they arrive the board draws a plain box, so a failed fetch
+     * costs the shape and nothing else.
+     */
+    async loadFrames() {
+        const read = async (name) => {
+            const response = await fetch(`${g_gamethemeurl}img/${name}.svg`);
+            return this.frameMarkup(await response.text());
+        };
+        try {
+            this.frames = {
+                town: await read('town'),
+                city: await read('city'),
+                pawn: await read('pawn'),
+            };
+        }
+        catch (error) {
+            console.warn('iaw: town frames could not be loaded', error);
+            return;
+        }
+        Object.values(this.scenario.towns).forEach(town => {
+            const element = document.getElementById(this.townElementId(town.id));
+            const frame = element?.querySelector('.iaw-town-frame');
+            if (frame) {
+                frame.innerHTML = this.frameSvg(town);
+            }
+        });
+        // The pawns are drawn as part of the troop badge, so redraw those too.
+        this.updateAll();
+    }
+    /**
+     * The file's <svg> element, stretched to the box and wired to the town's
+     * colours.
+     *
+     * preserveAspectRatio="none" is what lets the drawing be any size: it is
+     * squashed to the town box whatever its viewBox says. The stroke would be
+     * squashed with it, which is what non-scaling-stroke in the CSS prevents.
+     *
+     * The colours cannot be done in CSS. A drawing app writes them as inline
+     * style attributes, and an inline style beats any stylesheet rule — the
+     * first hand-written frames used presentation attributes, which do not, so
+     * the CSS worked until a real drawing replaced them. Rewriting the markup
+     * is the only thing that reaches them both.
+     *
+     * The convention: **white and black are the game's colours** and become the
+     * fill and stroke of whoever holds the town. Anything drawn in another
+     * colour — a gradient, a detail line, fill:none — is left exactly as it is.
+     * So a silhouette drawn in plain black on white just works, and detail can
+     * opt out by not being black or white.
+     */
+    frameMarkup(file) {
+        const start = file.indexOf('<svg');
+        const end = file.lastIndexOf('</svg>');
+        if (start === -1 || end === -1) {
+            return '';
+        }
+        const white = /(fill\s*[:=]\s*"?)(#fff(?:fff)?|white)\b/gi;
+        const black = /(stroke\s*[:=]\s*"?)(#000(?:000)?|black)\b/gi;
+        return file.slice(start, end + '</svg>'.length)
+            .replace(/\swidth="[^"]*"/, '')
+            .replace(/\sheight="[^"]*"/, '')
+            .replace(white, '$1var(--art-fill)')
+            .replace(black, '$1var(--art-stroke)')
+            .replace('<svg', '<svg preserveAspectRatio="none"');
+    }
+    /** The pawn markup, or nothing if the file has not arrived yet. */
+    pawnSvg() {
+        return this.frames ? this.frames.pawn : '';
+    }
+    /** A production town is drawn as a skyline, everything else as a hut. */
+    frameSvg(town) {
+        if (!this.frames) {
+            return '';
+        }
+        return town.production > 0 ? this.frames.city : this.frames.town;
     }
     px(coordinate) {
         return PADDING + coordinate * CELL;
@@ -121,8 +211,8 @@ class BoardView {
      * linked if the map links them. Computing it here keeps it correct after any
      * notification without anything having to be kept in step.
      */
-    networks() {
-        const occupied = new Set(Object.keys(this.towns).filter(id => this.towns[id].troops > 0));
+    networks(troopsIn = id => this.towns[id].troops) {
+        const occupied = new Set(Object.keys(this.towns).filter(id => troopsIn(id) > 0));
         const seen = new Set();
         const found = [];
         occupied.forEach(start => {
@@ -158,9 +248,15 @@ class BoardView {
         }
         return this.scenario.towns[townId].supply;
     }
-    /** The ceiling and load of the network a town belongs to, if any. */
-    networkOf(townId) {
-        const network = this.networks().find(n => n.includes(townId));
+    /**
+     * The ceiling and load of the network a town belongs to, if any.
+     *
+     * `troopsIn` lets a turn being staged ask the question of the board as it
+     * *will* stand rather than as it stands: massing changes which towns are
+     * occupied, so it changes the networks themselves, not just their load.
+     */
+    networkOf(townId, troopsIn = id => this.towns[id].troops) {
+        const network = this.networks(troopsIn).find(n => n.includes(townId));
         if (!network) {
             return null;
         }
@@ -168,8 +264,29 @@ class BoardView {
         return {
             towns: network,
             ceiling: Math.floor(supply / this.scenario.supplyPerTroop),
-            troops: network.reduce((total, id) => total + this.towns[id].troops, 0),
+            troops: network.reduce((total, id) => total + troopsIn(id), 0),
         };
+    }
+    /**
+     * Every Empire network that cannot feed what is standing in it, given a
+     * board that may still be being staged.
+     *
+     * `warned` is whether the network is already under notice: a network that
+     * has only just gone short is marked at the end of this turn and starves at
+     * the end of the next one, so the two say very different things to a player.
+     */
+    overSupplied(troopsIn = id => this.towns[id].troops) {
+        return this.networks(troopsIn)
+            .map(network => {
+            const supply = network.reduce((total, id) => total + this.supplyOf(id), 0);
+            const ceiling = Math.floor(supply / this.scenario.supplyPerTroop);
+            return {
+                towns: network,
+                over: network.reduce((total, id) => total + troopsIn(id), 0) - ceiling,
+                warned: network.some(id => this.towns[id].starving > 0),
+            };
+        })
+            .filter(network => network.over > 0);
     }
     // -- updating -----------------------------------------------------------
     setTowns(towns) {
@@ -207,47 +324,65 @@ class BoardView {
         element.classList.toggle('resolved', town.resolved);
         element.classList.toggle('empire-held', town.resolved && town.winner === 'empire');
         element.classList.toggle('insurgency-held', town.resolved && town.winner === 'insurgency');
-        // The badge shows what is there and what this turn would add or take
-        // away, as "2+1", rather than quietly showing the result.
-        const delta = this.troopDelta[townId] ?? 0;
-        const troops = element.querySelector('.iaw-town-troops');
-        troops.innerHTML = (town.troops > 0 || delta !== 0)
-            ? `<span class="iaw-troops">${town.troops}${delta === 0 ? ''
-                : `<span class="iaw-troop-delta">${delta > 0 ? '+' : '-'}${Math.abs(delta)}</span>`}</span>`
-            : '';
-        // Two stacks, as on a table: what is still face down, and what a
-        // garrison has turned over lying face up beside it. Laying every card
-        // out individually made a well-seeded town enormous, and the only thing
-        // that could be read off the row was its length — which is the count.
-        const cards = element.querySelector('.iaw-town-cards');
-        cards.innerHTML = this.faceDownHtml(town) + this.faceUpHtml(town);
-        // A resolved town's colour says who took it, which is all that still
-        // matters; the numbers are in the log.
-        const result = element.querySelector('.iaw-town-result');
-        result.textContent = '';
-        // Supply reads as "troops standing / troops this network can hold
-        // (what this town contributes)". The first two numbers are the same for
-        // every town in a network, which is what makes a network visible.
-        const network = this.networkOf(townId);
         const definition = this.scenario.towns[townId];
         const denied = town.resolved && town.winner === 'insurgency';
-        const supply = element.querySelector('.iaw-town-supply');
-        supply.innerHTML = network
-            ? `<span class="iaw-supply${network.troops > network.ceiling ? ' over' : ''}"
-                     title="${_('Troops standing, what this network supports, and what this town adds')}"
-                  >${network.troops}/${network.ceiling}</span>
-               <span class="iaw-contribution${denied ? ' denied' : ''}"
-                     title="${denied
-                ? _('Taken by the Insurgency: supplies nothing, builds nothing')
-                : _('What this town adds to the network')}"
-                  >(${this.supplyOf(townId)})</span>
-               ${definition.production > 0 && !denied
-                ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
-                : ''}`
-            : '';
+        // The production mark sits beside the name rather than in the body,
+        // which is now divided by side and has no room for anything neutral.
+        const name = element.querySelector('.iaw-town-name');
+        name.innerHTML = `${definition.production > 0 && !denied
+            ? `<span class="iaw-produce" title="${_('Can build troops')}">&#128296;</span>`
+            : ''}${definition.label}`;
+        // Rebels down the left, Empire down the right, so which side a number
+        // belongs to can be read off the board without reading the number.
+        const rebel = element.querySelector('.iaw-town-rebel');
+        rebel.innerHTML = this.faceDownHtml(town) + this.faceUpHtml(town);
+        const empire = element.querySelector('.iaw-town-empire');
+        empire.innerHTML = this.troopsHtml(townId, town) + this.supplyHtml(townId, town, denied);
         const pending = element.querySelector('.iaw-town-pending');
         pending.textContent = this.pending[townId] ?? '';
         element.classList.toggle('pending', Boolean(this.pending[townId]));
+        this.changeHandler();
+    }
+    /**
+     * The garrison: a pawn and a count, with what this turn would change and
+     * what is about to starve.
+     */
+    troopsHtml(townId, town) {
+        const delta = this.troopDelta[townId] ?? 0;
+        if (town.troops === 0 && delta === 0) {
+            return '';
+        }
+        const pawn = this.frames
+            ? `<span class="iaw-pawn">${this.frames.pawn}</span>`
+            : '';
+        const change = delta === 0 ? ''
+            : `<span class="iaw-troop-delta">${delta > 0 ? '+' : '-'}${Math.abs(delta)}</span>`;
+        // A garrison under notice pulses and says how many of it are going,
+        // because the loss used to land between turns where nobody saw it.
+        const doomed = town.starving > 0
+            ? `<span class="iaw-troops-doomed" title="${_('Starving: these troops are lost at the end of the Empire\'s next turn unless the supply line is repaired')}">&minus;${town.starving}</span>`
+            : '';
+        return `<div class="iaw-troops${town.starving > 0 ? ' starving' : ''}"
+                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${doomed}</div>`;
+    }
+    /**
+     * Supply, as "troops standing / what this network holds" over "what this
+     * town adds". The first line is the same for every town in a network, which
+     * is what makes a network visible.
+     */
+    supplyHtml(townId, town, denied) {
+        const network = this.networkOf(townId);
+        if (!network) {
+            return '';
+        }
+        return `<div class="iaw-supply${network.troops > network.ceiling ? ' over' : ''}"
+                     title="${_('Troops standing, and what this network supports')}"
+                  >${network.troops}/${network.ceiling}</div>
+                <div class="iaw-contribution${denied ? ' denied' : ''}"
+                     title="${denied
+            ? _('Taken by the Insurgency: supplies nothing, builds nothing')
+            : _('What this town adds to the network')}"
+                  >(${this.supplyOf(townId)})</div>`;
     }
     /**
      * The face-down stack: a height and nothing else.
@@ -288,6 +423,44 @@ class BoardView {
     // -- interaction --------------------------------------------------------
     onTownClick(handler) {
         this.clickHandler = handler;
+    }
+    /**
+     * Anything drawn from the board but living outside it — the army list —
+     * redraws through here. Called once per town update, so it runs a dozen
+     * times on a full refresh; it is a couple of small innerHTML writes and
+     * idempotent, which is cheaper than working out when it is really needed.
+     */
+    onBoardChanged(handler) {
+        this.changeHandler = handler;
+    }
+    /**
+     * The Empire's armies: one per supply network, named for the town holding
+     * most of it.
+     *
+     * The name breaks ties by hashing the network's membership rather than by
+     * picking the alphabetically first town, which would mean the same name
+     * forever. Hashing keeps it stable while the army is — a name that changed
+     * on every redraw would be unreadable — and shuffles it when the army does.
+     */
+    armies() {
+        return this.networks().map(towns => {
+            const most = Math.max(...towns.map(id => this.towns[id].troops));
+            const tied = towns.filter(id => this.towns[id].troops === most).sort();
+            const seed = [...towns].sort().join('|');
+            let hash = 0;
+            for (let i = 0; i < seed.length; i++) {
+                hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+            }
+            const troops = towns.reduce((total, id) => total + this.towns[id].troops, 0);
+            const supply = towns.reduce((total, id) => total + this.supplyOf(id), 0);
+            return {
+                name: this.scenario.towns[tied[Math.abs(hash) % tied.length]].label,
+                towns,
+                troops,
+                supplyUsed: troops * this.scenario.supplyPerTroop,
+                supplyAvailable: supply,
+            };
+        });
     }
     /** Accept cards dragged from the hand. Pass null to stop accepting them. */
     onTownDrop(handler) {
@@ -353,6 +526,37 @@ class BoardView {
 }
 
 /**
+ * Agreeing to end the game, which both turn states offer in the same words.
+ *
+ * It is deliberately not called a pass. A pass that skipped your turn would
+ * stop the deck draining, and the deck is the clock — two players could stall
+ * forever, which is the failure the clock was designed to prevent. This is a
+ * standing offer: when both are up the game ends and every remaining town
+ * resolves at once, exactly as running the deck out does.
+ *
+ * The offer travels with the turn rather than as an action of its own, so it
+ * cannot be made or withdrawn out of turn, and it survives until withdrawn.
+ */
+function endOfferLabel(offered) {
+    return offered ? _('Withdraw offer to end') : _('Offer to end the game');
+}
+function endOfferHtml(offered, opponentOffered) {
+    if (offered && opponentOffered) {
+        return `<div class="iaw-warning"><b>${_('Confirming ends the game.')}</b>
+                ${_('Your opponent has already offered, so every remaining town resolves at once — at the strength standing in it today.')}</div>`;
+    }
+    if (offered) {
+        return `<div class="iaw-hint"><b>${_('Offering to end.')}</b>
+                ${_('The game stops when your opponent offers too, and every remaining town resolves at once.')}</div>`;
+    }
+    if (opponentOffered) {
+        return `<div class="iaw-hint"><b>${_('Your opponent has offered to end the game.')}</b>
+                ${_('Offer as well and it stops here, resolving every remaining town at once.')}</div>`;
+    }
+    return '';
+}
+
+/**
  * The Empire raises a troop and marches.
  *
  * Any resolution happened in the Resolve state before this one, so the board
@@ -378,6 +582,8 @@ class EmpireTurn {
         this.moves = [];
         this.source = null;
         this.step = 'build';
+        /** Standing offer to end the game, sent with the turn. */
+        this.offerEnd = false;
     }
     onEnteringState(args, isCurrentPlayerActive) {
         // Defensive: a throw in here takes the whole handler with it, and the
@@ -385,6 +591,8 @@ class EmpireTurn {
         this.args = {
             production: args?.production ?? {},
             networks: args?.networks ?? [],
+            offeredEnd: args?.offeredEnd ?? false,
+            opponentOfferedEnd: args?.opponentOfferedEnd ?? false,
         };
         this.reset();
         if (!isCurrentPlayerActive) {
@@ -412,6 +620,8 @@ class EmpireTurn {
         this.moves = [];
         this.source = null;
         this.step = this.buildable().length > 0 ? 'build' : 'move';
+        // An offer stands until it is withdrawn, so it starts where it was left.
+        this.offerEnd = this.args.offeredEnd;
     }
     /** Towns that can build at least one troop this turn. */
     buildable() {
@@ -420,18 +630,14 @@ class EmpireTurn {
     /**
      * How many more troops this town may build, given what is already staged.
      *
-     * Two production towns in one network draw on the same ceiling, so the
-     * spare has to be counted per network rather than per town.
+     * Its own production rate is the only limit. Supply is not: a network's
+     * ceiling caps what it can keep, not what it can raise, and building past
+     * it is legal — the panel warns instead, because attrition gives a turn of
+     * grace and the troops may well be marched out to supply before it falls.
      */
     buildRoom(townId) {
         const offered = this.args.production[townId] ?? 0;
-        const network = this.game.board.networkOf(townId);
-        if (!network) {
-            return 0;
-        }
-        const staged = network.towns.reduce((total, id) => total + (this.produce[id] ?? 0), 0);
-        const spare = network.ceiling - network.troops - staged;
-        return Math.max(0, Math.min(offered - (this.produce[townId] ?? 0), spare));
+        return Math.max(0, offered - (this.produce[townId] ?? 0));
     }
     // -- staging ------------------------------------------------------------
     onTownClick(townId) {
@@ -559,6 +765,8 @@ class EmpireTurn {
         if (network) {
             lines.push(`<div class="iaw-hint">${_('Supply here')}: ${network.troops} / ${network.ceiling}</div>`);
         }
+        lines.push(this.supplyWarningHtml());
+        lines.push(endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
         this.moves.forEach(move => {
             lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
                         ${_('to')} <b>${this.townLabel(move.to)}</b></div>`);
@@ -578,6 +786,29 @@ class EmpireTurn {
                    ${_('Click')} <b>${this.townLabel(this.source)}</b> ${_('again to march from somewhere else instead.')}</div>`);
         }
         return lines.join('');
+    }
+    /**
+     * What the turn being staged does to supply, judged on the board as it will
+     * stand once it is committed — massing changes which towns are occupied, so
+     * it changes the networks and not merely their load.
+     *
+     * The distinction that matters is whether a network is already under
+     * notice. One that has just gone short is only marked; one that was marked
+     * last turn loses its excess at the end of this one.
+     */
+    supplyWarningHtml() {
+        const over = this.game.board.overSupplied(townId => this.projected(townId));
+        if (!over.length) {
+            return '';
+        }
+        return over.map(network => {
+            const where = network.towns.map(id => this.townLabel(id)).join(', ');
+            return network.warned
+                ? `<div class="iaw-warning"><b>${network.over} ${_('troops starve at the end of this turn')}</b>
+                   — ${where} ${_('cannot feed them. Take ground or spread out to stop it.')}</div>`
+                : `<div class="iaw-warning">${network.over} ${_('troops are short of supply')}
+                   — ${where}. ${_('They starve at the end of your next turn unless the line is repaired.')}</div>`;
+        }).join('');
     }
     buttons() {
         this.bga.statusBar.removeActionButtons();
@@ -604,6 +835,10 @@ class EmpireTurn {
             this.reset();
             this.refresh();
         }, { color: 'secondary' });
+        this.bga.statusBar.addActionButton(endOfferLabel(this.offerEnd), () => {
+            this.offerEnd = !this.offerEnd;
+            this.refresh();
+        }, { color: 'secondary' });
     }
     townLabel(townId) {
         return this.bga.gameui.gamedatas.scenario.towns[townId].label;
@@ -613,6 +848,7 @@ class EmpireTurn {
         this.bga.actions.performAction('actCommitTurn', {
             produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
+            offerEnd: this.offerEnd ? '1' : '0',
             // Attrition falls where the server decides unless told otherwise;
             // choosing which garrison starves is not yet exposed here.
             disband: JSON.stringify({}),
@@ -639,10 +875,14 @@ class InsurgencyTurn {
         this.assigned = {};
         this.order = [];
         this.selectedCard = null;
+        /** Standing offer to end the game, sent with the turn. */
+        this.offerEnd = false;
     }
     onEnteringState(args, isCurrentPlayerActive) {
         this.args = {
             openTowns: args?.openTowns ?? [],
+            offeredEnd: args?.offeredEnd ?? false,
+            opponentOfferedEnd: args?.opponentOfferedEnd ?? false,
         };
         this.reset();
         this.bga.statusBar.setTitle(isCurrentPlayerActive
@@ -667,6 +907,8 @@ class InsurgencyTurn {
         this.assigned = {};
         this.order = [];
         this.selectedCard = null;
+        // An offer stands until it is withdrawn, so it starts where it was left.
+        this.offerEnd = this.args.offeredEnd;
     }
     // -- staging ------------------------------------------------------------
     onCardClick(cardId) {
@@ -712,11 +954,12 @@ class InsurgencyTurn {
         this.game.board.setSelectable(this.args.openTowns);
         this.game.board.setSelected([]);
         const remaining = this.unassigned().length;
-        this.game.setStagingText(remaining > 0
+        this.game.setStagingText((remaining > 0
             ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>
                <div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Every card must go somewhere.')}</div>`
             : `<div><b>${_('The whole hand is placed.')}</b></div>
-               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`);
+               <div class="iaw-hint">${_('Confirm when you are happy with it.')}</div>`)
+            + endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
         this.buttons(remaining);
     }
     buttons(remaining) {
@@ -724,6 +967,10 @@ class InsurgencyTurn {
         this.bga.statusBar.addActionButton(_('Confirm placement'), () => this.commit(), { disabled: remaining > 0 });
         this.bga.statusBar.addActionButton(_('Reset'), () => {
             this.reset();
+            this.refresh();
+        }, { color: 'secondary' });
+        this.bga.statusBar.addActionButton(endOfferLabel(this.offerEnd), () => {
+            this.offerEnd = !this.offerEnd;
             this.refresh();
         }, { color: 'secondary' });
     }
@@ -738,6 +985,7 @@ class InsurgencyTurn {
         });
         this.bga.actions.performAction('actCommitTurn', {
             placements: JSON.stringify(placements),
+            offerEnd: this.offerEnd ? '1' : '0',
         });
     }
 }
@@ -852,17 +1100,22 @@ class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
+                    <div id="iaw-staging"></div>
+                    <div id="iaw-armies"></div>
                     <div id="iaw-clock"></div>
                     <div id="iaw-hand-area">
                         <div class="iaw-heading">${_('Hand')}</div>
                         <div id="iaw-hand"></div>
                     </div>
-                    <div id="iaw-staging"></div>
                 </div>
             </div>
         `);
         this.board = new BoardView(document.getElementById('iaw-board-area'), gamedatas.scenario, gamedatas.towns, this.side);
+        this.board.onBoardChanged(() => this.renderArmies());
         this.board.render();
+        // The silhouettes are files, so they arrive after the first paint. The
+        // board is drawn and usable without them.
+        this.board.loadFrames();
         // The bot has no player record, so it gets a panel of its own rather
         // than a row in gamedatas.players.
         this.bot = gamedatas.bot;
@@ -902,6 +1155,44 @@ class Game {
             <div>${_('Turn')} ${Math.min(round, scenario.turns)} / ${scenario.turns}</div>
             <div>${_('Deck')}: ${deckCount} &nbsp; ${_('Hand')}: ${handCount}</div>
         `;
+    }
+    /**
+     * The Empire's armies, one per supply network.
+     *
+     * Usually there is one. When a line is cut there are two, and the split is
+     * the single most consequential thing on the board — each half now feeds
+     * itself or starves — so it is worth saying in words rather than leaving
+     * to be read off twelve separate supply badges.
+     */
+    renderArmies() {
+        const element = document.getElementById('iaw-armies');
+        if (!element) {
+            return;
+        }
+        const armies = this.board.armies();
+        if (!armies.length) {
+            element.innerHTML = '';
+            return;
+        }
+        element.innerHTML = armies.map(army => `
+            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}">
+                <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
+                <div class="iaw-army-detail">
+                    <div class="iaw-army-name">${army.name} ${_('Army')}</div>
+                    <div class="iaw-army-supply">${this.supplySentence(army)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+    /**
+     * Kept as one translatable sentence with placeholders rather than
+     * concatenated fragments, which no translator can reorder.
+     */
+    supplySentence(army) {
+        return _('${troops} troops use ${used} supply of ${available} available.')
+            .replace('${troops}', String(army.troops))
+            .replace('${used}', String(army.supplyUsed))
+            .replace('${available}', String(army.supplyAvailable));
     }
     onHandClick(handler) {
         this.handClickHandler = handler;
@@ -985,6 +1276,13 @@ class Game {
     }
     async notif_placedIn(args) {
     }
+    /**
+     * Someone put up or took down a standing offer to end the game. Log only —
+     * the turn states read the current offers from their args, so there is
+     * nothing to move on the board.
+     */
+    async notif_endOffered(args) {
+    }
     async notif_empireMoved(args) {
         Object.entries(args.troops).forEach(([townId, troops]) => {
             this.board.getTown(townId).troops = troops;
@@ -1029,6 +1327,17 @@ class Game {
         town.revealed = args.winner === 'empire' ? [] : args.pile;
         town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
+    }
+    /**
+     * Which garrisons are under notice. Sent every Empire turn, including when
+     * it is empty, because a repaired supply line has to clear the warning as
+     * visibly as breaking one raised it.
+     */
+    async notif_starvationWarning(args) {
+        Object.keys(this.board.allTowns()).forEach(townId => {
+            this.board.getTown(townId).starving = args.starving[townId] ?? 0;
+            this.board.updateTown(townId);
+        });
     }
     async notif_deckCount(args) {
         this.gamedatas.deckCount = args.deckCount;

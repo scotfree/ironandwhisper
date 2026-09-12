@@ -1,16 +1,16 @@
 {
   "id": "baseline",
   "label": "Baseline MVP",
-  "notes": "Deliberately minimal while the shape of the game is being played: cards are worth 0 or 1, a troop is strength 1 and costs 1 supply, every town supplies 2. Not tuned \u2014 the graded cards and the heterogeneous map are in the other scenarios and in the git history when it is time to put them back.",
+  "notes": "Deliberately minimal while the shape of the game is being played: cards are worth 0 or 1, a troop is strength 1 and costs 1 supply, every town supplies 2. Hand size 3 rather than 5 \u2014 a big hand lets the rebels rush the Empire's starting city before it can stand anything up, and placing five cards a turn is a chore. It makes the game 20 turns. Everlan starts with 3 troops rather than 2: the Empire was losing its capital to an early rush before it could stand anything up. Not tuned \u2014 the graded cards and the heterogeneous map are in the other scenarios and in the git history when it is time to put them back.",
   "map": "grid12",
   "unit": "infantry",
-  "hand_size": 5,
+  "hand_size": 3,
   "deck": {
     "influence0": 24,
     "influence1": 36
   },
   "empire_start": {
-    "everlan": 2,
+    "everlan": 3,
     "belmar": 1
   },
   "first_player": "insurgency",

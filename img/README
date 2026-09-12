@@ -7,3 +7,32 @@ This directory contains all graphic files for your game:
 Typically, this directory should contain fewer than 10 files, with no file larger than 4 Mb.
 
 See: http://en.doc.boardgamearena.com/Game_art:_img_directory for more details.
+
+
+Iron and Whispers
+-----------------
+
+town.svg and city.svg are the frames drawn around a town on the board — a hut
+for an ordinary town, a skyline for one that can build troops. pawn.svg is the
+Empire troop marker drawn beside a garrison count. They are ordinary SVG files,
+meant to be edited in a drawing app, and the client fetches them at setup.
+
+Three things the board relies on:
+
+  * The viewBox is stretched to fill the town box, which is 120 x 104. Draw at
+    any size, but keep the proportions close or the silhouette will distort.
+
+  * The shoulder — where the roof meets the walls — sits at y = 26 of 104.
+    Everything the town displays is laid out below that line, so moving it means
+    moving the top padding of .iaw-town in src/scss/Game.scss to match.
+
+  * White and black are the game's colours. Anything filled white takes the
+    fill of whatever it is drawing — the town's holder for a frame, the Empire's
+    purple for the pawn — and anything stroked black takes the matching outline
+    colour. Draw a detail in any *other* colour — a gradient, a grey line,
+    fill:none — and it is left exactly as you drew it. A shape with no fill at
+    all will come out black, so give the body a fill.
+
+pawn.svg has no shoulder to respect and is scaled to the badge rather than a
+box, so only the colour convention applies to it. Keep it roughly upright —
+it is drawn at 13 x 17 on screen.

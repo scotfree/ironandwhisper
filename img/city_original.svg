@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The frame drawn around a town that can build troops: a skyline.
+
+  Edit this file in any vector app. Two things the client relies on:
+
+    * the viewBox is stretched to fill the town box, so draw at any size but
+      keep the proportions close to 120 x 104 or the silhouette will distort;
+    * the shoulder — the roofline the towers stand on — sits at y = 26 of 104,
+      the same as town.svg, because everything the town displays is laid out
+      below that line and both frames have to agree on where it is.
+
+  One closed path. Stroke and fill are overridden by CSS so the frame can take
+  the colour of a selected or captured town; the values here are just so the
+  file looks right on its own.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 104" width="120" height="104">
+  <path d="M 3 101 L 3 26 L 14 26 L 14 14 L 28 14 L 28 26 L 42 26 L 42 6 L 56 6
+           L 56 20 L 70 20 L 70 10 L 86 10 L 86 26 L 117 26 L 117 101 Z"
+        fill="#ffffff" stroke="#000000" stroke-width="2"
+        stroke-linejoin="round" />
+</svg>

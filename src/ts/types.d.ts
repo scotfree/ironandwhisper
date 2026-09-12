@@ -15,6 +15,11 @@ interface CardView {
 interface TownView {
     id: string;
     troops: number;
+    /**
+     * How many of this town's troops will starve at the end of the Empire's
+     * next turn if its network is still short. A warning, not a reservation.
+     */
+    starving: number;
     resolved: boolean;
     winner: Side | null;
     resolvedInfluence: number;
@@ -88,12 +93,28 @@ interface ResolveArgs {
 
 interface InsurgencyTurnArgs {
     openTowns: string[];
+    /** Whether this side's standing offer to end the game is up. */
+    offeredEnd: boolean;
+    opponentOfferedEnd: boolean;
 }
 
 interface EmpireTurnArgs {
     /** Town id => how many troops it may build this turn, ceiling included. */
     production: Record<string, number>;
     networks: { towns: string[]; ceiling: number; troops: number }[];
+    /** Whether this side's standing offer to end the game is up. */
+    offeredEnd: boolean;
+    opponentOfferedEnd: boolean;
+}
+
+/** One of the Empire's supply networks, as the army list shows it. */
+interface ArmyView {
+    /** The town in it holding the most troops. */
+    name: string;
+    towns: string[];
+    troops: number;
+    supplyUsed: number;
+    supplyAvailable: number;
 }
 
 /** A move staged in the client, before it is sent. */

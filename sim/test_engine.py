@@ -25,6 +25,8 @@ from .engine import (
     ceiling,
     component_of,
     empire_components,
+    empire_holds,
+    empire_is_eliminated,
     headroom,
     production_capacity,
     production_sites,
@@ -32,6 +34,7 @@ from .engine import (
     new_game,
     prepare_turn,
     resolve_town,
+    town_is_uncontested,
     winner,
 )
 
@@ -383,30 +386,111 @@ def test_the_ceiling_is_the_networks_supply():
     assert headroom(st, "a") == 2
 
 
-def test_building_needs_presence_production_and_supply():
+def test_an_empty_town_is_nobodys_to_build_in():
+    """Presence or ownership, not merely a factory on the map.
+
+    Without this the Empire draws troops out of a production town it has never
+    been near — a free second factory it never had to take.
+    """
     st = state()
-    st.towns["a"].troops = 1
+    st.towns["a"].troops = 0          # a produces, but nobody is standing there
     st.to_move = Side.EMPIRE
 
-    # c has no garrison, so it is not the Empire's to build in.
-    with pytest.raises(IllegalMove, match="no Empire presence"):
-        apply_empire_turn(st, EmpireTurn(produce={"c": 1}))
+    assert production_sites(st) == []
+    with pytest.raises(IllegalMove, match="does not hold it"):
+        apply_empire_turn(st, EmpireTurn(produce={"a": 1}))
 
-    # b is held but produces nothing.
+
+def test_a_town_the_empire_won_keeps_building_after_the_garrison_leaves():
+    """Ownership outlasts the garrison.
+
+    Requiring troops *on the spot* was a chicken-and-egg: an Empire that lost
+    the last troop in a factory it had already taken could never raise another
+    there, and the rest of the game played itself out for nothing.
+    """
+    st = state()
+    st.towns["a"].troops = 2
+    resolve_town(st, "a", Side.EMPIRE)     # taken, and the garrison stays
+    st.towns["a"].troops = 0               # ...and later starves or marches off
+    st.to_move = Side.EMPIRE
+
+    assert production_sites(st) == ["a"], "the ground is still the Empire's"
+
+    apply_empire_turn(st, EmpireTurn(produce={"a": 1}))
+    assert st.towns["a"].troops == 1, "the Empire is back on the board"
+
+    # b is held but produces nothing: production is a property of the town.
     st.towns["b"].troops = 1
-    assert production_sites(st) == ["a"]
     assert production_capacity(st, "b") == 0
 
 
-def test_building_stops_at_the_ceiling():
+def test_a_town_the_rebels_won_never_builds_again():
+    """Denial is permanent (Decision 2), and is now the only way to stop a
+    factory — which is what makes a production town worth taking."""
+    st = state()
+    st.towns["a"].troops = 0
+    seed_pile(st, "a", influence=1)
+    resolve_town(st, "a", Side.INSURGENCY)
+
+    assert production_sites(st) == []
+    assert production_capacity(st, "a") == 0
+
+    st.towns["a"].troops = 2          # the Empire marches back in
+    assert not empire_holds(st, "a"), "which does not undo it"
+    assert production_sites(st) == []
+
+
+def test_an_eliminated_empire_ends_the_game():
+    """No troops and nothing that will build any: there is no game left."""
+    st = state()
+    st.towns["a"].troops = 0
+    seed_pile(st, "a", influence=1)
+    resolve_town(st, "a", Side.INSURGENCY)   # the only factory, gone for good
+    st.to_move = Side.EMPIRE
+
+    assert empire_is_eliminated(st)
+    prepare_turn(st)
+
+    assert st.game_over
+    assert all(
+        t.resolved or town_is_uncontested(t) for t in st.towns.values()
+    ), "everything anybody committed to resolves at once"
+
+
+def test_building_past_the_ceiling_is_allowed_and_warned_about():
+    """Supply does not stop you raising troops; it decides how long they last.
+
+    Blocking the build made the ceiling two rules at once — a cap on the army
+    and a cap on the factory. It is only the first. With a turn of grace on
+    attrition an overshoot is a stated risk: raise them now, and either find
+    them supply before the end of your next turn or lose the excess.
+    """
     st = state(map=line_map(supply=1))
     st.towns["a"].troops = 1
     st.to_move = Side.EMPIRE
 
     # One town at supply 1 supports exactly the troop already standing there.
     assert headroom(st, "a") == 0
-    with pytest.raises(IllegalMove, match="supply supports"):
-        apply_empire_turn(st, EmpireTurn(produce={"a": 1}))
+
+    apply_empire_turn(st, EmpireTurn(produce={"a": 1}))
+
+    assert st.towns["a"].troops == 2, "built anyway"
+    assert st.towns["a"].starving == 1, "and immediately under notice"
+    assert st.scores[Side.INSURGENCY] == 0, "nobody has starved yet"
+
+
+def test_building_and_marching_out_to_supply_in_one_motion():
+    """The point of allowing the overshoot: raise, then go and feed them."""
+    st = state(map=line_map(supply=1))
+    st.towns["a"].troops = 1
+    st.to_move = Side.EMPIRE
+
+    apply_empire_turn(st, EmpireTurn(produce={"a": 1}, moves=[("a", "b", 1)]))
+
+    assert (st.towns["a"].troops, st.towns["b"].troops) == (1, 1)
+    assert all(t.starving == 0 for t in st.towns.values()), (
+        "occupying B brought its supply into the network, so nothing is short"
+    )
 
 
 def test_a_wider_network_supports_more_troops():
@@ -433,10 +517,37 @@ def test_troops_a_network_cannot_supply_starve_and_score():
 
     apply_empire_turn(st, EmpireTurn())
 
+    assert st.towns["a"].troops == 3, "a turn of grace before anybody starves"
+    assert st.towns["a"].starving == 2, "but the board says what is coming"
+    assert st.scores[Side.INSURGENCY] == 0
+
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn())
+
     assert st.towns["a"].troops == 1, "starved down to what supply can hold"
+    assert st.towns["a"].starving == 0, "and the warning is spent"
     assert st.scores[Side.INSURGENCY] == 2 * INFANTRY.strength, (
         "the Insurgency scores every Empire troop that leaves the board"
     )
+
+
+def test_repairing_the_line_during_the_grace_turn_cancels_the_starve():
+    """The warning is a forecast, not a reservation."""
+    st = state(map=line_map(supply=2))
+    st.towns["a"].troops = 3          # one town, supply 2, three troops
+    st.to_move = Side.EMPIRE
+
+    apply_empire_turn(st, EmpireTurn())
+    assert st.towns["a"].starving == 1
+
+    # March one out to occupy B, which brings its supply into the network and
+    # lifts the ceiling over everybody's head.
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
+
+    assert sum(t.troops for t in st.towns.values()) == 3, "nobody starved"
+    assert st.scores[Side.INSURGENCY] == 0
+    assert all(t.starving == 0 for t in st.towns.values()), "and the warning is gone"
 
 
 def test_attrition_takes_the_empires_choice_first():
@@ -445,7 +556,10 @@ def test_attrition_takes_the_empires_choice_first():
     st.towns["b"].troops = 2
     st.to_move = Side.EMPIRE
 
-    # Four troops, two supply: two starve, and the Empire says where from.
+    # Four troops, two supply: two starve, and the Empire says where from. The
+    # first turn is the warning, the second takes them.
+    apply_empire_turn(st, EmpireTurn(disband={"b": 2}))
+    st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn(disband={"b": 2}))
 
     assert st.towns["a"].troops == 2
@@ -540,7 +654,7 @@ def test_deck_exhaustion_ends_the_game_and_resolves_everything_at_once():
     st.hand = []
     prepare_turn(st)
     assert st.game_over
-    assert all(t.resolved for t in st.towns.values())
+    assert all(t.resolved or town_is_uncontested(t) for t in st.towns.values())
 
 
 def test_unresolved_towns_are_deferred_not_safe():
@@ -571,7 +685,7 @@ def test_a_full_game_terminates_and_resolves_every_town():
         rng = random.Random(seed)
         st = play_game(real, HeuristicEmpire(rng), HeuristicInsurgency(rng), rng)
         assert st.game_over
-        assert all(t.resolved for t in st.towns.values())
+        assert all(t.resolved or town_is_uncontested(t) for t in st.towns.values())
         assert winner(st) in (Side.EMPIRE, Side.INSURGENCY, None)
 
 

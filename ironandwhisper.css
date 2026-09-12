@@ -4,9 +4,10 @@
  * The board is drawn from the map's coordinates rather than from a background
  * image, so a new map in maps/*.json needs no art and no CSS.
  */
+@import url("https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap");
 #iaw-table {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 24px;
   align-items: flex-start;
 }
@@ -14,18 +15,32 @@
 /********* the board *********/
 #iaw-board {
   position: relative;
-  background: #efe7d7;
-  border: 1px solid rgb(79.4397759104%, 69.1596638655%, 48.5994397759%);
+  background: #e6e6e8;
+  border: 1px solid rgb(71.4460784314%, 71.4460784314%, 73.7303921569%);
   border-radius: 6px;
 }
 
-.iaw-town-cards {
+.iaw-town-body {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.iaw-town-rebel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.iaw-town-empire {
+  display: flex;
+  flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
-  margin-top: 4px;
-  min-height: 26px;
+  gap: 1px;
+  text-align: right;
 }
 
 #iaw-roads {
@@ -34,77 +49,120 @@
   pointer-events: none;
 }
 #iaw-roads line {
-  stroke: rgb(81.1540616246%, 71.731092437%, 52.8851540616%);
-  stroke-width: 3;
+  stroke: rgb(56.862745098%, 56.862745098%, 60.3137254902%);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+#iaw-roads #iaw-roads-edges {
+  filter: drop-shadow(1px 2px 1px rgba(0, 0, 0, 0.3));
 }
 
 .iaw-town {
   position: absolute;
   transform: translate(-50%, -50%);
-  width: 108px;
-  min-height: 74px;
-  padding: 4px;
+  width: 120px;
+  height: 104px;
   box-sizing: border-box;
-  background: #fff;
-  border: 2px solid rgb(76.5826330532%, 64.8739495798%, 41.4565826331%);
-  border-radius: 6px;
+  padding: 28px 5px 4px;
+  overflow: hidden;
+  --art-fill: #fff;
+  --art-stroke: #000;
   text-align: center;
   font-size: 11px;
   line-height: 1.3;
   cursor: default;
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35));
 }
 .iaw-town.selectable {
-  border-color: #0a84ff;
-  background: rgb(90.3921568627%, 95.1764705882%, 100%);
+  --art-fill: rgb(82.7058823529%, 91.3176470588%, 100%);
+  --art-stroke: #0a84ff;
   cursor: pointer;
-  box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.3);
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 9px rgba(10, 132, 255, 0.95)) drop-shadow(0 0 9px rgba(10, 132, 255, 0.8));
 }
 .iaw-town.selected {
-  border-color: rgb(0%, 36.8099239696%, 73.9215686275%);
-  background: rgb(78.862745098%, 89.3882352941%, 100%);
-  box-shadow: 0 0 0 6px rgba(10, 132, 255, 0.45);
-}
-.iaw-town.resolved {
-  opacity: 0.85;
+  --art-fill: rgb(67.3333333333%, 83.6%, 100%);
+  --art-stroke: rgb(0%, 36.8099239696%, 73.9215686275%);
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 15px rgb(10, 132, 255)) drop-shadow(0 0 9px rgba(10, 132, 255, 0.9));
 }
 .iaw-town.empire-held {
-  border-color: #6b3fa0;
-  background: rgb(81.4274509804%, 75.9058823529%, 88.0784313725%);
+  --art-fill: rgb(81.4274509804%, 75.9058823529%, 88.0784313725%);
+  --art-stroke: #6b3fa0;
 }
 .iaw-town.insurgency-held {
-  border-color: #2e7d4f;
-  background: rgb(73.7725490196%, 83.6862745098%, 77.9137254902%);
+  --art-fill: rgb(73.7725490196%, 83.6862745098%, 77.9137254902%);
+  --art-stroke: #2e7d4f;
+}
+
+.iaw-town-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.iaw-town-frame svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.iaw-town-frame path, .iaw-town-frame polyline, .iaw-town-frame polygon, .iaw-town-frame line, .iaw-town-frame rect, .iaw-town-frame circle, .iaw-town-frame ellipse {
+  vector-effect: non-scaling-stroke;
+}
+
+.iaw-town > *:not(.iaw-town-frame) {
+  position: relative;
+  z-index: 1;
 }
 
 .iaw-town-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-family: "UnifrakturCook", "UnifrakturMaguntia", "Old English Text MT", serif;
+  font-size: 15px;
+  line-height: 1.05;
   font-weight: bold;
   color: #2b2b2b;
-}
-
-.iaw-town-troops {
-  min-height: 16px;
 }
 
 .iaw-troops {
-  display: inline-block;
-  min-width: 18px;
-  padding: 0 4px;
-  background: #6b3fa0;
-  color: #fff;
-  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: rgb(34.2836542689%, 20.1857029807%, 51.2652774114%);
+  font-size: 13px;
   font-weight: bold;
 }
 
-.iaw-town-result {
-  margin-top: 2px;
+.iaw-pawn {
+  display: inline-block;
+  width: 16px;
+  height: 21px;
+  --art-fill: #6b3fa0;
+  --art-stroke: rgb(17.9697529236%, 10.5803218148%, 26.8706585773%);
+}
+.iaw-pawn svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.iaw-pawn path, .iaw-pawn circle, .iaw-pawn polygon, .iaw-pawn polyline {
+  vector-effect: non-scaling-stroke;
+}
+
+.iaw-troop-count {
   font-variant-numeric: tabular-nums;
-  color: #2b2b2b;
+  font-weight: bold;
 }
 
 .iaw-town-pending {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
   color: rgb(0%, 39.7976790716%, 79.9215686275%);
   font-weight: bold;
-  min-height: 14px;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
 }
 
 /********* the stacks on a town *********/
@@ -203,7 +261,9 @@
 
 /********* side panel *********/
 #iaw-side-area {
-  min-width: 190px;
+  flex: 1 1 240px;
+  min-width: 220px;
+  max-width: 320px;
   font-size: 13px;
 }
 
@@ -219,6 +279,67 @@
   font-variant-numeric: tabular-nums;
 }
 
+/********* the army list *********/
+#iaw-armies {
+  margin-top: 10px;
+}
+
+.iaw-army {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  background: rgb(95.3568627451%, 93.9764705882%, 97.0196078431%);
+  border: 1px solid rgb(79.6862745098%, 73.6470588235%, 86.9607843137%);
+  border-left: 4px solid #6b3fa0;
+  border-radius: 4px;
+}
+.iaw-army.over {
+  background: rgba(179, 38, 30, 0.08);
+  border-color: rgba(179, 38, 30, 0.4);
+  border-left-color: #b3261e;
+}
+
+.iaw-army-pawn {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 39px;
+  --art-fill: #6b3fa0;
+  --art-stroke: rgb(17.9697529236%, 10.5803218148%, 26.8706585773%);
+}
+.iaw-army-pawn svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.iaw-army-pawn path, .iaw-army-pawn circle, .iaw-army-pawn polygon, .iaw-army-pawn polyline {
+  vector-effect: non-scaling-stroke;
+}
+
+.iaw-army.over .iaw-army-pawn {
+  --art-fill: #d8443c;
+  --art-stroke: #7a1a14;
+}
+
+.iaw-army-name {
+  font-family: "UnifrakturCook", "UnifrakturMaguntia", "Old English Text MT", serif;
+  font-size: 17px;
+  line-height: 1.15;
+  color: #2b2b2b;
+}
+
+.iaw-army-supply {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #555;
+}
+
+.iaw-army.over .iaw-army-supply {
+  color: #7a1a14;
+  font-weight: bold;
+}
+
 #iaw-hand {
   min-height: 38px;
 }
@@ -229,7 +350,6 @@
 }
 
 #iaw-staging {
-  margin-top: 10px;
   padding: 8px;
   background: #fff;
   border: 1px dashed #bbb;
@@ -245,8 +365,9 @@
 }
 
 .iaw-town.drag-over {
-  border-color: rgb(0%, 36.8099239696%, 73.9215686275%);
-  background: rgb(84.6274509804%, 92.2823529412%, 100%);
+  --art-fill: rgb(67.3333333333%, 83.6%, 100%);
+  --art-stroke: rgb(0%, 36.8099239696%, 73.9215686275%);
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 15px rgb(10, 132, 255)) drop-shadow(0 0 9px rgba(10, 132, 255, 0.9));
 }
 
 .iaw-card.dragging {
@@ -260,6 +381,38 @@
   line-height: 1.4;
 }
 
+.iaw-troops.starving {
+  color: #b3261e;
+  animation: iaw-starving 1.1s ease-in-out infinite;
+}
+.iaw-troops.starving .iaw-pawn {
+  --art-fill: #d8443c;
+  --art-stroke: #7a1a14;
+}
+
+.iaw-troops-doomed {
+  margin-left: 3px;
+  color: #b3261e;
+  font-weight: bold;
+  font-variant-numeric: tabular-nums;
+  animation: iaw-starving 1.1s ease-in-out infinite;
+}
+
+@keyframes iaw-starving {
+  50% {
+    opacity: 0.35;
+  }
+}
+.iaw-warning {
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-left: 3px solid #b3261e;
+  background: rgba(179, 38, 30, 0.08);
+  color: #7a1a14;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .iaw-troop-delta {
   margin-left: 2px;
   font-size: 10px;
@@ -269,7 +422,7 @@
 
 #iaw-move-arrows .iaw-move-arrow {
   stroke: #6b3fa0;
-  stroke-width: 6;
+  stroke-width: 8;
   stroke-linecap: round;
 }
 #iaw-move-arrows .iaw-move-count {
@@ -286,9 +439,9 @@
   fill: #6b3fa0;
 }
 
-.iaw-town-supply {
-  font-size: 10px;
-  color: rgb(37.1625780357%, 21.8807702453%, 55.5702101468%);
+.iaw-supply,
+.iaw-contribution {
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -305,17 +458,17 @@
 }
 
 .iaw-contribution {
-  margin-left: 2px;
   opacity: 0.75;
 }
 
 .iaw-produce {
-  margin-left: 2px;
+  font-size: 9px;
+  line-height: 1;
 }
 
 #iaw-roads-edges line.supplied {
   stroke: #6b3fa0;
-  stroke-width: 5;
+  stroke-width: 8;
 }
 
 .iaw-contribution.denied {

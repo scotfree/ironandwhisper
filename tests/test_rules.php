@@ -212,53 +212,86 @@ function test_a_resolved_town_still_carries_supply(): void
     assertSame(4, Rules::ceiling($towns, ['a', 'b'], 1));
 }
 
-function test_building_needs_presence_production_and_supply(): void
+function test_building_needs_the_empire_to_hold_the_town(): void
 {
+    // Presence or ownership, not merely a factory on the map. Without this the
+    // Empire draws troops out of a production town it has never been near.
     $towns = rulesBoard([
         'a' => ['troops' => 1, 'supply' => 3, 'production' => 1],
         'b' => ['troops' => 0, 'supply' => 3, 'production' => 1],
+        'c' => ['troops' => 1, 'supply' => 3, 'production' => 0],
     ]);
 
-    assertSame(['a'], Rules::productionSites($towns, 1), 'b is nobody\'s until someone stands in it');
-    Rules::validateProduction($towns, ['a' => 1], 1, 1);
+    assertSame(['a'], Rules::productionSites($towns, 1), 'b is empty, so it is nobody\'s');
+    Rules::validateProduction($towns, ['a' => 1], 1);
 
     assertThrows(
         IllegalMove::class,
-        fn() => Rules::validateProduction($towns, ['b' => 1], 1, 1),
-        'no presence, no building',
+        fn() => Rules::validateProduction($towns, ['b' => 1], 1),
+        'an empty town builds for nobody',
     );
+    assertSame(0, Rules::productionCapacity($towns, 'c', 1), 'c is held but makes nothing');
     assertThrows(
         IllegalMove::class,
-        fn() => Rules::validateProduction($towns, ['a' => 2], 1, 1),
+        fn() => Rules::validateProduction($towns, ['a' => 2], 1),
         'the town can only build one a turn',
     );
 }
 
-function test_building_stops_at_the_ceiling(): void
+function test_a_town_the_empire_won_keeps_building_after_the_garrison_leaves(): void
 {
+    // Ownership outlasts the garrison. Requiring troops *on the spot* was a
+    // chicken-and-egg: an Empire that lost the last troop in a factory it had
+    // already taken could never raise another there.
+    $towns = rulesBoard([
+        'a' => ['troops' => 0, 'supply' => 3, 'production' => 1,
+                'resolved' => true, 'winner' => Rules::EMPIRE],
+    ]);
+
+    assertTrue(Rules::empireHolds($towns['a']), 'the ground is still the Empire\'s');
+    assertSame(['a'], Rules::productionSites($towns, 1));
+    Rules::validateProduction($towns, ['a' => 1], 1);
+}
+
+function test_a_town_the_rebels_won_never_builds_again(): void
+{
+    // Denial is permanent (Decision 2), and is now the only way to stop a
+    // factory — which is what makes a production town worth taking.
+    $towns = rulesBoard([
+        'a' => ['troops' => 0, 'supply' => 3, 'production' => 1,
+                'resolved' => true, 'winner' => Rules::INSURGENCY],
+    ]);
+
+    assertSame([], Rules::productionSites($towns, 1));
+    assertTrue(Rules::empireIsEliminated($towns, 1), 'no troops, and nothing that will build any');
+}
+
+function test_building_does_not_stop_at_the_ceiling(): void
+{
+    // The ceiling caps what a network can keep, not what it can raise. Treating
+    // it as both made supply two rules under one name, and stopped the Empire
+    // building troops and marching them out to supply in the same turn.
     $towns = rulesBoard(['a' => ['troops' => 1, 'supply' => 1, 'production' => 5]]);
 
     assertSame(0, Rules::headroom($towns, 'a', 1), 'one supply, already spent');
-    assertThrows(
-        IllegalMove::class,
-        fn() => Rules::validateProduction($towns, ['a' => 1], 1, 1),
-        'production is not the constraint here, supply is',
-    );
+    Rules::validateProduction($towns, ['a' => 5], 1);
 }
 
-function test_two_sites_in_one_network_share_one_ceiling(): void
+function test_what_a_network_overbuilds_is_what_attrition_forecasts(): void
 {
+    // Two sites, one ceiling: the overshoot is charged to the network rather
+    // than to the town, which is why building is unconstrained and starving is
+    // not.
     $towns = rulesBoard([
-        'a' => ['troops' => 1, 'supply' => 2, 'production' => 5],
+        'a' => ['troops' => 3, 'supply' => 2, 'production' => 5],
         'b' => ['troops' => 1, 'supply' => 2, 'production' => 5],
     ]);
 
-    // Four supply, two troops standing, so two more between them — not two each.
-    Rules::validateProduction($towns, ['a' => 1, 'b' => 1], 1, 1);
-    assertThrows(
-        IllegalMove::class,
-        fn() => Rules::validateProduction($towns, ['a' => 2, 'b' => 1], 1, 1),
-    );
+    // Four supply, four troops standing across the two of them.
+    assertSame([], Rules::attritionPlan($towns, 1), 'exactly fed');
+
+    $towns['a']['troops'] = 5;
+    assertSame(['a' => 2], Rules::attritionPlan($towns, 1), 'the largest garrison pays');
 }
 
 // -- attrition ---------------------------------------------------------------

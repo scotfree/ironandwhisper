@@ -78,7 +78,8 @@ final class Board
     public function towns(): array
     {
         $rows = Game::getCollectionFromDB(
-            'SELECT `town_id`, `troops`, `resolved`, `winner`, `resolved_influence`, `resolved_strength`
+            'SELECT `town_id`, `troops`, `starving`, `resolved`, `winner`,
+                    `resolved_influence`, `resolved_strength`
              FROM `iaw_town`'
         );
 
@@ -104,6 +105,7 @@ final class Board
                 'supply' => $definition['supply'],
                 'production' => $definition['production'],
                 'troops' => (int) $row['troops'],
+                'starving' => (int) $row['starving'],
                 'resolved' => (bool) (int) $row['resolved'],
                 'winner' => $row['winner'],
                 'resolvedInfluence' => (int) $row['resolved_influence'],
@@ -254,6 +256,28 @@ final class Board
             'UPDATE `iaw_card` SET `empire_seen` = 1 WHERE `card_id` IN (%s)',
             implode(',', array_map('intval', $cardIds)),
         ));
+    }
+
+    /**
+     * Record what each town is forecast to lose to attrition at the end of the
+     * Empire's next turn. Everything not named is cleared, because a town that
+     * has come back inside its supply is no longer under warning.
+     *
+     * @param array<string, int> $forecast town id => troops that will starve
+     */
+    public function setStarving(array $forecast): void
+    {
+        Game::DbQuery('UPDATE `iaw_town` SET `starving` = 0 WHERE `starving` > 0');
+
+        foreach ($forecast as $townId => $count) {
+            if ($count > 0) {
+                Game::DbQuery(sprintf(
+                    "UPDATE `iaw_town` SET `starving` = %d WHERE `town_id` = '%s'",
+                    $count,
+                    $townId,
+                ));
+            }
+        }
     }
 
     /** @param array<string, int> $delta town id => signed change in troops */

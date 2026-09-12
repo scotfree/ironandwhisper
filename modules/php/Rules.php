@@ -204,15 +204,52 @@ final class Rules
      * @param array<string, array> $towns
      * @return string[]
      */
+    /**
+     * Whether a town is the Empire's to build in — held, or taken.
+     *
+     * Standing in a town counts, and so does having *won* it: a town the Empire
+     * took at a resolution is permanently its ground, so it goes on building
+     * once the garrison has marched away or starved. A town that is merely
+     * empty is nobody's, which is what stops the Empire drawing troops out of a
+     * factory it has never been near.
+     *
+     * @param array<string, mixed> $town
+     */
+    public static function empireHolds(array $town): bool
+    {
+        if ($town['resolved']) {
+            return $town['winner'] === self::EMPIRE;
+        }
+        return $town['troops'] > 0;
+    }
+
     public static function productionSites(array $towns, int $productionCost): array
     {
         $sites = [];
         foreach ($towns as $townId => $town) {
-            if ($town['troops'] > 0 && self::productionCapacity($towns, $townId, $productionCost) > 0) {
+            if (self::productionCapacity($towns, $townId, $productionCost) > 0) {
                 $sites[] = $townId;
             }
         }
         return $sites;
+    }
+
+    /**
+     * Whether the Empire can never act again: no troops on the board, and no
+     * town left that will build it any. There is no move it could make for the
+     * rest of the game, so there is no game left.
+     *
+     * @param array<string, array> $towns
+     */
+    public static function empireIsEliminated(array $towns, int $productionCost): bool
+    {
+        foreach ($towns as $town) {
+            if ($town['troops'] > 0) {
+                return false;
+            }
+        }
+
+        return self::productionSites($towns, $productionCost) === [];
     }
 
     /**
@@ -222,7 +259,10 @@ final class Rules
      */
     public static function productionCapacity(array $towns, string $townId, int $productionCost): int
     {
-        if (!isset($towns[$townId]) || $towns[$townId]['troops'] === 0 || $productionCost <= 0) {
+        if (!isset($towns[$townId]) || $productionCost <= 0) {
+            return 0;
+        }
+        if (!self::empireHolds($towns[$townId])) {
             return 0;
         }
         return intdiv(self::townProduction($towns[$townId]), $productionCost);
@@ -246,10 +286,14 @@ final class Rules
     }
 
     /**
-     * Which troops starve, because their network can no longer supply them.
+     * Where a network's excess would be taken from, if it were taken now.
      *
      * The Empire's own choices are honoured first, then the largest garrisons,
-     * so a turn is always legal even when it names nowhere.
+     * so a turn is always legal even when it names nowhere. Within a town there
+     * is no choice to make: a town holds a count of troops, not troops.
+     *
+     * This is used twice each turn — once to decide what actually starves, and
+     * once to forecast what will starve next turn if nothing changes.
      *
      * @param array<string, array> $towns
      * @param array<string, int> $disband  the Empire's preferences
@@ -281,13 +325,15 @@ final class Rules
                 if ($taken >= $over) {
                     break;
                 }
-                $available = (int) $towns[$townId]['troops'] - ($losses[$townId] ?? 0);
-                $wanted = isset($disband[$townId]) && !in_array($townId, $rest, true)
-                    ? $disband[$townId]
-                    : $available;
-                $take = min($available, $over - $taken, max(0, $wanted));
+                $already = $losses[$townId] ?? 0;
+                $available = (int) $towns[$townId]['troops'] - $already;
+                // A town named in $disband gives up that many and no more; one
+                // that is not named gives up everything it has if it comes to
+                // it.
+                $cap = isset($disband[$townId]) ? $disband[$townId] - $already : $available;
+                $take = min($available, $over - $taken, max(0, $cap));
                 if ($take > 0) {
-                    $losses[$townId] = ($losses[$townId] ?? 0) + $take;
+                    $losses[$townId] = $already + $take;
                     $taken += $take;
                 }
             }
@@ -321,6 +367,22 @@ final class Rules
      * @param array<string, array> $towns
      * @return string[]
      */
+    /**
+     * Whether nobody has committed anything here — no troops, no cards.
+     *
+     * Presence is required to *declare* a resolution (Decision 5), and the same
+     * rule applies to the sweep at the end of the game: a town neither side
+     * ever set foot in is left open rather than handed to whoever wins ties. It
+     * is worth nothing to either side by definition, and reading "the Empire
+     * takes it for 0" about a town nobody was ever in is just noise.
+     *
+     * @param array<string, mixed> $town
+     */
+    public static function townIsUncontested(array $town): bool
+    {
+        return $town['troops'] === 0 && self::townCardCount($town) === 0;
+    }
+
     public static function legalResolutions(array $towns, string $side): array
     {
         $ids = [];
@@ -428,8 +490,20 @@ final class Rules
     // -- the Empire turn ----------------------------------------------------
 
     /**
-     * Check a set of builds: presence, the town's own production, and the spare
-     * ceiling of each network taken together rather than town by town.
+     * Check a set of builds: that the Empire holds the town, and the town's own
+     * production rate.
+     *
+     * A *garrison* is not required, only presence or ownership — requiring
+     * troops on the spot was a chicken-and-egg, since an Empire that lost the
+     * last troop in a factory it had already won could never raise another
+     * there. An empty town nobody has taken is nobody's.
+     *
+     * Supply is deliberately not checked. The ceiling caps how many troops a
+     * network can *keep*, not how many it can raise — treating it as both made
+     * it two rules wearing one name, and it stopped the Empire building troops
+     * and marching them out to supply in the same turn. Overshoot is settled by
+     * attrition, which now gives a turn of warning first, so it is a stated
+     * risk rather than an ambush.
      *
      * @param array<string, array> $towns
      * @param array<string, int> $produce town id => troops to raise there
@@ -438,10 +512,7 @@ final class Rules
         array $towns,
         array $produce,
         int $productionCost,
-        int $supplyPerTroop,
     ): void {
-        $addedTo = [];
-
         foreach ($produce as $townId => $count) {
             $count = (int) $count;
             if ($count <= 0) {
@@ -450,28 +521,12 @@ final class Rules
             if (!isset($towns[$townId])) {
                 throw new IllegalMove("unknown town {$townId}");
             }
-            if ($towns[$townId]['troops'] === 0) {
-                throw new IllegalMove("cannot build at {$townId}: no Empire presence");
+            if (!self::empireHolds($towns[$townId])) {
+                throw new IllegalMove("cannot build at {$townId}: the Empire does not hold it");
             }
-
             $capacity = self::productionCapacity($towns, $townId, $productionCost);
             if ($count > $capacity) {
                 throw new IllegalMove("{$townId} can build {$capacity}, asked for {$count}");
-            }
-
-            // Several towns can share one ceiling, so charge them all to it.
-            $key = implode(',', self::componentOf($towns, $townId));
-            $addedTo[$key] = ($addedTo[$key] ?? 0) + $count;
-        }
-
-        foreach ($addedTo as $key => $added) {
-            $component = explode(',', $key);
-            $spare = self::ceiling($towns, $component, $supplyPerTroop)
-                - self::troopsIn($towns, $component);
-            if ($added > $spare) {
-                throw new IllegalMove(
-                    "cannot build {$added}: supply supports " . max(0, $spare) . ' more'
-                );
             }
         }
     }

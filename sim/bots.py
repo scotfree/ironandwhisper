@@ -32,21 +32,19 @@ from .engine import (
 # What the Empire is allowed to know
 # ---------------------------------------------------------------------------
 
-def project_troops(state: GameState, produce: dict[str, int],
-                   moves: list[tuple[str, str, int]]) -> dict[str, int]:
-    """Troop counts as they will stand after building and movement.
+def _hold(moves: list[tuple[str, str, int]],
+          resolve: str | None) -> list[tuple[str, str, int]]:
+    """Drop any march out of the town being resolved.
 
-    An Empire turn builds, then moves, then resolves, so any decision about
-    resolving has to be made against the projected board rather than the
-    current one.
+    A person resolves in a phase of its own and sees the result before deciding
+    anything else, so they may march a garrison out of a town they just won. A
+    bot submits its whole turn in one call and cannot know how the fight went —
+    and if it loses, those troops are gone before the march, which makes the
+    turn illegal. So a bot holds still where it is fighting.
     """
-    projected = {tid: town.troops for tid, town in state.towns.items()}
-    for town_id, count in produce.items():
-        projected[town_id] += count
-    for src, dst, quantity in moves:
-        projected[src] -= quantity
-        projected[dst] += quantity
-    return projected
+    if resolve is None:
+        return moves
+    return [move for move in moves if move[0] != resolve]
 
 
 class EmpireBelief:
@@ -119,10 +117,20 @@ class RandomEmpire:
         self.resolve_chance = resolve_chance
 
     def choose(self, state: GameState) -> EmpireTurn:
+        # Building past the ceiling is legal; these bots decline to, because
+        # nothing in them plans a march out to the supply that would feed the
+        # overshoot. That is a policy, not a rule.
         produce: dict[str, int] = {}
         spare: dict[frozenset[str], int] = {}
         for site in production_sites(state):
-            network = frozenset(component_of(state, site))
+            component = component_of(state, site)
+            if not component:
+                # Nobody is standing here, so there is no network to overload —
+                # and building is the only way back onto the board at all. The
+                # troop brings the town's own supply with it.
+                produce[site] = production_capacity(state, site)
+                continue
+            network = frozenset(component)
             if network not in spare:
                 spare[network] = headroom(state, site)
             want = min(production_capacity(state, site), spare[network])
@@ -141,16 +149,15 @@ class RandomEmpire:
                 quantity = self.rng.randint(1, town.troops)
                 moves.append((town.id, self.rng.choice(open_neighbors), quantity))
 
-        # Judge against the projected board: the engine moves before resolving.
-        projected = project_troops(state, produce, moves)
-        options = [
-            t.id for t in state.unresolved if projected[t.id] > 0
-        ]
+        # Judged on the board as it stands, not on what this turn is about to
+        # do: resolution happens first (Decision 4), so troops built or marched
+        # in this turn are not there yet.
+        options = legal_resolutions(state, Side.EMPIRE)
         resolve = None
         if options and self.rng.random() < self.resolve_chance:
             resolve = self.rng.choice(options)
 
-        return EmpireTurn(produce=produce, moves=moves, resolve=resolve)
+        return EmpireTurn(produce=produce, moves=_hold(moves, resolve), resolve=resolve)
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +311,14 @@ class HeuristicEmpire:
         produce: dict[str, int] = {}
         spare: dict[frozenset[str], int] = {}
         for site in production_sites(state):
-            network = frozenset(component_of(state, site))
+            component = component_of(state, site)
+            if not component:
+                # Nobody is standing here, so there is no network to overload —
+                # and building is the only way back onto the board at all. The
+                # troop brings the town's own supply with it.
+                produce[site] = production_capacity(state, site)
+                continue
+            network = frozenset(component)
             if network not in spare:
                 spare[network] = headroom(state, site)
             want = min(production_capacity(state, site), spare[network])
@@ -335,7 +349,7 @@ class HeuristicEmpire:
             if belief.estimated_influence(best) > estimate:
                 moves.append((town.id, best, town.troops))
 
-        return EmpireTurn(produce=produce, moves=moves, resolve=resolve)
+        return EmpireTurn(produce=produce, moves=_hold(moves, resolve), resolve=resolve)
 
 
 BOTS = {

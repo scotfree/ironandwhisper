@@ -25,9 +25,24 @@ Insurgency's scoring is that Empire troops are still removed when it *loses*, an
 cutting supply starves them without a fight at all. Do not restore the winner-keeps-all
 version, and do not make attrition score nothing.
 
-**Supply is a ceiling, not income** (Decision 2). Networks of Empire-occupied towns pool
-their towns' supply; that divided by `supply_per_troop` is the most troops the network can
-keep standing, and anything over starves at end of turn. Production is a separate per-town
+**Attrition waits a turn, and the wait is the point** (Decision 2). A network that
+cannot feed its troops marks them; only if it is *still* short at the end of the Empire's
+next turn do they starve. Immediate attrition made massing self-defeating invisibly —
+supply comes from towns the Empire occupies, so concentrating an army destroys the supply
+that fed it, and the loss landed inside the commit where nobody was looking. The mark is a
+**forecast, recomputed when it falls**, so repairing the line clears it; do not turn it
+into a reservation of particular troops. There are no troop objects to reserve anyway —
+`iaw_town.troops` is an integer, and `attritionPlan` chooses only which *towns* pay,
+largest garrison first.
+
+**Supply is a ceiling on what a network can *keep*, not income and not a cap on building**
+(Decision 2). Networks of Empire-occupied towns pool their towns' supply; that divided by
+`supply_per_troop` is the most troops the network can keep standing, and anything over is
+marked and then starves. Building past it is legal — `validateProduction` checks presence
+and the town's own rate and nothing else — which is what lets the Empire raise troops and
+march them out to the supply that will feed them in one turn. Do not put the ceiling back
+into production: it was one word doing two jobs, and it left a network at its ceiling with
+an idle factory. Production is a separate per-town
 number. The two are independent on purpose — a poor town can be a depot, a rich one can
 build nothing. An earlier design had the network contribute *attack strength* instead;
 it fails, and `ironandwhisper.md` Decision 2 records why.
@@ -57,8 +72,36 @@ tuning work transfers.
 
 **`baseline` is currently set for feel, not for balance.** Cards are 0 or 1, a troop is
 strength 1 and costs 1 supply, every town supplies 2 — deliberately minimal, at the
-player's request, so the shape of the game can be felt. At those numbers the Empire wins
-**0%** against the bots. Do not read anything into a game played on them, and do not "fix"
+player's request, so the shape of the game can be felt. **Hand size is 3** (was 5, changed
+2026-09-11): a five-card hand lets the rebels rush the Empire's starting city before it can
+stand anything up, which real play found and the bots do not, and placing five cards a turn
+is a chore. It makes the game 20 turns rather than 12 — the deck is the clock, so
+`turns = deck_size / hand_size`. A sweep of hand 3-6 found the Empire monotonically better
+off with a smaller hand, in two framings (deck held at 60, and deck scaled to hold the game
+at 10 turns), so the effect survives controlling for game length. The mechanism is *not* the number of towns the
+Empire wins — that is flat at about 4 of 12 whatever the hand size. What changes is what
+those towns are worth: at hand 6 the Empire captures 0.1% of the rebels' influence, at hand
+3 it captures 4.8%. A big hand buries every town under a pile no garrison can match, so
+anything the Empire wins is something the rebels did not bother contesting. At those
+numbers the Empire wins **0.6%** against the bots.
+
+**Everlan starts with 3 troops rather than 2** (2026-09-12). Not a balance number but a
+threshold one: at strength 1, against a hand of three cards worth at most 1 each, a
+garrison of 2 loses Everlan to the opening placement and a garrison of 3 *ties* it — and
+the Empire wins ties. The rush now takes the rebels two turns, and the Empire gets one in
+between. **This lever is spent at 4 troops in total.** Everlan and Belmar supply 2 each, so
+the network ceiling is exactly 4; a fifth starting troop is over supply on turn one,
+starves, and scores for the rebels. A sweep has the Insurgency's mean score going
+8.7 → 13.2 → 16.1 as the garrison goes 3 → 4 → 6, while the Empire's win rate stays flat
+inside noise. More help has to come from troop strength or from supply, not from more
+starting troops.
+
+> An earlier reading of this sweep had the Empire taking 10.3 of 12 towns at hand 6 and
+> concluded it was board-shrinking into empty towns. That column was an artefact: the
+> end-of-game sweep was handing every *uncontested* town to the Empire on the tie-break.
+> Once the sweep started leaving those open the figure dropped to ~4 and went flat. The
+> direction of the hand-size finding was unaffected, but the story about why was wrong —
+> which is the usual lesson about measuring a mechanic inside a broken configuration. Do not read anything into a game played on them, and do not "fix"
 them without asking: the simplification is deliberate. The last roughly-even settings —
 graded cards, heterogeneous map, strength 3 — are in the git history at `dedba1a`.
 
@@ -103,7 +146,7 @@ since the first port; several sessions of real play have driven that.
 
 Done:
 - BGA Studio project `ironandwhisper`, deploying cleanly over SFTP with a client build.
-- Full rules simulator, bots, 45 tests, an exploration notebook, and a batch runner.
+- Full rules simulator, bots, 50 tests, an exploration notebook, and a batch runner.
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Bots`, `Board`, `View`, `Game`,
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
@@ -112,28 +155,57 @@ Done:
   they total, individual values on the tooltip. Laying every card out made a well-seeded
   town enormous, and the row's only readable property was its length. The Insurgency is
   still *sent* its own face-down cards and is simply not shown them: once a card is down it
-  is down, and remembering the board is part of the game.
-- **75 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+  is down, and remembering the board is part of the game. Town boxes are a **fixed
+  120x104** whatever they hold, framed by an SVG silhouette — `img/town.svg` for an
+  ordinary town, `img/city.svg` for a producer — fetched at setup and inlined. The files
+  are editable in a drawing app; both put the *shoulder*, where the roof meets the walls,
+  at y = 26 of 104, and `.iaw-town`'s top padding depends on that. **The frames are
+  recoloured by rewriting the markup, not by CSS** (`BoardView.frameMarkup`): a drawing app
+  writes colour as an inline `style`, which beats any stylesheet rule, so the CSS approach
+  worked only for the hand-written first drafts that used presentation attributes. The
+  convention is that **white and black are the game's colours** — they become the fill and
+  stroke of whoever holds the town — and any other colour is left alone, so detail lines
+  and gradients survive. `img/README` says this to whoever opens the files, and the same
+  convention drives `img/pawn.svg`, the Empire troop marker, which resolves white and black
+  to the Empire's purple instead. Every log line is prefixed `T${turn}:` from inside its
+  `clienttranslate` literal.
+- **The town box reads spatially**: rebels down the left (face-down stack above face-up),
+  Empire down the right (pawn and count, then supply over the town's own contribution),
+  production mark beside the name. Which side a number belongs to is legible from where it
+  sits before the number is read.
+- **An army list beside the board**, one entry per Empire supply network: a large pawn, the
+  network named for the town holding most of it, and "N troops use N supply of M
+  available." It turns red when the army is over its ceiling. The point is the *split* — a
+  cut line is the most consequential thing that happens to the Empire and was otherwise
+  legible only by comparing twelve supply badges. The name breaks ties by hashing the
+  network's membership, so it is arbitrary rather than alphabetical, stable while the army
+  is, and reshuffles when the army changes; randomising per render would make it unreadable.
+- `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
+  column — turn state, armies, hand — below the board whenever the play area was narrow.
+- **82 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 
 Not done, in rough order of how much it hurts:
 
-- **The Empire cannot recover from zero troops.** Production requires a garrison in the
-  town, so an Empire wiped out has no way back and the game plays out pointlessly for the
-  remaining turns. Agreed fix, not built: let a production town build for the Empire
-  whenever the *rebels* have not taken it, garrison or no. It removes the chicken-and-egg
-  and the old "no troops anywhere" fallback clause at once. Building would then be allowed
-  past the ceiling, since attrition at end of turn settles it — which also lets you build
-  and march out to the supply in one motion.
-- **No end condition for an eliminated Empire.** Even with the fix above, the game should
-  end when the Empire holds no troops and no production town it could rebuild from.
 - **Attrition losses are chosen server-side.** The `disband` argument exists and the rules
   honour it, but the client sends an empty one, so losses come off the largest garrisons.
-  Choosing badly can sever a second line, so this is a real decision going unmade.
+  Choosing badly can sever a second line, so this is a real decision going unmade. Now that
+  the forecast is *shown* a turn ahead, the case for letting a player redirect it is
+  stronger. `disband` names a per-town cap; the PHP's cap was unreachable dead code until
+  the grace turn made the plan visible, and is now fixed and matched to the simulator.
 - **The Empire bot does not understand supply when marching.** `empireMoves` marches toward
   attractive piles without checking what abandoning a town does to the ceiling, so it
   routinely walks itself into starvation and donates the points. Discount solo games
   accordingly.
+- **The bots cannot exercise the last few rules changes.** Neither builds past the ceiling
+  nor uses the grace turn, and the Empire bot never masses deliberately — so the moves the
+  grace turn and the production rule were built for are invisible to self-play. Bot numbers
+  now measure whether the port matches the simulator, not whether the game is good. The
+  table is the better instrument.
+- **The Empire is at ~0.5% against the bots and losing badly at the table too.** Hand size
+  and the starting garrison are both spent as levers (see the notes above each). The next
+  moves are **graded cards** and **troop strength above 1** — open question 2 — and they
+  are now the only ones left with real headroom.
 - No stats in `stats.jsonc`, no tie-breaker, no animations, no art.
 
 Unverified, and worth checking first thing on the Studio: **BGA caches game metadata
@@ -366,8 +438,15 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
    the long-deferred counter and the thing most likely to fix it: if a town is worth points
    to whoever holds it, the Empire cannot ignore a seeded town and the rebels' 28 influence
    buys something. Town supply is a natural place to hang it.
-2. **Put the graded cards and troop strength back**, when the minimal version has served
-   its purpose. See the CRITICAL note on why 0% is expected without them.
+2. **Put the graded cards and troop strength back.** This is now the top of the list
+   rather than a someday item. Several sessions of real play have the Empire losing badly,
+   and the two subtler levers tried instead — hand size and the starting garrison — are
+   both measured and both spent. Troop strength is the one that moves what a garrison is
+   *worth*: at strength 1 a lone troop is beaten by two cards, at strength 3 it takes four.
+   Graded cards are what make peeking mean anything and what turn a lone-troop attack into
+   a bet. See the CRITICAL note on why 0% is expected without them. The last
+   roughly-even settings are in the git history at `dedba1a`; expect to re-tune rather than
+   restore, since the rules have moved a long way since.
 3. **Bots on BGA.** Solo works locally and the framework supports automata
    (`addAutomataPlayerPanel`, `solo_mode_ranked`). Whether BGA permits a bot opponent for a
    game with no published solo variant is unknown and unresearched. Nothing stops it in
@@ -403,22 +482,44 @@ The full set with reasoning is in `ironandwhisper.md` under *Decisions & Constra
 ones a PHP port is most likely to break:
 
 - **Troops are spent at resolution** (Decision 3). See CRITICAL above.
-- **Generation is one troop per turn in total**, not per town, placed in any town the
-  Empire already occupies. The per-town reading is degenerate — dilution becomes strictly
-  correct and out-produces the whole Insurgency deck. Resolved towns do **not** anchor
-  generation. One fallback: with no troops anywhere, the Empire may raise its next troop in
-  any unresolved town.
+- **Production is a per-town property, and needs the Empire to *hold* the town.**
+  `Rules::empireHolds` / `empire_holds` is the test: troops there, or having won it at a
+  resolution. A garrison on the spot is not required, so a factory the Empire has taken
+  keeps building once the garrison leaves — but an empty town nobody has taken builds for
+  nobody. Dropping the check entirely handed the Empire a free second factory it had never
+  been near, which is what a real game caught. Supply does not cap production either.
+  The rebels *winning* a town stops it for good — which is what makes a production town
+  worth taking. The old rule was "one troop
+  per turn in total, anywhere the Empire already stands", with a warning that per-town
+  generation was degenerate (dilution becomes strictly correct and out-produces the deck).
+  That warning lapsed when Decision 3 made dilution costly — a thin garrison loses its
+  local fight and is scored — and `ironandwhisper.md` records why. Do not reinstate the
+  garrison requirement: it was a chicken-and-egg that left an eliminated Empire playing out
+  the clock for nothing. There is no longer a "no troops anywhere" fallback clause; it was
+  written in the docs and never existed in either engine.
 - **The Insurgency must place its entire hand every turn** (Decision 6). This is what makes
   pile height uninformative and what makes the deck an exact clock. It also makes the game
   length deterministic at `deck_size / hand_size` turns.
 - **You may only resolve a town where you have presence** (Decision 5) — Empire needs a
   troop there, Insurgency needs a card in the pile. Without this the Empire freezes empty
-  towns from anywhere for free.
+  towns from anywhere for free. **The end-of-game sweep obeys the same rule**: a town with
+  no troops and no cards is left open rather than handed to whoever wins ties, which
+  otherwise filled the log with "the Empire takes it for 0" about towns nobody was ever in.
+  `Rules::townIsUncontested` / `town_is_uncontested` is the test, and the end-of-game
+  invariant in the tests is now "resolved *or* uncontested", not "resolved".
 - **Empire wins ties** (Decision 7).
 - **Resolution is a free action, once per turn** (Decision 4), taken *before* generation
   and movement, and judged on the board as the opponent left it.
-- **Deck exhaustion ends the game and resolves every remaining town at once** (Decision 1).
-  Unresolved towns are deferred, never safe.
+- **Four ways the game ends, all of which resolve every remaining town at once**
+  (Decision 1): the deck runs out, every town is resolved, the Empire is eliminated (no
+  troops and no town that will build any), or both sides have a standing **offer to end**
+  up. Unresolved towns are deferred, never safe.
+- **The offer to end is not a pass.** A pass that skipped a turn would stop the deck
+  draining, and the deck is the clock — two cautious players could stall forever, which is
+  the exact failure Decision 1 was designed around. It is a standing offer, carried as a
+  parameter on the turn action so it cannot be made or withdrawn out of turn, and it lives
+  in two globals. Solo needs one offer, not two: the bot has no opinion, so requiring its
+  agreement would mean a person could never end a game they had lost interest in.
 
 Constraints the port itself introduced:
 
@@ -444,6 +545,17 @@ Constraints the port itself introduced:
   has already happened by the time either is reached. ("Resolve nothing" used to be an
   empty string on the wire, since BGA action parameters have no null; `actSkipResolve` is
   an action of its own and there is no string left to get wrong.)
+- **Tests must derive from the scenario, not hard-code its numbers.** Changing `hand_size`
+  from 5 to 3 broke seven tests that had 5, 55, 3 and 13 written into them. They now read
+  `$game->scenario->handSize` and `->turns()`. A parameter change should cost one line in
+  `scenarios/`, not an afternoon.
+- **A bot never marches out of the town it resolves.** A person resolves in a phase of
+  its own and sees the outcome first, so they may march a garrison out of a town they just
+  won. A bot commits its whole turn in one call and cannot know whether those troops still
+  exist — if the resolution is lost they are gone before the march and the turn is
+  illegal. `sim/bots.py::_hold` and the filter in `Bots::empireTurn` are the same fix; it
+  was a live bug from the day resolution moved to the front of the turn, and only surfaced
+  when a random-bot game happened to walk into it.
 - **Don't change state ids casually.** BGA discovers state classes by scanning
   `modules/php/States/`, so a stale file on the server is a live state class.
 

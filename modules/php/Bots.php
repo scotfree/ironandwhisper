@@ -243,9 +243,20 @@ final class Bots
         // the troops standing now — there is no marching in and cashing out.
         $resolve = self::empireResolution($scenario, $towns, $open, $estimateOf);
 
+        // A person resolves in a phase of its own and sees the result before
+        // deciding anything else, so they may march a garrison out of a town
+        // they just won. A bot submits its whole turn in one call and cannot
+        // know how the fight went — and if it loses, those troops are gone
+        // before the march, which makes the turn illegal. So it holds still
+        // where it is fighting.
+        $moves = array_values(array_filter(
+            self::empireMoves($scenario, $towns, $estimateOf),
+            static fn(array $move) => $move['from'] !== $resolve,
+        ));
+
         return [
             'produce' => self::empireProduction($scenario, $towns),
-            'moves' => self::empireMoves($scenario, $towns, $estimateOf),
+            'moves' => $moves,
             'resolve' => $resolve,
         ];
     }
@@ -267,8 +278,24 @@ final class Bots
         $spare = [];
 
         foreach (Rules::productionSites($towns, $scenario->productionCost) as $site) {
-            $key = implode(',', Rules::componentOf($towns, $site));
+            $component = Rules::componentOf($towns, $site);
+            if (!$component) {
+                // Nobody is standing here, so there is no network to overload —
+                // and building is the only way back onto the board at all. The
+                // troop brings the town's own supply with it.
+                $produce[$site] = Rules::productionCapacity(
+                    $towns,
+                    $site,
+                    $scenario->productionCost,
+                );
+                continue;
+            }
+
+            $key = implode(',', $component);
             if (!isset($spare[$key])) {
+                // Building past the ceiling is legal; this bot declines to,
+                // because nothing in it plans a march out to the supply that
+                // would feed the overshoot. A policy, not a rule.
                 $spare[$key] = Rules::headroom($towns, $site, $scenario->supplyPerTroop);
             }
 

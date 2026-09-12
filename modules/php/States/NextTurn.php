@@ -37,9 +37,23 @@ class NextTurn extends GameState
         // the loop runs upkeep again for whoever is next. Only a human's turn
         // needs a state of its own, because only a human has to be asked.
         for ($guard = 0; $guard < 100; $guard++) {
+            // Both sides have offered to stop. Ending is not free — mass
+            // resolution settles every outstanding fight at today's strength —
+            // so an agreement to end is a real decision, not just a shortcut.
+            if ($this->game->endAgreed()) {
+                return $this->endGame(clienttranslate('both sides agreed to end'));
+            }
+
             // The board can run out before the deck does.
             if (!Rules::unresolvedTownIds($board->towns())) {
                 return $this->endGame(clienttranslate('every town has been resolved'));
+            }
+
+            // So can the Empire. Once it has no troops and no town that will
+            // build any, the rest of the game is the Insurgency placing cards
+            // nobody will contest.
+            if (Rules::empireIsEliminated($board->towns(), $this->game->scenario->productionCost)) {
+                return $this->endGame(clienttranslate('the Empire is eliminated'));
             }
 
             $side = $this->game->toMove();
@@ -107,12 +121,21 @@ class NextTurn extends GameState
      */
     private function endGame(string $reason)
     {
-        $this->notify->all('gameEnding', clienttranslate('The game ends: ${reason}'), [
+        $this->notify->all('gameEnding', clienttranslate('T${turn}: The game ends: ${reason}'), [
+            'turn' => $this->game->round(),
             'reason' => $reason,
             'i18n' => ['reason'],
         ]);
 
-        foreach (Rules::unresolvedTownIds($this->game->board->towns()) as $townId) {
+        // Everything anybody committed to resolves at once. A town neither side
+        // ever set foot in is left open: presence is required to resolve
+        // (Decision 5), and that holds for the sweep as much as for a declared
+        // resolution.
+        $towns = $this->game->board->towns();
+        foreach (Rules::unresolvedTownIds($towns) as $townId) {
+            if (Rules::townIsUncontested($towns[$townId])) {
+                continue;
+            }
             $this->game->resolveTown($townId, null);
         }
 

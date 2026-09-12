@@ -40,6 +40,8 @@ class Game extends \Bga\GameFramework\Table
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
     public const G_BOT_SCORE = 'bot_score';
+    public const G_END_OFFERED_EMPIRE = 'end_offered_empire';
+    public const G_END_OFFERED_INSURGENCY = 'end_offered_insurgency';
 
     /**
      * The bot's stand-in player id in a solo game.
@@ -117,6 +119,76 @@ class Game extends \Bga\GameFramework\Table
     public function isBot(int $playerId): bool
     {
         return $playerId === self::BOT_PLAYER_ID;
+    }
+
+    // -- agreeing to end ----------------------------------------------------
+    //
+    // Not a pass in the turn-skipping sense: skipping a turn would stop the
+    // deck draining, and the deck is the clock (Decision 1), so two players
+    // could stall forever — the exact failure the clock was designed around.
+    // This is a standing offer to end. When both offers are up the game ends
+    // and every remaining town resolves at once, which is what deck exhaustion
+    // does anyway.
+
+    private function endOfferGlobal(string $side): string
+    {
+        return $side === Rules::EMPIRE
+            ? self::G_END_OFFERED_EMPIRE
+            : self::G_END_OFFERED_INSURGENCY;
+    }
+
+    public function hasOfferedEnd(string $side): bool
+    {
+        return (int) $this->bga->globals->get($this->endOfferGlobal($side), 0) === 1;
+    }
+
+    /**
+     * Put an offer up or take it down. Public, and announced: the other side
+     * has to know an offer is standing or it can never be met.
+     */
+    public function setOfferEnd(string $side, bool $offered, int $actorId): void
+    {
+        if ($this->hasOfferedEnd($side) === $offered) {
+            return;
+        }
+
+        $this->bga->globals->set($this->endOfferGlobal($side), $offered ? 1 : 0);
+
+        $this->bga->notify->all(
+            'endOffered',
+            $offered
+                ? clienttranslate('T${turn}: ${player_name} offers to end the game and resolve every town')
+                : clienttranslate('T${turn}: ${player_name} withdraws the offer to end the game'),
+            [
+                'turn' => $this->round(),
+                'player_id' => $actorId,
+                'player_name' => $this->playerNameFor($actorId),
+                'side' => $side,
+                'offered' => $offered,
+            ],
+        );
+    }
+
+    /**
+     * Whether the game may stop now.
+     *
+     * Solo is one offer, not two: the bot has no opinion to give, so asking it
+     * to agree would mean the person could never end a game they had lost
+     * interest in.
+     */
+    public function endAgreed(): bool
+    {
+        if ($this->isSolo()) {
+            foreach ($this->sides() as $playerId => $side) {
+                if (!$this->isBot($playerId) && $this->hasOfferedEnd($side)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return $this->hasOfferedEnd(Rules::EMPIRE)
+            && $this->hasOfferedEnd(Rules::INSURGENCY);
     }
 
     /**
@@ -252,8 +324,9 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'townResolved',
-            clienttranslate('${town_label} resolves: ${influence} influence against ${strength} strength — ${player_name} takes it for ${points}'),
+            clienttranslate('T${turn}: ${town_label} resolves: ${influence} influence against ${strength} strength — ${player_name} takes it for ${points}'),
             [
+                'turn' => $this->round(),
                 'town_id' => $townId,
                 'town_label' => $this->townLabel($townId),
                 'i18n' => ['town_label'],
@@ -342,8 +415,9 @@ class Game extends \Bga\GameFramework\Table
         foreach ($placed as $townId => $cardIds) {
             $this->bga->notify->all(
                 'placedIn',
-                clienttranslate('${player_name} places ${count} in ${town_label}'),
+                clienttranslate('T${turn}: ${player_name} places ${count} in ${town_label}'),
                 [
+                    'turn' => $this->round(),
                     'player_id' => $actorId,
                     'player_name' => $this->playerNameFor($actorId),
                     'count' => count($cardIds),
@@ -398,12 +472,7 @@ class Game extends \Bga\GameFramework\Table
         $delta = [];
 
         try {
-            Rules::validateProduction(
-                $towns,
-                $produce,
-                $this->scenario->productionCost,
-                $this->scenario->supplyPerTroop,
-            );
+            Rules::validateProduction($towns, $produce, $this->scenario->productionCost);
         } catch (IllegalMove $e) {
             throw new UserException($e->getMessage());
         }
@@ -431,8 +500,9 @@ class Game extends \Bga\GameFramework\Table
         foreach ($produce as $townId => $count) {
             $this->bga->notify->all(
                 'built',
-                clienttranslate('${player_name} builds ${count} in ${town_label}'),
+                clienttranslate('T${turn}: ${player_name} builds ${count} in ${town_label}'),
                 [
+                    'turn' => $this->round(),
                     'player_id' => $actorId,
                     'player_name' => $this->playerNameFor($actorId),
                     'count' => $count,
@@ -445,8 +515,9 @@ class Game extends \Bga\GameFramework\Table
         foreach ($moves as [$from, $to, $count]) {
             $this->bga->notify->all(
                 'marched',
-                clienttranslate('${player_name} marches ${count} from ${from_label} to ${to_label}'),
+                clienttranslate('T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}'),
                 [
+                    'turn' => $this->round(),
                     'player_id' => $actorId,
                     'player_name' => $this->playerNameFor($actorId),
                     'count' => $count,
@@ -479,25 +550,80 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * Troops a network cannot supply starve, and score for the Insurgency.
+     * Starve what was already warned about, then warn about the rest.
      *
-     * That is not a special scoring rule, it is the general one: the Insurgency
-     * scores every Empire troop that leaves the board, whether it was beaten
-     * off or starved off. Cutting a supply line is a way of taking troops, so
-     * it pays like one.
+     * A network that cannot feed its troops does not starve them at once. It is
+     * marked, the Empire gets its next turn to do something about it, and only
+     * if it is still short at the end of *that* turn does anybody die.
+     * Immediate attrition made massing self-defeating in a way nobody could see
+     * coming: the troops you march in are fed by the towns you marched them out
+     * of, so concentrating destroys the supply that would have fed the
+     * concentration — and the loss landed between turns, after the player had
+     * stopped looking at the board.
+     *
+     * With a turn of grace the same move becomes a decision. Mass this turn,
+     * resolve at full strength next turn — resolution comes first (Decision 4) —
+     * then either spread back out onto the supply or accept the loss.
+     *
+     * The mark is a forecast, never a reservation: what actually falls is
+     * recomputed here from the board as it stands, so repairing the line
+     * cancels it and moving troops moves where it lands.
+     *
+     * Starved troops score for the Insurgency. That is not a special scoring
+     * rule, it is the general one: the Insurgency scores every Empire troop
+     * that leaves the board, whether it was beaten off or starved off. Cutting
+     * a supply line is a way of taking troops, so it pays like one.
      *
      * @param array<string, int> $disband the Empire's choice of where to lose from
      */
     private function applyAttrition(array $disband): void
     {
         $towns = $this->board->towns();
-        $losses = Rules::attritionPlan($towns, $this->scenario->supplyPerTroop, $disband);
-        if (!$losses) {
-            return;
+        $plan = Rules::attritionPlan($towns, $this->scenario->supplyPerTroop, $disband);
+
+        // Only networks already carrying a warning lose anybody. One that has
+        // just gone short is marked below instead.
+        $losses = [];
+        foreach (Rules::components($towns) as $component) {
+            $warned = false;
+            foreach ($component as $townId) {
+                if ($towns[$townId]['starving'] > 0) {
+                    $warned = true;
+                    break;
+                }
+            }
+            if (!$warned) {
+                continue;
+            }
+            foreach ($component as $townId) {
+                if (($plan[$townId] ?? 0) > 0) {
+                    $losses[$townId] = $plan[$townId];
+                }
+            }
         }
 
-        $this->board->adjustTroops(array_map(fn(int $count) => -$count, $losses));
+        if ($losses) {
+            $this->board->adjustTroops(array_map(fn(int $count) => -$count, $losses));
+            $this->reportStarvation($losses);
+        }
 
+        // Whatever is still short is next turn's warning; anything that came
+        // good is cleared, which is what makes repairing the line pay.
+        $forecast = Rules::attritionPlan(
+            $this->board->towns(),
+            $this->scenario->supplyPerTroop,
+            $disband,
+        );
+        $this->board->setStarving($forecast);
+
+        $this->bga->notify->all('starvationWarning', '', ['starving' => $forecast]);
+    }
+
+    /**
+     * @param array<string, int> $losses town id => troops that starved
+     */
+    private function reportStarvation(array $losses): void
+    {
         $starved = array_sum($losses);
         $points = $starved * $this->scenario->unitStrength();
         $insurgencyId = $this->playerIdForSide(Rules::INSURGENCY);
@@ -505,8 +631,9 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'troopsStarved',
-            clienttranslate('${count} Empire troops starve for want of supply in ${town_labels} — ${player_name} scores ${points}'),
+            clienttranslate('T${turn}: ${count} Empire troops starve for want of supply in ${town_labels} — ${player_name} scores ${points}'),
             [
+                'turn' => $this->round(),
                 'count' => $starved,
                 'points' => $points,
                 'losses' => $losses,
@@ -569,8 +696,9 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'cardsRevealed',
-            clienttranslate('${player_name} turns ${count} cards face up in ${town_labels}'),
+            clienttranslate('T${turn}: ${player_name} turns ${count} cards face up in ${town_labels}'),
             [
+                'turn' => $this->round(),
                 'player_id' => $actorId,
                 'player_name' => $this->playerNameFor($actorId),
                 'count' => array_sum(array_map('count', $revealed)),
@@ -699,6 +827,8 @@ class Game extends \Bga\GameFramework\Table
 
         $this->setToMove($this->scenario->firstPlayer);
         $this->bga->globals->set(self::G_ROUND, 1);
+        $this->bga->globals->set(self::G_END_OFFERED_EMPIRE, 0);
+        $this->bga->globals->set(self::G_END_OFFERED_INSURGENCY, 0);
         // Must exist before anything increments it: BGA refuses to inc a global
         // that was never set, rather than treating it as zero.
         $this->bga->globals->set(self::G_BOT_SCORE, 0);

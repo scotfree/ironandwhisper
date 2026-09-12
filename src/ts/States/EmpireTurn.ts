@@ -1,4 +1,5 @@
 import { Game } from "../Game";
+import { endOfferHtml, endOfferLabel } from "../EndOffer";
 
 /**
  * The Empire raises a troop and marches.
@@ -23,6 +24,8 @@ export class EmpireTurn {
     private moves: StagedMove[] = [];
     private source: string | null = null;
     private step: 'build' | 'move' = 'build';
+    /** Standing offer to end the game, sent with the turn. */
+    private offerEnd = false;
     private args: EmpireTurnArgs;
 
     constructor(
@@ -37,6 +40,8 @@ export class EmpireTurn {
         this.args = {
             production: args?.production ?? {},
             networks: args?.networks ?? [],
+            offeredEnd: args?.offeredEnd ?? false,
+            opponentOfferedEnd: args?.opponentOfferedEnd ?? false,
         };
         this.reset();
 
@@ -69,6 +74,8 @@ export class EmpireTurn {
         this.moves = [];
         this.source = null;
         this.step = this.buildable().length > 0 ? 'build' : 'move';
+        // An offer stands until it is withdrawn, so it starts where it was left.
+        this.offerEnd = this.args.offeredEnd;
     }
 
     /** Towns that can build at least one troop this turn. */
@@ -79,20 +86,14 @@ export class EmpireTurn {
     /**
      * How many more troops this town may build, given what is already staged.
      *
-     * Two production towns in one network draw on the same ceiling, so the
-     * spare has to be counted per network rather than per town.
+     * Its own production rate is the only limit. Supply is not: a network's
+     * ceiling caps what it can keep, not what it can raise, and building past
+     * it is legal — the panel warns instead, because attrition gives a turn of
+     * grace and the troops may well be marched out to supply before it falls.
      */
     private buildRoom(townId: string): number {
         const offered = this.args.production[townId] ?? 0;
-        const network = this.game.board.networkOf(townId);
-        if (!network) {
-            return 0;
-        }
-
-        const staged = network.towns.reduce((total, id) => total + (this.produce[id] ?? 0), 0);
-        const spare = network.ceiling - network.troops - staged;
-
-        return Math.max(0, Math.min(offered - (this.produce[townId] ?? 0), spare));
+        return Math.max(0, offered - (this.produce[townId] ?? 0));
     }
 
     // -- staging ------------------------------------------------------------
@@ -242,6 +243,9 @@ export class EmpireTurn {
             lines.push(`<div class="iaw-hint">${_('Supply here')}: ${network.troops} / ${network.ceiling}</div>`);
         }
 
+        lines.push(this.supplyWarningHtml());
+        lines.push(endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
+
         this.moves.forEach(move => {
             lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
                         ${_('to')} <b>${this.townLabel(move.to)}</b></div>`);
@@ -264,6 +268,31 @@ export class EmpireTurn {
         }
 
         return lines.join('');
+    }
+
+    /**
+     * What the turn being staged does to supply, judged on the board as it will
+     * stand once it is committed — massing changes which towns are occupied, so
+     * it changes the networks and not merely their load.
+     *
+     * The distinction that matters is whether a network is already under
+     * notice. One that has just gone short is only marked; one that was marked
+     * last turn loses its excess at the end of this one.
+     */
+    private supplyWarningHtml(): string {
+        const over = this.game.board.overSupplied(townId => this.projected(townId));
+        if (!over.length) {
+            return '';
+        }
+
+        return over.map(network => {
+            const where = network.towns.map(id => this.townLabel(id)).join(', ');
+            return network.warned
+                ? `<div class="iaw-warning"><b>${network.over} ${_('troops starve at the end of this turn')}</b>
+                   — ${where} ${_('cannot feed them. Take ground or spread out to stop it.')}</div>`
+                : `<div class="iaw-warning">${network.over} ${_('troops are short of supply')}
+                   — ${where}. ${_('They starve at the end of your next turn unless the line is repaired.')}</div>`;
+        }).join('');
     }
 
     private buttons(): void {
@@ -295,6 +324,11 @@ export class EmpireTurn {
             this.reset();
             this.refresh();
         }, { color: 'secondary' });
+
+        this.bga.statusBar.addActionButton(endOfferLabel(this.offerEnd), () => {
+            this.offerEnd = !this.offerEnd;
+            this.refresh();
+        }, { color: 'secondary' });
     }
 
     private townLabel(townId: string): string {
@@ -307,6 +341,7 @@ export class EmpireTurn {
         this.bga.actions.performAction('actCommitTurn', {
             produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
+            offerEnd: this.offerEnd ? '1' : '0',
             // Attrition falls where the server decides unless told otherwise;
             // choosing which garrison starves is not yet exposed here.
             disband: JSON.stringify({}),

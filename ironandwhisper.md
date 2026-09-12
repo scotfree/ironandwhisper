@@ -62,7 +62,7 @@ Resolution comes first on both turns and is settled before anything else happens
 
 ### Empire turn
 1. Optionally declare a **resolution** on one town where the Empire has at least one troop. It resolves at once, against the cards already standing there.
-2. **Generate**: add one new troop to any town that already contains at least one Empire troop. If the Empire has no troops left anywhere, it may instead raise the troop in any unresolved town.
+2. **Generate**: raise troops in any producing town the Empire **holds** — meaning it has troops there, *or* it won the town at a resolution. A garrison on the spot is not required, so a factory the Empire has already taken goes on building once the garrison marches off. An empty town nobody has taken builds for nobody. Supply does not limit this: overshooting the ceiling is legal and settled by attrition a turn later. The rebels *winning* the town stops it permanently.
 3. **Move troops**: any or all troops may move up to their Movement in edges. Troops are not required to move. Resolved towns are ordinary terrain — pacified and passable, simply no longer contestable. A garrison that just *won* its town in step 1 may march straight out of it.
 4. **Look**: any troop that did *not* move this turn may spend its Peek to secretly examine cards in its town.
 
@@ -105,11 +105,17 @@ Because commitment is permanent, waiting costs resources: the longer a town goes
 
 ## End of the Game
 
-The Insurgency deck is **finite and never reshuffles**. When it is exhausted and the Insurgency can no longer refill its hand, the game ends: **every remaining unresolved town resolves simultaneously**, by the normal rules, and all resulting points are scored.
+The Insurgency deck is **finite and never reshuffles**. When it is exhausted and the Insurgency can no longer refill its hand, the game ends: **every remaining town anybody committed to resolves simultaneously**, by the normal rules, and all resulting points are scored. A town neither side ever set foot in — no troops, no cards — is left open instead. Presence is required to resolve a town (Decision 5), and that holds for the sweep as much as for a declared resolution: such a town is worth nothing to either side by definition, and handing it to whoever wins ties is noise on the board and in the log.
 
 Whoever has the most points wins.
 
 This means unresolved towns are never *safe* — only deferred. Declaring a resolution is not how you score; it is how you **lock in a result before the opponent can reverse it**.
+
+There are three other ways the game ends, all of which do the same thing — resolve everything still standing, at once:
+
+- **Every town is resolved.** There is nothing left to play for.
+- **The Empire is eliminated**: no troops on the board, and no town left that will build it any. It can never act again, so the remaining turns would be the Insurgency placing cards nobody will contest. This costs the Insurgency nothing, because an undefended town is worth zero to it under capture-only scoring.
+- **Both sides agree to stop.** Either player may put up a standing **offer to end**, and withdraw it again; when both offers are up, the game ends. This is *not* a pass in the turn-skipping sense — skipping a turn would stop the deck draining, and two cautious players could then stall forever, which is the failure this whole decision exists to prevent. It is an agreement, and it is not free: mass resolution settles every outstanding fight at the strength standing in it today, so agreeing to end is a real decision rather than a way of leaving the room. In a solo game one offer is enough, since the bot has no opinion to give.
 
 ---
 
@@ -183,11 +189,13 @@ A poor town can be a depot; a rich one can be unable to build anything.
 
 **Networks.** A town is in an Empire network if the Empire stands in it, and two occupied towns are linked if the map links them. Each network's supply is summed and divided by `supply_per_troop`: that is the most troops it can keep standing. Networks pool separately, so cutting one in half gives two smaller ceilings.
 
-**Building.** A town with production and a garrison may raise troops there, up to its own production and up to the spare ceiling of its network. Troops appear where they were built and march from there — there is no teleporting to the front, so distance is real.
+**Building.** A production town raises troops up to its own production, provided the Empire **holds** it — standing in it counts, and so does having won it. Requiring troops *on the spot* was a chicken-and-egg: an Empire that lost the last troop in a factory it had already taken could never raise another there, and the rest of the game played itself out for nothing. Requiring nothing at all was worse in the other direction: the Empire drew troops out of a production town it had never been near, a free second factory it never had to take. The rebels winning the town stops it for good, which makes a production town the sharpest target on the board for a side whose scoring is otherwise capture-only. Supply is **not** a limit on building: the ceiling caps what a network can *keep*, not what it can raise, and building past it is legal — attrition settles it a turn later, with a mark on the board in between. So you may raise troops and march them out to the supply that will feed them in the same motion, and you may deliberately overshoot in the knowledge that you have a turn to find them ground. Troops appear where they were built and march from there — there is no teleporting to the front, so distance is real.
 
 **Denial.** A town the Insurgency wins supplies nothing and builds nothing, ever again. The Empire may march back into it — the town is resolved, so it can never be contested a second time — and it will hold a line through it, but it will never feed one. This is what makes taking a town worth something lasting to a side that cannot build a network of its own: it does not capture supply, it destroys it.
 
-**Attrition.** A network that cannot supply its troops starves them, at the end of the Empire's turn. End of turn rather than start, so a line the Insurgency cut can be answered: the Empire gets exactly one turn to march it back together or accept the loss. Starved troops score for the Insurgency.
+**Attrition.** A network that cannot supply its troops does not starve them at once. At the end of the Empire's turn every town in a short network is **marked**, showing how many of its troops are forecast to go. If the network is still short at the end of the Empire's *next* turn, those troops starve and score for the Insurgency. Repair the line in between — take ground, or spread back out onto supply you abandoned — and the mark clears with nobody lost.
+
+The mark is a forecast, not a reservation: what actually falls is recomputed when it falls, so moving troops moves where it lands. Within a town there is no choice to make, because a town holds a count of troops rather than troops; across a network, losses come off the largest garrisons first unless the Empire names somewhere.
 
 **Why:** this is the Empire's whole character in one subsystem. It does not out-fight the Insurgency, it out-organises it — and an organisation can be cut. It also produces the tension the game needs from the Empire's side: **spread for economy, concentrate for battle.** Supply is per town, so thinning out raises your ceiling; attack strength is local, so thin garrisons lose fights and are removed. The two pull against each other every turn.
 
@@ -240,6 +248,14 @@ Under Decision 9, this is less punishing than it sounds: **dummies are free to l
 ### 6a. The Insurgency scores every Empire troop that leaves the board
 
 **Why:** it is the same rule it always had — score the strength you take off the enemy — but it now covers two ways of taking it. Beat a garrison at a resolution and you score it. Cut the supply line that fed it and it starves, and you score that too.
+
+**Why supply does not cap building.** It caps how many troops a network can *keep*. Making it cap production too was one word doing two jobs, and it cost the Empire a natural move: raise troops and march them out to the ground that will feed them, in one turn. It also meant a network at its ceiling had an idle factory, which reads as a bug at the table rather than as a rule. Building past it is now legal, and the overshoot is charged to attrition — which, with a turn of grace, makes it a stated risk instead of an instant loss.
+
+**Why attrition waits a turn.** Because massing was self-defeating in a way nobody could see coming. Supply comes only from towns the Empire *occupies*, so concentrating an army destroys the supply that would have fed it: march eight troops into one town out of three and the ceiling collapses at the moment they arrive. Under immediate attrition six of them died inside the commit, between the player's turn and the opponent's, at the one point in the game where nobody is looking at the board — and the rebels then resolved the town against the two survivors.
+
+A turn of grace makes the same move a decision instead of an ambush. Mass this turn; resolve at full strength next turn, since resolution comes first (Decision 4); then either spread back out onto the supply or accept the loss and consolidate. It also subsumes the older reason for ending attrition at the end of the turn rather than the start — a line the Insurgency cut can still be answered, with a full turn to do it in rather than the remainder of one.
+
+The mark is public, because the networks are computed from the board and anyone can see them. An overextended Empire is visible, and the Insurgency's counter is to decline the fight and wait: resolving a town whose garrison is about to starve pays for troops that were leaving anyway.
 
 This is what keeps the Insurgency's strategy and its scoring pointed the same way. Severing a line is the most narratively rebel thing in the game, and it would be odd if it paid nothing. It also gives the Empire a real decision with no rule attached: **how close to your ceiling dare you run?** An army at maximum loses troops the moment anything is cut; slack costs tempo and buys resilience.
 
@@ -320,4 +336,4 @@ Explicitly **out of the MVP**. These are the directions worth growing into once 
 - Intrinsic town values (small towns vs. cities) so *where* you fight matters, not just how hard.
 
 **Flow variants:**
-- A Go-style **mutual pass**: if both players pass, flip and resolve all remaining towns at once.
+- ~~A Go-style **mutual pass**~~ — built, 2026-09-11. See Decision 1.
