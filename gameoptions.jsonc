@@ -23,5 +23,33 @@
       }
     },
     "default": 0
+  },
+
+  // Which bot a solo game plays against. The two are genuinely different
+  // opponents rather than difficulty multipliers: Glob plays for its supply
+  // network and takes only fights it is certain of, and beats the Heuristic
+  // bot's own side about 64% of the time in self-play. Heuristic is kept
+  // because it is the port's reference implementation and the weaker game.
+  "101": {
+    "name": "Bot opponent",
+    "values": {
+      "0": {
+        "name": "Glob",
+        "description": "Resolves only battles it is certain of, spreads outward to widen its supply, and withdraws a garrison it cannot save.",
+        "tmdisplay": "Glob bot"
+      },
+      "1": {
+        "name": "Heuristic",
+        "description": "Marches at the tallest pile it can see and resolves when it likes the odds. The weaker opponent.",
+        "tmdisplay": "Heuristic bot"
+      }
+    },
+    "default": 0,
+    "displaycondition": [
+      {
+        "type": "maxplayers",
+        "value": 1
+      }
+    ]
   }
 }

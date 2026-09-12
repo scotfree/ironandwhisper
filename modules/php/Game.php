@@ -36,6 +36,19 @@ class Game extends \Bga\GameFramework\Table
     public const SIDES_FIRST_IS_EMPIRE = 1;
     public const SIDES_FIRST_IS_INSURGENCY = 2;
 
+    /**
+     * Which Empire bot a solo game plays against.
+     *
+     * Not a difficulty slider: the two play differently. Glob plays for the
+     * supply network and only takes fights it is certain of; Heuristic marches
+     * at the tallest pile it can see. Glob beats the Insurgency bot about 64%
+     * of the time and Heuristic about 0.5%, so Glob is the default and the
+     * other is kept as the port's reference implementation.
+     */
+    public const OPT_BOT = 101;
+    public const BOT_GLOB = 0;
+    public const BOT_HEURISTIC = 1;
+
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
@@ -753,8 +766,24 @@ class Game extends \Bga\GameFramework\Table
             return;
         }
 
-        $turn = Bots::empireTurn($this->scenario, $this->board->towns());
-        $this->applyEmpireTurn($turn['produce'], $turn['moves'], $turn['resolve'], [], $botId);
+        $towns = $this->board->towns();
+        $turn = $this->empireBot() === self::BOT_HEURISTIC
+            ? Bots::empireTurn($this->scenario, $towns)
+            : Bots::globEmpireTurn($this->scenario, $towns);
+
+        $this->applyEmpireTurn(
+            $turn['produce'],
+            $turn['moves'],
+            $turn['resolve'],
+            $turn['disband'] ?? [],
+            $botId,
+        );
+    }
+
+    /** Which Empire bot this table chose, from game option 101. */
+    private function empireBot(): int
+    {
+        return (int) ($this->bga->tableOptions->get(self::OPT_BOT) ?? self::BOT_GLOB);
     }
 
     // -- data feed ----------------------------------------------------------

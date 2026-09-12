@@ -20,10 +20,15 @@ from .engine import (
     Side,
     ceiling,
     component_of,
+    empire_components,
+    empire_holds,
     headroom,
     legal_resolutions,
     production_capacity,
     production_sites,
+    resolve_town,
+    town_production,
+    town_supply,
     troops_in,
 )
 
@@ -352,7 +357,392 @@ class HeuristicEmpire:
         return EmpireTurn(produce=produce, moves=_hold(moves, resolve), resolve=resolve)
 
 
+class GlobEmpire:
+    """Plays for the supply network, and only fights battles it has already won.
+
+    The heuristic Empire above marches at the tallest pile it can find and
+    resolves on a ratio it believes in. This one does neither. It plays the way
+    the game has actually been played well at a table:
+
+    * resolve only a *certain* win, judged against the worst the face-down
+      cards could possibly be;
+    * then spread outward in a wave, because the ceiling is what keeps an army
+      alive and a three-card hand cannot contest three new towns at once;
+    * and withdraw a garrison that has fallen behind rather than feed it in.
+
+    The objective is *ceiling*, not points. Points arrive as a by-product of
+    resolving towns it was already safe in — which is why an expansion prefers
+    a seeded town it can beat over an empty one: the supply is the same and the
+    influence is free.
+
+    retreat_margin  how far behind a garrison may fall before it withdraws
+
+    The margin is large on purpose. `worst_case` assumes every face-down card
+    is the best in the deck, and at baseline the deck is 40% bluffs, so a pile
+    that *could* beat a garrison by two usually does not. A sweep over 500 games
+    per setting puts the Empire at 44% at a margin of 3, 64% at 5, 66% at 6 and
+    back to 46% at 14 — a broad plateau rather than the cliffs the parameter
+    sweeps usually find. Retreating too eagerly hands towns to bluffs; never
+    retreating feeds garrisons into piles that really were tall.
+    """
+
+    def __init__(self, rng: random.Random | None = None, retreat_margin: int = 5):
+        self.rng = rng or random.Random()
+        self.retreat_margin = retreat_margin
+
+    # -- what the Empire is entitled to know --------------------------------
+
+    @staticmethod
+    def worst_case(state: GameState, town) -> int:
+        """The most influence this pile could possibly be hiding.
+
+        Face-up cards count exactly. A look moves a card out of the pile and on
+        to the table, so everything this bot has peeked at is already in
+        `revealed` and is used here without any extra bookkeeping. Whatever is
+        still face down is assumed to be the best card in the deck.
+
+        This is an upper bound on real influence, which is what makes a
+        resolution against it *certain* rather than merely likely.
+        """
+        cap = state.scenario.max_card_influence
+        return sum(c.influence for c in town.revealed) + len(town.pile) * cap
+
+    def _garrison_needed(self, state: GameState, town) -> int:
+        """Troops required to hold this town against anything it could hide."""
+        if town.resolved:
+            return 0
+        strength = state.scenario.unit.strength
+        return -(-self.worst_case(state, town) // strength)  # ceiling division
+
+    # -- the turn ------------------------------------------------------------
+
+    def choose(self, state: GameState) -> EmpireTurn:
+        # Everything is planned against a copy of the board with the resolution
+        # already applied, in the engine's own order: resolve, build, march.
+        # Planning the march *before* the build is what implements "overbuild is
+        # fine if this turn's moves cover it" — by the time production is chosen
+        # the new ceiling is a fact rather than a promise.
+        board = state.clone()
+
+        resolve = self._resolution(board)
+        if resolve is not None:
+            resolve_town(board, resolve, Side.EMPIRE)
+
+        # Production is legal against the board as it stands when the troops are
+        # built — before the march — but it is *paid for* by the network the
+        # march leaves behind. So the sites come from `standing` and the ceiling
+        # from `board`, which is the same clone once the moves are applied.
+        standing = board.clone()
+        moves = self._moves(board)
+        produce = self._production(standing, board)
+        for town_id, count in produce.items():
+            board.towns[town_id].troops += count
+
+        return EmpireTurn(
+            produce=produce,
+            moves=moves,
+            resolve=resolve,
+            disband=self._disband(board),
+        )
+
+    # -- phase 1: resolve ----------------------------------------------------
+
+    def _resolution(self, board: GameState) -> str | None:
+        """Take a certain win, richest first; never a gamble.
+
+        An empty town is a certain win worth nothing, and worth taking anyway
+        when there is nothing better: it locks the town's supply and production
+        to the Empire for the rest of the game.
+
+        A win here is certain, so the garrison is *not* spent (Decision 3) and
+        may march out in the same turn. That is why this bot does not use the
+        `_hold` guard the others do — the guard exists for a bot that cannot
+        know how its fight went, and this one has already checked.
+        """
+        best, best_key = None, None
+        for town in board.unresolved:
+            if town.troops <= 0:
+                continue
+            if town.troops * board.scenario.unit.strength < self.worst_case(board, town):
+                continue
+            # Richest first for the points; then a production town, whose
+            # ownership survives the garrison marching away; then stable.
+            key = (self.worst_case(board, town), town_production(board, town.id), town.id)
+            if best_key is None or key > best_key:
+                best, best_key = town.id, key
+        return best
+
+    # -- phase 2: march ------------------------------------------------------
+
+    def _moves(self, board: GameState) -> list[tuple[str, str, int]]:
+        """Reinforce or withdraw what is losing, then spread into what is free.
+
+        The board is mutated as moves are committed, so each decision sees the
+        consequences of the last one. `origin` and `departed` track what may
+        still legally leave a town: the engine checks departures against the
+        garrison as it stood at the start of the turn, before any arrivals.
+        """
+        origin = {tid: t.troops for tid, t in board.towns.items()}
+        departed: dict[str, int] = {}
+        moves: list[tuple[str, str, int]] = []
+        tolerated = _overage(board)
+
+        def available(town_id: str) -> int:
+            """Troops in this town that have not already been ordered out."""
+            return origin[town_id] - departed.get(town_id, 0)
+
+        def spare(town_id: str) -> int:
+            """What can leave without abandoning a town we are winning."""
+            town = board.towns[town_id]
+            keep = self._garrison_needed(board, town)
+            return max(0, min(available(town_id), town.troops - keep))
+
+        def commit(src: str, dst: str, quantity: int) -> bool:
+            """Apply a move if the networks it leaves behind can still eat."""
+            board.towns[src].troops -= quantity
+            board.towns[dst].troops += quantity
+            if _overage(board) > tolerated:
+                board.towns[src].troops += quantity
+                board.towns[dst].troops -= quantity
+                return False
+            departed[src] = departed.get(src, 0) + quantity
+            moves.append((src, dst, quantity))
+            return True
+
+        self._rescue(board, available, spare, commit)
+        self._expand(board, commit, spare)
+        return moves
+
+    def _rescue(self, board, available, spare, commit) -> None:
+        """Reinforce a garrison that can be saved; withdraw one that cannot.
+
+        A town is in trouble when the worst its pile could be beats the troops
+        standing in it by `retreat_margin` or more. Being behind by one is left
+        alone: the pile is an upper bound, not a reading, and a single card is
+        as likely to be a bluff as a threat.
+
+        Reinforcement is all-or-nothing. Sending two troops into a town that
+        needs three loses three troops instead of one, which is the mistake the
+        margin exists to stop.
+        """
+        strength = board.scenario.unit.strength
+
+        def deficit(town) -> int:
+            return self.worst_case(board, town) - town.troops * strength
+
+        troubled = sorted(
+            (t for t in board.unresolved if t.troops > 0 and deficit(t) >= self.retreat_margin),
+            key=deficit,
+            reverse=True,
+        )
+
+        for town in troubled:
+            wanted = self._garrison_needed(board, town) - town.troops
+            helpers = sorted(
+                (n for n in town.neighbors if spare(n) > 0),
+                key=spare,
+                reverse=True,
+            )
+            if sum(spare(n) for n in helpers) >= wanted:
+                for helper in helpers:
+                    if wanted <= 0:
+                        break
+                    sending = min(spare(helper), wanted)
+                    if commit(helper, town.id, sending):
+                        wanted -= sending
+                if wanted <= 0:
+                    continue
+                # The supply check refused part of the relief; fall through and
+                # treat the town as unsavable rather than leave it half-fed.
+
+            retreat = self._retreat_to(board, town)
+            if retreat is not None:
+                commit(town.id, retreat, available(town.id))
+            else:
+                # Nowhere safe to go: mass here instead and come back at it
+                # later as one stack rather than a trickle.
+                for helper in helpers:
+                    commit(helper, town.id, spare(helper))
+
+    def _retreat_to(self, board: GameState, town) -> str | None:
+        """The best neighbouring town to fall back into, or None to stand fast.
+
+        Falling back is only worth it if the destination is somewhere the
+        garrison is safe and still fed: a town the rebels have already won
+        supplies nothing, and a town with a taller pile than this one is the
+        same mistake one step sideways.
+        """
+        strength = board.scenario.unit.strength
+        arriving = town.troops
+        best, best_key = None, None
+        for neighbor_id in town.neighbors:
+            neighbor = board.towns[neighbor_id]
+            if neighbor.resolved and neighbor.winner is Side.INSURGENCY:
+                continue  # permanently barren ground
+            garrison = (neighbor.troops + arriving) * strength
+            if garrison < self.worst_case(board, neighbor):
+                continue  # losing there too
+            key = (
+                neighbor.resolved,                      # settled ground first
+                neighbor.troops > 0,                    # then somewhere we stand
+                town_supply(board, neighbor_id),
+                neighbor_id,
+            )
+            if best_key is None or key > best_key:
+                best, best_key = neighbor_id, key
+        return best
+
+    def _expand(self, board: GameState, commit, spare) -> None:
+        """Spread into every free town this turn's troops can certainly hold.
+
+        Taken one at a time, re-deriving the options after each, because every
+        move changes the network and therefore what the next one can afford.
+        The preference is for a *seeded* town over an empty one: the supply is
+        identical and the influence is points the Empire will collect when it
+        resolves the town next turn.
+        """
+        toward = _production_distance(board)
+        strength = board.scenario.unit.strength
+
+        while True:
+            candidates = []
+            for source in board.towns.values():
+                if spare(source.id) <= 0:
+                    continue
+                for target_id in source.neighbors:
+                    target = board.towns[target_id]
+                    if target.resolved or target.troops > 0:
+                        continue
+                    needed = max(1, -(-self.worst_case(board, target) // strength))
+                    if needed > spare(source.id):
+                        continue  # cannot be sure of it, so not worth the troops
+                    key = (
+                        self.worst_case(board, target),      # points, if any
+                        town_supply(board, target_id),       # ceiling
+                        town_production(board, target_id),
+                        -toward.get(target_id, 99),          # toward a factory
+                        target_id,
+                    )
+                    candidates.append((key, (source.id, target_id, needed)))
+
+            candidates.sort(key=lambda pair: pair[0], reverse=True)
+            # The first move the supply check will accept. A refusal is not the
+            # end of expansion: a cheaper town somewhere else may still fit.
+            if not any(commit(*move) for _, move in candidates):
+                return
+
+    # -- phase 3: build ------------------------------------------------------
+
+    def _production(self, standing: GameState, board: GameState) -> dict[str, int]:
+        """Build up to the ceiling the board will have once the marching is done.
+
+        `standing` is the board at the moment the troops are raised, which is
+        what decides where building is legal at all; `board` is the board the
+        march leaves behind, which is what has to feed them. Because the march
+        is already planned, an overbuild the network is about to grow into is
+        simply a build that fits — which is the whole of "you may build past the
+        ceiling if you are sure you will reach the supply this turn".
+        """
+        produce: dict[str, int] = {}
+        spare: dict[frozenset[str], int] = {}
+        for site in production_sites(standing):
+            component = component_of(board, site) or {site}
+            network = frozenset(component)
+            if network not in spare:
+                # A site the garrison has marched out of is its own little
+                # network once the new troops appear in it: nothing links to it,
+                # so it is fed by its own supply and nothing else.
+                spare[network] = max(
+                    0, ceiling(board, component) - troops_in(board, component)
+                )
+            want = min(production_capacity(standing, site), spare[network])
+            if want > 0:
+                produce[site] = want
+                spare[network] -= want
+        return produce
+
+    # -- phase 4: attrition --------------------------------------------------
+
+    def _disband(self, board: GameState) -> dict[str, int]:
+        """Name where losses should fall so they do not cut the line.
+
+        Left alone, attrition takes from the largest garrison, which is often a
+        junction. A town with more troops than the network is over can give some
+        up without emptying, and an emptied town that nothing else routes
+        through costs only its own supply. Anything not named here is still
+        available to the engine, so this is a preference, not a constraint.
+        """
+        disband: dict[str, int] = {}
+        for component in empire_components(board):
+            over = troops_in(board, component) - ceiling(board, component)
+            if over <= 0:
+                continue
+            for town_id in sorted(component, key=lambda t: -board.towns[t].troops):
+                troops = board.towns[town_id].troops
+                if troops > over or not _is_junction(board, component, town_id):
+                    disband[town_id] = troops
+        return disband
+
+
+def _overage(state: GameState) -> int:
+    """Troops across the whole board that their networks cannot feed."""
+    return sum(
+        max(0, troops_in(state, component) - ceiling(state, component))
+        for component in empire_components(state)
+    )
+
+
+def _is_junction(state: GameState, component: set[str], town_id: str) -> bool:
+    """Whether emptying this town would break its network in two."""
+    rest = component - {town_id}
+    if len(rest) <= 1:
+        return False
+    start = next(iter(rest))
+    seen = {start}
+    frontier = [start]
+    while frontier:
+        current = frontier.pop()
+        for neighbor in state.towns[current].neighbors:
+            if neighbor in rest and neighbor not in seen:
+                seen.add(neighbor)
+                frontier.append(neighbor)
+    return seen != rest
+
+
+def _production_distance(state: GameState) -> dict[str, int]:
+    """Hops from each town to the nearest factory the Empire does not hold.
+
+    Used only as a tie-break: when two expansions look equally good, take the
+    one that walks toward a second production town.
+    """
+    targets = [
+        t.id for t in state.towns.values()
+        if town_production(state, t.id) > 0 and not empire_holds(state, t.id)
+    ]
+    distance = {tid: 0 for tid in targets}
+    frontier = list(targets)
+    while frontier:
+        current = frontier.pop(0)
+        for neighbor in state.towns[current].neighbors:
+            if neighbor not in distance:
+                distance[neighbor] = distance[current] + 1
+                frontier.append(neighbor)
+    return distance
+
+
 BOTS = {
     "random": (RandomEmpire, RandomInsurgency),
     "heuristic": (HeuristicEmpire, HeuristicInsurgency),
+    "glob": (GlobEmpire, HeuristicInsurgency),
+}
+
+EMPIRE_BOTS = {
+    "random": RandomEmpire,
+    "heuristic": HeuristicEmpire,
+    "glob": GlobEmpire,
+}
+
+INSURGENCY_BOTS = {
+    "random": RandomInsurgency,
+    "heuristic": HeuristicInsurgency,
 }

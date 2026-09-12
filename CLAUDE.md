@@ -13,7 +13,7 @@ reasoning behind every decision.
 ## CRITICAL
 
 **The rules are settled and encoded in `sim/`. Port from the simulator, not from memory.**
-`sim/engine.py` is the executable specification and `sim/test_engine.py` has 45 tests, each
+`sim/engine.py` is the executable specification and `sim/test_engine.py` has 50 tests, each
 named for the design decision it pins down. If the PHP disagrees with the simulator, the
 PHP is wrong. `tests/test_rules.php` mirrors those cases in PHP — when you change a rule,
 change it in both places and in `ironandwhisper.md`.
@@ -146,7 +146,7 @@ since the first port; several sessions of real play have driven that.
 
 Done:
 - BGA Studio project `ironandwhisper`, deploying cleanly over SFTP with a client build.
-- Full rules simulator, bots, 50 tests, an exploration notebook, and a batch runner.
+- Full rules simulator, bots, 67 tests, an exploration notebook, and a batch runner.
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Bots`, `Board`, `View`, `Game`,
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
@@ -182,8 +182,12 @@ Done:
   is, and reshuffles when the army changes; randomising per render would make it unreadable.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
-- **82 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+- **97 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
+- **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,
+  `Bots::globEmpireTurn`), and game option 101 to choose between it and the heuristic bot
+  in a solo game. It beats the heuristic Insurgency **64%** of the time where the old
+  Empire bot managed 0.5%. See *The Empire bot that works* below.
 
 Not done, in rough order of how much it hurts:
 
@@ -193,19 +197,24 @@ Not done, in rough order of how much it hurts:
   the forecast is *shown* a turn ahead, the case for letting a player redirect it is
   stronger. `disband` names a per-town cap; the PHP's cap was unreachable dead code until
   the grace turn made the plan visible, and is now fixed and matched to the simulator.
-- **The Empire bot does not understand supply when marching.** `empireMoves` marches toward
-  attractive piles without checking what abandoning a town does to the ceiling, so it
-  routinely walks itself into starvation and donates the points. Discount solo games
-  accordingly.
-- **The bots cannot exercise the last few rules changes.** Neither builds past the ceiling
-  nor uses the grace turn, and the Empire bot never masses deliberately — so the moves the
-  grace turn and the production rule were built for are invisible to self-play. Bot numbers
-  now measure whether the port matches the simulator, not whether the game is good. The
-  table is the better instrument.
-- **The Empire is at ~0.5% against the bots and losing badly at the table too.** Hand size
-  and the starting garrison are both spent as levers (see the notes above each). The next
-  moves are **graded cards** and **troop strength above 1** — open question 2 — and they
-  are now the only ones left with real headroom.
+- **The *heuristic* Empire bot does not understand supply when marching.** `empireMoves`
+  marches toward attractive piles without checking what abandoning a town does to the
+  ceiling, so it routinely walks itself into starvation and donates the points. `GlobEmpire`
+  was written because of this and does not share the fault; the heuristic bot is kept as the
+  port's reference implementation and as the weaker opponent.
+- **The Insurgency bot has not had the same treatment.** It still spreads by expected value
+  and scatters bluffs at random, and it is now much the weaker of the two. Every number
+  below is measured against it, so read them as "how well does the Empire do against a
+  mediocre rebel", not as balance.
+- **The Empire is losing badly at the table, and that has not changed.** What changed is
+  that the *bot* now wins, which mostly says the old bot was bad. Hand size and the starting
+  garrison are both spent as levers (see the notes above each). The next moves are still
+  **graded cards** and **troop strength above 1** — open question 2.
+- **`GlobEmpire`'s certainty test does not survive graded cards.** It resolves when troops
+  beat `revealed + pile height x the best card in the deck`, which is exact at baseline
+  where cards are 0 or 1 and useless at `graded36`, where every face-down card is assumed to
+  be a 3 and almost nothing is ever certain. It plays legally there and wins 0%. Putting
+  graded cards back means giving it a quantile or expected-value test instead.
 - No stats in `stats.jsonc`, no tie-breaker, no animations, no art.
 
 Unverified, and worth checking first thing on the Studio: **BGA caches game metadata
@@ -302,8 +311,9 @@ duplicating the graph.
 ## The simulator
 
 ```bash
-sim/.venv/bin/python -m pytest sim -q            # 33 tests
+sim/.venv/bin/python -m pytest sim -q            # 67 tests
 sim/.venv/bin/python -m sim.run --games 500      # batch runner
+sim/.venv/bin/python -m sim.run --games 500 --bots glob   # the good Empire bot
 sim/.venv/bin/jupyter notebook notebooks/exploration.ipynb
 ```
 
@@ -388,12 +398,68 @@ Card **ids** are public: they reveal nothing about type, the Empire already gets
 public placement notification therefore carries ids and no types; the Insurgency's client
 fills the faces in from the hand it already holds.
 
+## The Empire bot that works
+
+`GlobEmpire` in `sim/bots.py`, ported to `Bots::globEmpireTurn`. It is not a cleverer
+search than the heuristic bot — it is a *different objective*. The heuristic bot plays for
+points and marches at the tallest pile it can see; this one plays for **ceiling**, and
+collects points as a by-product of resolving towns it was already safe in. It is a
+transcription of how the game is actually played well at a table, and it takes the Empire
+from 0.5% against the Insurgency bot to **64%**.
+
+The rules, in the order the turn applies them:
+
+1. **Resolve only a certain win.** `worstCase = revealed influence + pile height x the best
+   card in the deck`. Resolve if `strength >= worstCase`, ties included, and never
+   otherwise. Peeked cards need no special handling — a look moves a card face up, so it is
+   already in `revealed` and already counted exactly.
+2. **Richest certain win first**, tie-broken toward a production town, whose ownership
+   survives the garrison marching away.
+3. **An empty town is a certain win worth nothing, and worth taking anyway**: it locks the
+   ground, its supply and its production for the rest of the game.
+4. **Expand in a wave** into every free adjacent town the spare troops can certainly hold,
+   preferring a *seeded* town to an empty one — same supply, and the influence is free. One
+   move at a time, re-deriving the options after each, since every move changes the network.
+5. **Rescue or withdraw, never dribble.** A garrison behind by `GLOB_RETREAT_MARGIN` or more
+   is either reinforced to a certain win in one motion or pulled out entirely. Half a relief
+   column loses the column as well as the town.
+6. **Build to the ceiling the march is about to create.** The march is planned *before*
+   production is chosen, so "you may build past the ceiling if you will reach the supply
+   this turn" needs no special case — by then the new ceiling is a fact.
+7. **Name attrition losses that do not cut the line** in `disband`. It is the first code
+   anywhere to use that argument.
+
+Two things about it worth keeping:
+
+**The retreat margin is large, and that is not a fudge.** `worstCase` assumes every
+face-down card is the best in the deck, and the baseline deck is 40% bluffs, so a pile that
+*could* beat a garrison by two usually does not. A sweep over 500 games per setting puts the
+Empire at 44% at a margin of 3, 60% at 4, 64% at 5, 66% at 6, 59% at 8 and 46% at 14 — a
+broad plateau, not the cliffs these sweeps usually find. The default is 5. Note the
+tradeoff: a *small* margin makes for a livelier game — at 3 it is 44%/44% with both sides
+scoring around 3.1, where at 5 the Empire wins more but both scores fall and one game in
+five is a draw. The bot wins partly by shrinking the board.
+
+**The port is checked position by position, not just statistically.** 300 random boards run
+through both engines produce byte-identical resolve, produce, moves and disband. That is a
+stronger check than `selfplay.php` can give and it is how the two were reconciled: at 1000
+games the win rates looked 4 points apart, and at 3000 they agree (PHP 63.1% / 19.6% / 17.2%
+against the simulator's 64.1% / 18.5% / 17.4%, mean scores 2.79/1.92 against 2.84/1.89),
+with rounds and towns-per-side matching to two decimals throughout. The lesson is the usual
+one: when scores are small integers and a fifth of games are draws, win rate is a noisy
+statistic and the score means settle an argument faster.
+
+`tests/test_glob.php` and `sim/test_bots.py` pin each rule above to a named test, and
+`sim/parity.py` regenerates `tests/fixtures/glob_parity.jsonl` when the bot changes
+deliberately — the simulator is the specification, so it is the PHP that moves.
+
 ## Testing the PHP
 
 ```bash
 php tests/run.php              # all of it
 php tests/run.php rules        # only files matching "rules"
-php tests/selfplay.php 1000    # bots against each other, for the win rate
+php tests/selfplay.php 1000              # bots against each other, for the win rate
+php tests/selfplay.php 1000 heuristic    # the old Empire bot, for comparison
 ```
 
 `tests/selfplay.php` is the check the unit tests cannot give. They prove the PHP does what

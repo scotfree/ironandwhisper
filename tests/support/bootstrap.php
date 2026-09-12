@@ -38,7 +38,8 @@ const P_TWO = 2345002;
  * The seed makes the deck shuffle reproducible, so a failing test fails the
  * same way twice.
  */
-function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1): Game
+function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
+                 int $botOption = Game::BOT_GLOB): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -46,6 +47,7 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1): 
 
     $game = new Game();
     $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
+    $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
 
     $players = [
         P_ONE => ['player_name' => 'One'],
@@ -62,7 +64,8 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1): 
 /**
  * A solo game: one human, and the bot on the other side.
  */
-function newSoloGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1): Game
+function newSoloGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
+                     int $botOption = Game::BOT_GLOB): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -70,6 +73,7 @@ function newSoloGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 
 
     $game = new Game();
     $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
+    $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
 
     $setup = new ReflectionMethod($game, 'setupNewGame');
     $setup->setAccessible(true);

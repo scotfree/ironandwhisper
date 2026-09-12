@@ -13,19 +13,15 @@ import random
 import statistics
 from dataclasses import dataclass
 
-from .bots import (
-    HeuristicEmpire,
-    HeuristicInsurgency,
-    RandomEmpire,
-    RandomInsurgency,
-)
+from .bots import EMPIRE_BOTS, INSURGENCY_BOTS
 from .config import Scenario, load_scenario
 from .engine import Side, play_game, winner
 
-BOT_CHOICES = {
-    "random": (RandomEmpire, RandomInsurgency),
-    "heuristic": (HeuristicEmpire, HeuristicInsurgency),
-}
+# `--bots X` is shorthand for "X on both sides where X exists". The sides are
+# named separately as well, because the interesting comparisons are mixed: a new
+# Empire bot is only worth anything measured against the same Insurgency.
+def bot_pair(empire: str, insurgency: str):
+    return EMPIRE_BOTS[empire], INSURGENCY_BOTS[insurgency]
 
 
 @dataclass
@@ -65,8 +61,8 @@ def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result
 
 
 def run_many(scenario: Scenario, games: int = 200, bots: str = "heuristic",
-             base_seed: int = 0) -> list[Result]:
-    empire_bot, insurgency_bot = BOT_CHOICES[bots]
+             base_seed: int = 0, insurgency: str | None = None) -> list[Result]:
+    empire_bot, insurgency_bot = bot_pair(bots, insurgency or bots)
     return [
         run_one(scenario, empire_bot, insurgency_bot, base_seed + i)
         for i in range(games)
@@ -121,7 +117,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", default="baseline")
     parser.add_argument("--games", type=int, default=200)
-    parser.add_argument("--bots", choices=sorted(BOT_CHOICES), default="heuristic")
+    parser.add_argument("--bots", choices=sorted(EMPIRE_BOTS), default="heuristic",
+                        help="Empire bot, and the Insurgency bot too unless "
+                             "--insurgency says otherwise")
+    parser.add_argument("--insurgency", choices=sorted(INSURGENCY_BOTS), default=None)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
                         help="override a scenario field, e.g. --set generation_rate=2")
@@ -130,9 +129,12 @@ def main() -> None:
 
     overrides = dict(parse_override(s) for s in args.set)
     scenario = load_scenario(args.scenario, **overrides)
-    results = run_many(scenario, args.games, args.bots, args.seed)
+    insurgency = args.insurgency or (
+        args.bots if args.bots in INSURGENCY_BOTS else "heuristic"
+    )
+    results = run_many(scenario, args.games, args.bots, args.seed, insurgency)
 
-    print(f"bots: {args.bots}")
+    print(f"bots: Empire {args.bots} vs Insurgency {insurgency}")
     print(summarise(results, scenario))
 
     if args.csv:

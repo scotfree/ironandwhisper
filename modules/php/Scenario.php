@@ -194,6 +194,24 @@ final class Scenario
     }
 
     /**
+     * The best card the deck can hold.
+     *
+     * An Empire that can see a pile's height but not its faces knows the pile
+     * is worth at most this much per card. That upper bound is what lets a bot
+     * tell a certain win from a likely one.
+     */
+    public function maxCardInfluence(): int
+    {
+        $best = 0;
+        foreach ($this->deck as $typeId => $quantity) {
+            if ($quantity > 0) {
+                $best = max($best, $this->influenceOf($typeId));
+            }
+        }
+        return $best;
+    }
+
+    /**
      * Insurgency turns before the deck runs out. The whole hand must be placed
      * every turn (Decision 6), so this is exact, not an estimate.
      */

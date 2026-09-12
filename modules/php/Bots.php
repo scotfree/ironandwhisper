@@ -34,6 +34,19 @@ final class Bots
     /** Don't resolve for fewer estimated points than this. */
     private const EMPIRE_MIN_SCORE = 2.0;
 
+    /**
+     * How far behind a garrison may fall before GlobEmpire withdraws it.
+     *
+     * Large on purpose. `globWorstCase` assumes every face-down card is the
+     * best in the deck, and at baseline the deck is 40% bluffs, so a pile that
+     * *could* beat a garrison by two usually does not. A sweep over 500 games
+     * per setting puts the Empire at 44% at a margin of 3, 64% at 5, 66% at 6
+     * and back to 46% at 14 — a broad plateau rather than the cliffs these
+     * sweeps usually find. Retreating too eagerly hands towns to bluffs; never
+     * retreating feeds garrisons into piles that really were tall.
+     */
+    private const GLOB_RETREAT_MARGIN = 5;
+
     // -- what the Empire is allowed to think -------------------------------
 
     /**
@@ -388,5 +401,563 @@ final class Bots
         }
 
         return $resolve;
+    }
+
+    // -- the Empire, playing for the network -------------------------------
+
+    /**
+     * Plays for the supply network, and only fights battles it has already won.
+     *
+     * `empireTurn` above marches at the tallest pile it can find and resolves
+     * on a ratio it believes in. This one does neither. It plays the way the
+     * game has actually been played well at a table: resolve only a *certain*
+     * win, judged against the worst the face-down cards could possibly be; then
+     * spread outward in a wave, because the ceiling is what keeps an army alive
+     * and a three-card hand cannot contest three new towns at once; and
+     * withdraw a garrison that has fallen behind rather than feed it in.
+     *
+     * The objective is *ceiling*, not points. Points arrive as a by-product of
+     * resolving towns it was already safe in — which is why an expansion
+     * prefers a seeded town it can beat over an empty one: the supply is the
+     * same and the influence is free.
+     *
+     * A direct port of GlobEmpire in sim/bots.py. If the two disagree, this one
+     * is wrong.
+     *
+     * @param array<string, array> $towns
+     * @return array{produce: array<string, int>, moves: array<int, array{from: string, to: string, count: int}>, resolve: ?string, disband: array<string, int>}
+     */
+    public static function globEmpireTurn(Scenario $scenario, array $towns): array
+    {
+        // Everything is planned against a copy of the board with the resolution
+        // already applied, in the engine's own order: resolve, build, march.
+        // Planning the march *before* the build is what implements "overbuild
+        // is fine if this turn's moves cover it" — by the time production is
+        // chosen the new ceiling is a fact rather than a promise.
+        $board = $towns;
+
+        $resolve = self::globResolution($scenario, $board);
+        if ($resolve !== null) {
+            $board = self::globApplyResolution($board, $resolve);
+        }
+
+        // Production is legal against the board as it stands when the troops
+        // are built — before the march — but it is *paid for* by the network
+        // the march leaves behind.
+        $standing = $board;
+        $moves = self::globMoves($scenario, $board);
+        $produce = self::globProduction($scenario, $standing, $board);
+        foreach ($produce as $townId => $count) {
+            $board[$townId]['troops'] += $count;
+        }
+
+        return [
+            'produce' => $produce,
+            'moves' => $moves,
+            'resolve' => $resolve,
+            'disband' => self::globDisband($scenario, $board),
+        ];
+    }
+
+    /**
+     * The most influence a pile could possibly be hiding.
+     *
+     * Face-up cards count exactly. A look moves a card out of the pile and on
+     * to the table, so everything the bot has peeked at is already in
+     * `revealed` and is used here without any extra bookkeeping. Whatever is
+     * still face down is assumed to be the best card in the deck.
+     *
+     * This is an upper bound on real influence, which is what makes a
+     * resolution against it *certain* rather than merely likely.
+     *
+     * @param array{pile: array, revealed: array} $town
+     */
+    public static function globWorstCase(Scenario $scenario, array $town): int
+    {
+        $known = 0;
+        foreach ($town['revealed'] as $card) {
+            $known += (int) $card['influence'];
+        }
+        return $known + count($town['pile']) * $scenario->maxCardInfluence();
+    }
+
+    /** Troops required to hold a town against anything it could be hiding. */
+    private static function globGarrisonNeeded(Scenario $scenario, array $town): int
+    {
+        if ($town['resolved']) {
+            return 0;
+        }
+        return (int) ceil(self::globWorstCase($scenario, $town) / $scenario->unitStrength());
+    }
+
+    /**
+     * Take a certain win, richest first; never a gamble.
+     *
+     * An empty town is a certain win worth nothing, and worth taking anyway
+     * when there is nothing better: it locks the town's supply and production
+     * to the Empire for the rest of the game.
+     *
+     * A win here is certain, so the garrison is *not* spent (Decision 3) and
+     * may march out in the same turn. That is why this bot does not use the
+     * "hold still where you are fighting" filter `empireTurn` does — the filter
+     * exists for a bot that cannot know how its fight went, and this one has
+     * already checked.
+     *
+     * @param array<string, array> $towns
+     */
+    private static function globResolution(Scenario $scenario, array $towns): ?string
+    {
+        $best = null;
+        $bestKey = null;
+
+        foreach ($towns as $townId => $town) {
+            if ($town['resolved'] || $town['troops'] <= 0) {
+                continue;
+            }
+            $worst = self::globWorstCase($scenario, $town);
+            if (Rules::townStrength((int) $town['troops'], $scenario->unitStrength()) < $worst) {
+                continue;
+            }
+            // Richest first for the points; then a production town, whose
+            // ownership survives the garrison marching away; then stable.
+            $key = [$worst, Rules::townProduction($town), $townId];
+            if ($bestKey === null || $key > $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * The board as it stands once a resolution the Empire is certain to win has
+     * been applied: the town freezes, the cards come off, the garrison stays.
+     *
+     * @param array<string, array> $towns
+     * @return array<string, array>
+     */
+    private static function globApplyResolution(array $towns, string $townId): array
+    {
+        $towns[$townId]['resolved'] = true;
+        $towns[$townId]['winner'] = Rules::EMPIRE;
+        $towns[$townId]['pile'] = [];
+        $towns[$townId]['revealed'] = [];
+        return $towns;
+    }
+
+    /**
+     * Reinforce or withdraw what is losing, then spread into what is free.
+     *
+     * `$board` is mutated as moves are committed, so each decision sees the
+     * consequences of the last one. `$origin` and `$departed` track what may
+     * still legally leave a town: the engine checks departures against the
+     * garrison as it stood at the start of the turn, before any arrivals.
+     *
+     * @param array<string, array> $board
+     * @return array<int, array{from: string, to: string, count: int}>
+     */
+    private static function globMoves(Scenario $scenario, array &$board): array
+    {
+        $origin = [];
+        foreach ($board as $townId => $town) {
+            $origin[$townId] = (int) $town['troops'];
+        }
+        $departed = [];
+        $moves = [];
+        $tolerated = self::globOverage($scenario, $board);
+
+        // Bound by reference, not by value: an arrow function would capture
+        // `$departed` as it was when the closure was made, which is empty.
+        /** Troops in this town that have not already been ordered out. */
+        $available = static function (string $townId) use ($origin, &$departed): int {
+            return $origin[$townId] - ($departed[$townId] ?? 0);
+        };
+
+        /** What can leave without abandoning a town we are winning. */
+        $spare = function (string $townId) use ($scenario, &$board, &$origin, &$departed): int {
+            $keep = self::globGarrisonNeeded($scenario, $board[$townId]);
+            $free = $origin[$townId] - ($departed[$townId] ?? 0);
+            return max(0, min($free, (int) $board[$townId]['troops'] - $keep));
+        };
+
+        /** Apply a move if the networks it leaves behind can still eat. */
+        $commit = function (string $from, string $to, int $count)
+            use ($scenario, &$board, &$departed, &$moves, $tolerated): bool {
+            if ($count <= 0) {
+                return false;
+            }
+            $board[$from]['troops'] -= $count;
+            $board[$to]['troops'] += $count;
+            if (self::globOverage($scenario, $board) > $tolerated) {
+                $board[$from]['troops'] += $count;
+                $board[$to]['troops'] -= $count;
+                return false;
+            }
+            $departed[$from] = ($departed[$from] ?? 0) + $count;
+            $moves[] = ['from' => $from, 'to' => $to, 'count' => $count];
+            return true;
+        };
+
+        self::globRescue($scenario, $board, $available, $spare, $commit);
+        self::globExpand($scenario, $board, $spare, $commit);
+
+        return $moves;
+    }
+
+    /**
+     * Reinforce a garrison that can be saved; withdraw one that cannot.
+     *
+     * A town is in trouble when the worst its pile could be beats the troops
+     * standing in it by RETREAT_MARGIN or more. Being behind by less is left
+     * alone: the pile is an upper bound, not a reading, and a single card is as
+     * likely to be a bluff as a threat.
+     *
+     * Reinforcement is all-or-nothing. Sending two troops into a town that
+     * needs three loses three troops instead of one, which is the mistake the
+     * margin exists to stop.
+     *
+     * @param array<string, array> $board
+     */
+    private static function globRescue(
+        Scenario $scenario,
+        array &$board,
+        callable $available,
+        callable $spare,
+        callable $commit,
+    ): void {
+        $deficit = fn(array $town): int => self::globWorstCase($scenario, $town)
+            - Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
+
+        $troubled = [];
+        foreach ($board as $townId => $town) {
+            if (!$town['resolved'] && $town['troops'] > 0
+                && $deficit($town) >= self::GLOB_RETREAT_MARGIN) {
+                $troubled[$townId] = $deficit($town);
+            }
+        }
+        arsort($troubled);
+
+        foreach (array_keys($troubled) as $townId) {
+            $wanted = self::globGarrisonNeeded($scenario, $board[$townId])
+                - (int) $board[$townId]['troops'];
+
+            $helpers = [];
+            foreach ($board[$townId]['neighbors'] as $neighbor) {
+                if ($spare($neighbor) > 0) {
+                    $helpers[$neighbor] = $spare($neighbor);
+                }
+            }
+            arsort($helpers);
+            $helperIds = array_keys($helpers);
+
+            if (array_sum($helpers) >= $wanted) {
+                foreach ($helperIds as $helper) {
+                    if ($wanted <= 0) {
+                        break;
+                    }
+                    $sending = min($spare($helper), $wanted);
+                    if ($commit($helper, $townId, $sending)) {
+                        $wanted -= $sending;
+                    }
+                }
+                if ($wanted <= 0) {
+                    continue;
+                }
+                // The supply check refused part of the relief; fall through and
+                // treat the town as unsavable rather than leave it half-fed.
+            }
+
+            $retreat = self::globRetreatTo($scenario, $board, $townId);
+            if ($retreat !== null) {
+                $commit($townId, $retreat, $available($townId));
+                continue;
+            }
+
+            // Nowhere safe to go: mass here instead and come back at it later
+            // as one stack rather than a trickle.
+            foreach ($helperIds as $helper) {
+                $commit($helper, $townId, $spare($helper));
+            }
+        }
+    }
+
+    /**
+     * The best neighbouring town to fall back into, or null to stand fast.
+     *
+     * Falling back is only worth it if the destination is somewhere the
+     * garrison is safe and still fed: a town the rebels have already won
+     * supplies nothing, and a town with a taller pile than this one is the same
+     * mistake one step sideways.
+     *
+     * @param array<string, array> $board
+     */
+    private static function globRetreatTo(Scenario $scenario, array $board, string $townId): ?string
+    {
+        $arriving = (int) $board[$townId]['troops'];
+        $best = null;
+        $bestKey = null;
+
+        foreach ($board[$townId]['neighbors'] as $neighborId) {
+            $neighbor = $board[$neighborId];
+            if ($neighbor['resolved'] && $neighbor['winner'] === Rules::INSURGENCY) {
+                continue; // permanently barren ground
+            }
+            $garrison = Rules::townStrength(
+                (int) $neighbor['troops'] + $arriving,
+                $scenario->unitStrength(),
+            );
+            if ($garrison < self::globWorstCase($scenario, $neighbor)) {
+                continue; // losing there too
+            }
+            $key = [
+                $neighbor['resolved'] ? 1 : 0,        // settled ground first
+                $neighbor['troops'] > 0 ? 1 : 0,      // then somewhere we stand
+                Rules::townSupply($neighbor),
+                $neighborId,
+            ];
+            if ($bestKey === null || $key > $bestKey) {
+                $best = $neighborId;
+                $bestKey = $key;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Spread into every free town this turn's troops can certainly hold.
+     *
+     * Taken one at a time, re-deriving the options after each, because every
+     * move changes the network and therefore what the next one can afford. The
+     * preference is for a *seeded* town over an empty one: the supply is
+     * identical and the influence is points the Empire will collect when it
+     * resolves the town next turn.
+     *
+     * @param array<string, array> $board
+     */
+    private static function globExpand(
+        Scenario $scenario,
+        array &$board,
+        callable $spare,
+        callable $commit,
+    ): void {
+        $toward = self::globProductionDistance($board);
+
+        while (true) {
+            $candidates = [];
+            foreach ($board as $sourceId => $source) {
+                if ($spare($sourceId) <= 0) {
+                    continue;
+                }
+                foreach ($source['neighbors'] as $targetId) {
+                    $target = $board[$targetId];
+                    if ($target['resolved'] || $target['troops'] > 0) {
+                        continue;
+                    }
+                    $worst = self::globWorstCase($scenario, $target);
+                    $needed = max(1, (int) ceil($worst / $scenario->unitStrength()));
+                    if ($needed > $spare($sourceId)) {
+                        continue; // cannot be sure of it, so not worth the troops
+                    }
+                    $candidates[] = [
+                        'key' => [
+                            $worst,                                 // points, if any
+                            Rules::townSupply($target),             // ceiling
+                            Rules::townProduction($target),
+                            -($toward[$targetId] ?? 99),            // toward a factory
+                            $targetId,
+                        ],
+                        'move' => [$sourceId, $targetId, $needed],
+                    ];
+                }
+            }
+
+            usort($candidates, static fn(array $a, array $b) => $b['key'] <=> $a['key']);
+
+            // The first move the supply check will accept. A refusal is not the
+            // end of expansion: a cheaper town elsewhere may still fit.
+            $committed = false;
+            foreach ($candidates as $candidate) {
+                [$from, $to, $count] = $candidate['move'];
+                if ($commit($from, $to, $count)) {
+                    $committed = true;
+                    break;
+                }
+            }
+            if (!$committed) {
+                return;
+            }
+        }
+    }
+
+    /**
+     * Build up to the ceiling the board will have once the marching is done.
+     *
+     * `$standing` is the board at the moment the troops are raised, which is
+     * what decides where building is legal at all; `$board` is the board the
+     * march leaves behind, which is what has to feed them. Because the march is
+     * already planned, an overbuild the network is about to grow into is simply
+     * a build that fits — which is the whole of "you may build past the ceiling
+     * if you are sure you will reach the supply this turn".
+     *
+     * @param array<string, array> $standing
+     * @param array<string, array> $board
+     * @return array<string, int>
+     */
+    private static function globProduction(Scenario $scenario, array $standing, array $board): array
+    {
+        $produce = [];
+        $spare = [];
+
+        foreach (Rules::productionSites($standing, $scenario->productionCost) as $site) {
+            $component = Rules::componentOf($board, $site);
+            if (!$component) {
+                // A site the garrison has marched out of is its own little
+                // network once the new troops appear in it: nothing links to
+                // it, so it is fed by its own supply and nothing else.
+                $component = [$site];
+            }
+
+            $key = implode(',', $component);
+            if (!isset($spare[$key])) {
+                $spare[$key] = max(
+                    0,
+                    Rules::ceiling($board, $component, $scenario->supplyPerTroop)
+                        - Rules::troopsIn($board, $component),
+                );
+            }
+
+            $want = min(
+                Rules::productionCapacity($standing, $site, $scenario->productionCost),
+                $spare[$key],
+            );
+            if ($want > 0) {
+                $produce[$site] = $want;
+                $spare[$key] -= $want;
+            }
+        }
+
+        return $produce;
+    }
+
+    /**
+     * Name where attrition losses should fall so they do not cut the line.
+     *
+     * Left alone, attrition takes from the largest garrison, which is often a
+     * junction. A town with more troops than the network is over can give some
+     * up without emptying, and an emptied town that nothing else routes through
+     * costs only its own supply. Anything not named here is still available to
+     * the engine, so this is a preference, not a constraint.
+     *
+     * @param array<string, array> $board
+     * @return array<string, int>
+     */
+    private static function globDisband(Scenario $scenario, array $board): array
+    {
+        $disband = [];
+
+        foreach (Rules::components($board) as $component) {
+            $over = Rules::troopsIn($board, $component)
+                - Rules::ceiling($board, $component, $scenario->supplyPerTroop);
+            if ($over <= 0) {
+                continue;
+            }
+
+            $order = $component;
+            usort(
+                $order,
+                static fn(string $a, string $b) => $board[$b]['troops'] <=> $board[$a]['troops'],
+            );
+
+            foreach ($order as $townId) {
+                $troops = (int) $board[$townId]['troops'];
+                if ($troops > $over || !self::globIsJunction($board, $component, $townId)) {
+                    $disband[$townId] = $troops;
+                }
+            }
+        }
+
+        return $disband;
+    }
+
+    /**
+     * Troops across the whole board that their networks cannot feed.
+     *
+     * @param array<string, array> $towns
+     */
+    private static function globOverage(Scenario $scenario, array $towns): int
+    {
+        $over = 0;
+        foreach (Rules::components($towns) as $component) {
+            $over += max(
+                0,
+                Rules::troopsIn($towns, $component)
+                    - Rules::ceiling($towns, $component, $scenario->supplyPerTroop),
+            );
+        }
+        return $over;
+    }
+
+    /**
+     * Whether emptying this town would break its network in two.
+     *
+     * @param array<string, array> $towns
+     * @param string[] $component
+     */
+    private static function globIsJunction(array $towns, array $component, string $townId): bool
+    {
+        $rest = array_values(array_diff($component, [$townId]));
+        if (count($rest) <= 1) {
+            return false;
+        }
+
+        $inRest = array_flip($rest);
+        $seen = [$rest[0] => true];
+        $frontier = [$rest[0]];
+        while ($frontier) {
+            $current = array_pop($frontier);
+            foreach ($towns[$current]['neighbors'] as $neighbor) {
+                if (isset($inRest[$neighbor]) && !isset($seen[$neighbor])) {
+                    $seen[$neighbor] = true;
+                    $frontier[] = $neighbor;
+                }
+            }
+        }
+
+        return count($seen) !== count($rest);
+    }
+
+    /**
+     * Hops from each town to the nearest factory the Empire does not hold.
+     *
+     * Used only as a tie-break: when two expansions look equally good, take the
+     * one that walks toward a second production town.
+     *
+     * @param array<string, array> $towns
+     * @return array<string, int>
+     */
+    private static function globProductionDistance(array $towns): array
+    {
+        $distance = [];
+        $frontier = [];
+        foreach ($towns as $townId => $town) {
+            if (Rules::townProduction($town) > 0 && !Rules::empireHolds($town)) {
+                $distance[$townId] = 0;
+                $frontier[] = $townId;
+            }
+        }
+
+        while ($frontier) {
+            $current = array_shift($frontier);
+            foreach ($towns[$current]['neighbors'] as $neighbor) {
+                if (!isset($distance[$neighbor])) {
+                    $distance[$neighbor] = $distance[$current] + 1;
+                    $frontier[] = $neighbor;
+                }
+            }
+        }
+
+        return $distance;
     }
 }

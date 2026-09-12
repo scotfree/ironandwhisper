@@ -128,6 +128,20 @@ class Scenario:
         )
 
     @property
+    def max_card_influence(self) -> int:
+        """The best card the deck can hold.
+
+        An Empire that can see a pile's height but not its faces knows the pile
+        is worth at most this much per card. That upper bound is what lets a bot
+        tell a certain win from a likely one.
+        """
+        return max(
+            (self.card_types[type_id].influence
+             for type_id, quantity in self.deck.items() if quantity > 0),
+            default=0,
+        )
+
+    @property
     def turns(self) -> int:
         """Insurgency turns before the deck runs dry."""
         return self.deck_size // self.hand_size
