@@ -474,17 +474,175 @@ $board: #e6e6e8;
     min-height: 38px;
 }
 
-.iaw-hidden-hand {
-    color: #777;
-    font-style: italic;
-}
-
+// The turn summary, and — for the Insurgency — the hand it is placing from.
+// They belong together: the cards and the list of where they are going are one
+// decision, and they were two frames with the army list between them.
 #iaw-staging {
+    margin-top: 10px;
     padding: 8px;
     background: #fff;
     border: 1px dashed #bbb;
     border-radius: 4px;
     min-height: 40px;
+}
+
+#iaw-hand:not(:empty) {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e2e2e2;
+}
+
+/********* the side reminder *********/
+
+// What your side does and in what order. Permanent, because it is a reminder:
+// the same words behind a disclosure triangle would be the ? dialog again.
+.iaw-primer {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    border-left: 4px solid #999;
+    background: $paper;
+    font-size: 12px;
+    line-height: 1.45;
+
+    p {
+        margin: 0 0 6px;
+    }
+
+    &.empire {
+        border-left-color: $empire;
+        background: color.mix($empire, #fff, 6%);
+    }
+
+    &.insurgency {
+        border-left-color: $insurgency;
+        background: color.mix($insurgency, #fff, 6%);
+    }
+
+    .iaw-heading {
+        margin-top: 0;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+    }
+}
+
+.iaw-primer-steps {
+    margin: 0;
+    padding-left: 18px;
+
+    li {
+        margin-bottom: 1px;
+    }
+}
+
+.iaw-primer-more {
+    margin-top: 8px;
+    padding: 3px 8px;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    background: #fff;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+        background: #f2f2f2;
+    }
+}
+
+/********* the cheat sheet *********/
+
+// Pinned to the right-hand end of the title bar. Deliberately not a status bar
+// action button: removeActionButtons() runs on every state change.
+// BGA's title bar is not positioned by default, so the corner would otherwise
+// anchor to the viewport.
+#page-title {
+    position: relative;
+}
+
+#iaw-help-corner {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+}
+
+#iaw-help-button {
+    width: 26px;
+    height: 26px;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 50%;
+    background: #fff;
+    color: #333;
+    font-size: 15px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        background: $ui;
+        border-color: $ui;
+        color: #fff;
+    }
+}
+
+.iaw-help {
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: left;
+
+    p {
+        margin: 0 0 10px;
+    }
+}
+
+.iaw-help-heading {
+    margin: 14px 0 6px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+.iaw-help-more {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #e2e2e2;
+    font-size: 12px;
+}
+
+.iaw-legend {
+    border-collapse: collapse;
+    width: 100%;
+
+    td {
+        padding: 5px 8px 5px 0;
+        vertical-align: middle;
+        border-top: 1px solid #eee;
+    }
+}
+
+.iaw-legend-icon {
+    width: 78px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+// The silhouettes are the real files, drawn in the neutral colours an
+// unheld town uses, so the legend cannot drift from the board.
+.iaw-legend-art {
+    display: inline-block;
+    width: 34px;
+    height: 34px;
+    vertical-align: middle;
+    --art-fill: #fff;
+    --art-stroke: #000;
+
+    svg {
+        width: 100%;
+        height: 100%;
+    }
 }
 
 .iaw-player-side {

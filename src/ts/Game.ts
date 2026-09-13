@@ -2,6 +2,7 @@ import { BoardView } from "./BoardView";
 import { EmpireTurn } from "./States/EmpireTurn";
 import { InsurgencyTurn } from "./States/InsurgencyTurn";
 import { Resolve } from "./States/Resolve";
+import { Help } from "./Help";
 
 /**
  * Iron and Whisper — client entry point.
@@ -23,6 +24,9 @@ export class Game {
 
     /** The solo opponent, or null in a two-player game. */
     private bot: BotView | null = null;
+
+    /** The cheat sheet and the side reminder. Built once the board exists. */
+    private help: Help;
 
     private gamedatas: IronAndWhisperGamedatas;
     private handClickHandler: (cardId: number) => void = () => {};
@@ -47,13 +51,13 @@ export class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
-                    <div id="iaw-staging"></div>
-                    <div id="iaw-armies"></div>
                     <div id="iaw-clock"></div>
-                    <div id="iaw-hand-area">
-                        <div class="iaw-heading">${_('Hand')}</div>
+                    <div id="iaw-staging">
+                        <div id="iaw-staging-text"></div>
                         <div id="iaw-hand"></div>
                     </div>
+                    <div id="iaw-armies"></div>
+                    <div id="iaw-primer"></div>
                 </div>
             </div>
         `);
@@ -93,6 +97,10 @@ export class Game {
                 <div class="iaw-player-side">${sideLabel(this.bot.side)}</div>
             `);
         }
+
+        this.help = new Help(gamedatas.scenario, this.board);
+        this.help.install();
+        this.renderPrimer();
 
         this.renderHand();
         this.updateClock(gamedatas.deckCount, gamedatas.handCount, gamedatas.round);
@@ -173,9 +181,11 @@ export class Game {
         }
 
         // If the server sent a hand, it is yours. Deciding that here would only
-        // be a second opinion, and a second opinion can disagree.
+        // be a second opinion, and a second opinion can disagree. Anyone else
+        // reads the rebels' card count off the clock, so this stays empty
+        // rather than repeating it under a heading.
         if (this.gamedatas.hand === null) {
-            element.innerHTML = `<div class="iaw-hidden-hand">${this.gamedatas.handCount} ${_('cards')}</div>`;
+            element.innerHTML = '';
             return;
         }
 
@@ -199,10 +209,24 @@ export class Game {
     }
 
     setStagingText(html: string): void {
-        const element = document.getElementById('iaw-staging');
+        const element = document.getElementById('iaw-staging-text');
         if (element) {
             element.innerHTML = html;
         }
+    }
+
+    /**
+     * The permanent reminder of what your side does, below everything that
+     * changes. Rendered once: nothing in it depends on the state of the game.
+     */
+    private renderPrimer(): void {
+        const element = document.getElementById('iaw-primer');
+        if (!element || !this.help) {
+            return;
+        }
+        element.innerHTML = this.help.primerHtml(this.side);
+        element.querySelector('.iaw-primer-more')
+            ?.addEventListener('click', () => this.help.show());
     }
 
     cardById(cardId: number): CardView | undefined {
@@ -333,10 +357,13 @@ export class Game {
         });
     }
 
-    async notif_deckCount(args: { deckCount: number; handCount: number }) {
+    async notif_deckCount(args: { deckCount: number; handCount: number; round: number }) {
         this.gamedatas.deckCount = args.deckCount;
         this.gamedatas.handCount = args.handCount;
-        this.updateClock(args.deckCount, args.handCount, this.gamedatas.round);
+        // The round advances at the end of the Empire's turn. Reusing the one
+        // from setup left the counter stuck at whatever it read on page load.
+        this.gamedatas.round = args.round;
+        this.updateClock(args.deckCount, args.handCount, args.round);
     }
 
     async notif_handDrawn(args: { hand: CardView[] }) {

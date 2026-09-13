@@ -187,6 +187,20 @@ Done:
   legible only by comparing twelve supply badges. The name breaks ties by hashing the
   network's membership, so it is arbitrary rather than alphabetical, stable while the army
   is, and reshuffles when the army changes; randomising per render would make it unreadable.
+- **The side column reads top to bottom in the order you need it**: the clock
+  (turn / deck / hand), then the turn summary, then the armies, then a permanent
+  reminder of what your side does and in what order. The Insurgency's hand lives *inside*
+  the turn summary — the cards and the list of where they are going are one decision, and
+  they used to be two frames with the army list between them. The Empire has no hand frame
+  at all; it reads the rebels' card count off the clock.
+- **A `?` at the right-hand end of the title bar opens the cheat sheet** (`src/ts/Help.ts`),
+  four paragraphs and a legend of every icon. It is **not** a status bar action button:
+  `removeActionButtons()` runs on every state change and would take it with it, so it lives
+  in `#iaw-help-corner`, added once to `#page-title`. The legend draws the *real* components
+  — the silhouettes fetched from `img/`, the pawn, the same stack and badge markup the board
+  uses — so it cannot drift from what is on screen, and every number in the text comes from
+  the scenario. It links out to `ironandwhisper.md` on GitHub, since `*.md` is excluded from
+  the deploy and the rules are not on the BGA server.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
 - **97 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
@@ -223,6 +237,12 @@ Not done, in rough order of how much it hurts:
   be a 3 and almost nothing is ever certain. It plays legally there and wins 0%. Putting
   graded cards back means giving it a quantile or expected-value test instead.
 - No stats in `stats.jsonc`, no tie-breaker, no animations, no art.
+
+**The turn counter was frozen at page load** until 2026-09-12. The round advances at the
+end of the Empire's turn (`Game::incRound`) and nothing told the client; `notif_deckCount`
+re-rendered the clock with `gamedatas.round` from setup. The round now rides along with the
+deck count. Worth remembering as a shape: anything the client caches from `getAllDatas` and
+never hears about again will be wrong for the rest of the game.
 
 Unverified, and worth checking first thing on the Studio: **BGA caches game metadata
 separately from the files.** `gameinfos.jsonc` on the server is correct — one or two

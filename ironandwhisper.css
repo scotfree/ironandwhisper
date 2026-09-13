@@ -340,17 +340,152 @@
   min-height: 38px;
 }
 
-.iaw-hidden-hand {
-  color: #777;
-  font-style: italic;
-}
-
 #iaw-staging {
+  margin-top: 10px;
   padding: 8px;
   background: #fff;
   border: 1px dashed #bbb;
   border-radius: 4px;
   min-height: 40px;
+}
+
+#iaw-hand:not(:empty) {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e2e2;
+}
+
+/********* the side reminder *********/
+.iaw-primer {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  border-left: 4px solid #999;
+  background: #efe7d7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.iaw-primer p {
+  margin: 0 0 6px;
+}
+.iaw-primer.empire {
+  border-left-color: #6b3fa0;
+  background: rgb(96.5176470588%, 95.4823529412%, 97.7647058824%);
+}
+.iaw-primer.insurgency {
+  border-left-color: #2e7d4f;
+  background: rgb(95.0823529412%, 96.9411764706%, 95.8588235294%);
+}
+.iaw-primer .iaw-heading {
+  margin-top: 0;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.iaw-primer-steps {
+  margin: 0;
+  padding-left: 18px;
+}
+.iaw-primer-steps li {
+  margin-bottom: 1px;
+}
+
+.iaw-primer-more {
+  margin-top: 8px;
+  padding: 3px 8px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+.iaw-primer-more:hover {
+  background: #f2f2f2;
+}
+
+/********* the cheat sheet *********/
+#page-title {
+  position: relative;
+}
+
+#iaw-help-corner {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
+#iaw-help-button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  background: #fff;
+  color: #333;
+  font-size: 15px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+}
+#iaw-help-button:hover {
+  background: #0a84ff;
+  border-color: #0a84ff;
+  color: #fff;
+}
+
+.iaw-help {
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+.iaw-help p {
+  margin: 0 0 10px;
+}
+
+.iaw-help-heading {
+  margin: 14px 0 6px;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.iaw-help-more {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e2e2;
+  font-size: 12px;
+}
+
+.iaw-legend {
+  border-collapse: collapse;
+  width: 100%;
+}
+.iaw-legend td {
+  padding: 5px 8px 5px 0;
+  vertical-align: middle;
+  border-top: 1px solid #eee;
+}
+
+.iaw-legend-icon {
+  width: 78px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.iaw-legend-art {
+  display: inline-block;
+  width: 34px;
+  height: 34px;
+  vertical-align: middle;
+  --art-fill: #fff;
+  --art-stroke: #000;
+}
+.iaw-legend-art svg {
+  width: 100%;
+  height: 100%;
 }
 
 .iaw-player-side {

@@ -103,9 +103,13 @@ class NextTurn extends GameState
             return false;
         }
 
+        // The round goes with the counts. It advances at the end of the
+        // Empire's turn and nothing used to say so, which left the turn counter
+        // frozen at whatever it read when the page was loaded.
         $this->notify->all('deckCount', '', [
             'deckCount' => $board->deckCount(),
             'handCount' => count($hand),
+            'round' => $this->game->round(),
         ]);
 
         // Nobody to tell if the Insurgency is the bot, and nowhere to send it.

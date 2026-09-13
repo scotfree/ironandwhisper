@@ -222,6 +222,19 @@ export class BoardView {
         return this.frames ? this.frames.pawn : '';
     }
 
+    /**
+     * The two silhouettes, for anything outside the board that needs to show
+     * what a town looks like — the help legend draws the real files rather than
+     * a picture of them, so it cannot drift from the board.
+     */
+    townSvg(): string {
+        return this.frames ? this.frames.town : '';
+    }
+
+    citySvg(): string {
+        return this.frames ? this.frames.city : '';
+    }
+
     /** A production town is drawn as a skyline, everything else as a hut. */
     private frameSvg(town: TownDef): string {
         if (!this.frames) {
