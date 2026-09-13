@@ -1203,6 +1203,9 @@ class Resolve {
         this.target = null;
         this.game.board.clearInteraction();
         this.game.setStagingText('');
+        // The turn states set their own step; this matters for the hand-off
+        // straight back to NextTurn, which has no client state to set one.
+        this.game.setPhase(-1);
     }
     onTownClick(townId) {
         // Toggle, so a mis-click is undone by clicking the same town again.
