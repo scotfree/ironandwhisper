@@ -18,7 +18,7 @@ export function endOfferLabel(offered: boolean): string {
 export function endOfferHtml(offered: boolean, opponentOffered: boolean): string {
     if (offered && opponentOffered) {
         return `<div class="iaw-warning"><b>${_('Confirming ends the game.')}</b>
-                ${_('Your opponent has already offered, so every remaining town resolves at once — at the strength standing in it today.')}</div>`;
+                ${_('Your opponent has already offered, so every remaining town resolves at once — at the presence standing in it today.')}</div>`;
     }
     if (offered) {
         return `<div class="iaw-hint"><b>${_('Offering to end.')}</b>

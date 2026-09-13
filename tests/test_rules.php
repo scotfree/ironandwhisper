@@ -16,7 +16,7 @@ const STRENGTH = 3;
 function rulesCard(int $id, string $type): array
 {
     // Card type ids carry their value: influence0 through influence3.
-    return ['id' => $id, 'type' => $type, 'influence' => (int) substr($type, -1)];
+    return ['id' => $id, 'type' => $type, 'presence' => (int) substr($type, -1)];
 }
 
 /** A pile written newest-first, the way it is actually stored. */
@@ -57,21 +57,21 @@ function rulesBoard(array $overrides = []): array
 
 // -- scoring ----------------------------------------------------------------
 
-function test_empire_wins_and_scores_the_influence_it_captured(): void
+function test_empire_wins_and_scores_the_presence_it_captured(): void
 {
     $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence1', 'influence1'])]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
 
-    assertSame(Rules::EMPIRE, $outcome['winner'], '6 strength beats 2 influence');
-    assertSame(2, $outcome['points'], 'the Empire banks the influence it suppressed');
+    assertSame(Rules::EMPIRE, $outcome['winner'], '6 strength beats 2 presence');
+    assertSame(2, $outcome['points'], 'the Empire banks the presence it suppressed');
 }
 
-function test_insurgency_wins_and_scores_the_strength_it_overcame(): void
+function test_insurgency_wins_and_scores_the_presence_it_overcame(): void
 {
     $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(array_fill(0, 5, 'influence1'))]]);
     $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
 
-    assertSame(Rules::INSURGENCY, $outcome['winner'], '5 influence beats 3 strength');
+    assertSame(Rules::INSURGENCY, $outcome['winner'], '5 presence beats 3 strength');
     assertSame(3, $outcome['points'], 'the Insurgency banks the strength it absorbed');
 }
 
@@ -436,7 +436,7 @@ function test_face_up_cards_still_count_towards_the_town(): void
         'revealed' => rulesPile(['influence1', 'influence1'], 10),
     ]);
 
-    assertSame(3, Rules::townInfluence($town), 'face up is not out of play');
+    assertSame(3, Rules::cardPresence($town), 'face up is not out of play');
     assertSame(4, Rules::townCardCount($town));
 }
 

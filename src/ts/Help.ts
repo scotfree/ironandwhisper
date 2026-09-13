@@ -82,7 +82,7 @@ export class Help {
         const ties = this.scenario.empireWinsTies ? _('ties go to the Empire') : _('ties go to the Insurgency');
 
         return `
-            <p>${_('An asymmetric game for two. The Empire moves troops everyone can see; the Insurgency plays cards nobody can. A town is settled when one side <b>resolves</b> it: the influence in the town against the troops standing in it, higher wins, and')} ${ties}. ${_('The winner scores what the loser committed — the Empire scores the influence it captures, the rebels score the troops they chase out — and the loser\'s commitment leaves the board for good. A walkover scores nothing: there is no prize for a town nobody contested.')}</p>
+            <p>${_('An asymmetric game for two. The Empire moves troops everyone can see; the Insurgency plays cards nobody can. A town is settled when one side <b>resolves</b> it: the presence the rebels have there against the presence the Empire has, higher wins, and')} ${ties}. ${_('The winner scores what the loser committed — each side scores the presence it took off the other — and the loser\'s commitment leaves the board for good. A walkover scores nothing: there is no prize for a town nobody contested.')}</p>
 
             <p>${_('<b>Resolution comes first in a turn</b>, and it is judged on the board as your opponent left it. You may only resolve a town you are present in — the Empire needs a troop there, the rebels need a card in the pile — so you cannot march in and cash out on arrival. Whatever you commit has to survive a reply.')}</p>
 
@@ -106,8 +106,8 @@ export class Help {
             [`<span class="iaw-troops">${this.board.pawnSvg()
                 ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''
              }<span class="iaw-troop-count">3</span></span>`,
-             _('Empire troops standing here. Each is worth ${strength} strength at a resolution.')
-                .replace('${strength}', String(this.scenario.unit.strength))],
+             _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
+                .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4),
              _('Face-down cards: the height, and nothing else. Neither player sees the faces once they are down.')],
             [stack('face-up', 2, 3),
@@ -138,9 +138,9 @@ export class Help {
         const rebel = side === 'insurgency';
 
         const summary = rebel
-            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some real influence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the troops you chase out, if you win.')
+            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
                 .replace('${hand}', String(this.scenario.handSize))
-            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison out-influences the rebels in a town, <b>resolve</b> it and find out: you score the influence you capture, if you win.');
+            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
 
         const steps = rebel
             ? [

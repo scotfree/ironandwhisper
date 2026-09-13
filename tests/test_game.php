@@ -166,7 +166,7 @@ function test_a_town_seeded_last_turn_may_be_resolved(): void
 
     $towns = $game->board->towns();
     assertTrue($towns['ashford']['resolved']);
-    assertSame(Rules::INSURGENCY, $towns['ashford']['winner'], 'undefended, so any influence takes it');
+    assertSame(Rules::INSURGENCY, $towns['ashford']['winner'], 'undefended, so any presence takes it');
 }
 
 function test_the_insurgency_cannot_resolve_a_town_it_is_not_in(): void
@@ -404,15 +404,15 @@ function test_the_winner_keeps_its_commitment_and_takes_the_losers(): void
     assertSame(Rules::EMPIRE, $towns['everlan']['winner']);
     assertSame(startingGarrison($game), $towns['everlan']['troops'], 'the winner keeps its garrison');
     assertSame(
-        startingGarrison($game) * $game->scenario->unitStrength(),
-        $towns['everlan']['resolvedStrength'],
+        startingGarrison($game) * $game->scenario->unitPresence(),
+        $towns['everlan']['resolvedTroopPresence'],
         'the whole garrison, whatever a troop is worth',
     );
     assertSame(0, Rules::townCardCount($towns['everlan']), "the loser's cards are taken");
     assertSame(
-        $towns['everlan']['resolvedInfluence'],
+        $towns['everlan']['resolvedCardPresence'],
         $game->bga->playerScore->get($empire),
-        'the Empire banks the influence it suppressed, nothing more',
+        'the Empire banks the presence it suppressed, nothing more',
     );
 }
 
@@ -539,7 +539,7 @@ function test_a_starving_network_gets_a_turn_of_grace(): void
     assertSame($ceiling, $towns['everlan']['troops'], 'starved down to what supply can hold');
     assertSame(0, $towns['everlan']['starving'], 'and the warning is spent');
     assertSame(
-        $doomed * $game->scenario->unitStrength(),
+        $doomed * $game->scenario->unitPresence(),
         $game->bga->playerScore->get($insurgency),
         'the Insurgency scores every troop that leaves the board',
     );
@@ -741,16 +741,16 @@ function test_every_card_is_placed_and_counted(): void
     $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: 11);
     playFullGame($game);
 
-    $influence = 0;
+    $presence = 0;
     foreach ($game->board->towns() as $town) {
-        $influence += $town['resolvedInfluence'];
+        $presence += $town['resolvedCardPresence'];
     }
 
     assertSame(0, $game->board->deckCount(), 'the deck is spent');
     assertSame(0, count($game->board->hand()), 'and the hand with it');
     assertSame(
-        $game->scenario->totalInfluence(),
-        $influence,
+        $game->scenario->totalCardPresence(),
+        $presence,
         'every card was placed somewhere and counted in some resolution',
     );
 }
@@ -765,23 +765,23 @@ function test_scoring_conserves_what_was_actually_committed(): void
     $beaten = 0;
     foreach ($game->board->towns() as $town) {
         if ($town['winner'] === Rules::EMPIRE) {
-            $captured += $town['resolvedInfluence'];
+            $captured += $town['resolvedCardPresence'];
         } else {
-            $beaten += $town['resolvedStrength'];
+            $beaten += $town['resolvedTroopPresence'];
         }
     }
 
     $empireScore = $game->bga->playerScore->get($game->playerIdForSide(Rules::EMPIRE));
     $insurgencyScore = $game->bga->playerScore->get($game->playerIdForSide(Rules::INSURGENCY));
 
-    assertSame($captured, $empireScore, 'the Empire scores exactly the influence it beat');
+    assertSame($captured, $empireScore, 'the Empire scores exactly the presence it beat');
 
     // The Insurgency scores every Empire troop that left the board: the ones it
     // beat at a resolution, plus any that starved when a line was cut.
     assertTrue($insurgencyScore >= $beaten);
     assertSame(
         0,
-        ($insurgencyScore - $beaten) % $game->scenario->unitStrength(),
+        ($insurgencyScore - $beaten) % $game->scenario->unitPresence(),
         'the excess is whole troops, starved',
     );
 }

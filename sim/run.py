@@ -35,8 +35,8 @@ class Result:
     towns_to_insurgency: int
     # How much of each side's total force actually got committed to a fight
     # that scored. Low numbers mean the game is mostly walkovers.
-    influence_captured: int
-    strength_overcome: int
+    presence_captured: int
+    presence_overcome: int
 
 
 def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result:
@@ -55,8 +55,8 @@ def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result
         towns_to_insurgency=sum(
             1 for t in state.towns.values() if t.winner is Side.INSURGENCY
         ),
-        influence_captured=state.scores[Side.EMPIRE],
-        strength_overcome=state.scores[Side.INSURGENCY],
+        presence_captured=state.scores[Side.EMPIRE],
+        presence_overcome=state.scores[Side.INSURGENCY],
     )
 
 
@@ -80,9 +80,9 @@ def summarise(results: list[Result], scenario: Scenario) -> str:
 
     # What fraction of each side's whole budget ever changed hands? If this is
     # near zero the game is mostly walkovers, which is a design problem.
-    empire_engagement = statistics.mean(insurgency_scores) / scenario.total_strength
+    empire_engagement = statistics.mean(insurgency_scores) / scenario.total_troop_presence
     insurgency_engagement = (
-        statistics.mean(empire_scores) / scenario.total_influence
+        statistics.mean(empire_scores) / scenario.total_card_presence
     )
 
     return "\n".join([
@@ -98,8 +98,8 @@ def summarise(results: list[Result], scenario: Scenario) -> str:
         f"  Insurgency score  mean {statistics.mean(insurgency_scores):5.1f}   "
         f"median {statistics.median(insurgency_scores):5.1f}",
         "",
-        f"  of all Empire strength, {empire_engagement:.1%} was overcome and scored",
-        f"  of all Insurgency influence, {insurgency_engagement:.1%} was captured "
+        f"  of all Empire presence, {empire_engagement:.1%} was overcome and scored",
+        f"  of all rebel presence, {insurgency_engagement:.1%} was captured "
         f"and scored",
     ])
 

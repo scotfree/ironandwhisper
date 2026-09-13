@@ -38,12 +38,12 @@ from .engine import (
     winner,
 )
 
-INFANTRY = Unit(id="infantry", label="Imperial Infantry", strength=3, movement=1, peek=1)
+INFANTRY = Unit(id="infantry", label="Imperial Infantry", presence=3, movement=1, peek=1)
 CARD_TYPES = {
-    "influence0": CardType(id="influence0", label="Influence 0", influence=0),
-    "influence1": CardType(id="influence1", label="Influence 1", influence=1),
-    "influence2": CardType(id="influence2", label="Influence 2", influence=2),
-    "influence3": CardType(id="influence3", label="Influence 3", influence=3),
+    "influence0": CardType(id="influence0", label="Agent +0", presence=0),
+    "influence1": CardType(id="influence1", label="Agent +1", presence=1),
+    "influence2": CardType(id="influence2", label="Agent +2", presence=2),
+    "influence3": CardType(id="influence3", label="Agent +3", presence=3),
 }
 
 
@@ -76,14 +76,14 @@ def state(**overrides):
     return new_game(scenario(**overrides), random.Random(0))
 
 
-def seed_pile(st, town_id: str, influence: int = 0, dummies: int = 0) -> None:
+def seed_pile(st, town_id: str, presence: int = 0, dummies: int = 0) -> None:
     """Put known cards into a pile, newest on top."""
     uid = 1000 + len(st.towns[town_id].pile)
-    for _ in range(influence):
-        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence1", influence=1))
+    for _ in range(presence):
+        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence1", presence=1))
         uid += 1
     for _ in range(dummies):
-        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence0", influence=0))
+        st.towns[town_id].pile.insert(0, Card(uid=uid, type_id="influence0", presence=0))
         uid += 1
 
 
@@ -91,19 +91,19 @@ def seed_pile(st, town_id: str, influence: int = 0, dummies: int = 0) -> None:
 # Resolution and scoring
 # ---------------------------------------------------------------------------
 
-def test_empire_wins_and_scores_the_influence_it_captured():
+def test_empire_wins_and_scores_the_presence_it_captured():
     st = state()
-    st.towns["a"].troops = 2          # strength 6
-    seed_pile(st, "a", influence=4)   # influence 4
+    st.towns["a"].troops = 2          # presence 6
+    seed_pile(st, "a", presence=4)   # presence 4
     assert resolve_town(st, "a", Side.EMPIRE) is Side.EMPIRE
     assert st.scores[Side.EMPIRE] == 4
     assert st.scores[Side.INSURGENCY] == 0
 
 
-def test_insurgency_wins_and_scores_the_strength_it_overcame():
+def test_insurgency_wins_and_scores_the_presence_it_overcame():
     st = state()
-    st.towns["a"].troops = 2          # strength 6
-    seed_pile(st, "a", influence=7)
+    st.towns["a"].troops = 2          # presence 6
+    seed_pile(st, "a", presence=7)
     assert resolve_town(st, "a", Side.INSURGENCY) is Side.INSURGENCY
     assert st.scores[Side.INSURGENCY] == 6
     assert st.scores[Side.EMPIRE] == 0
@@ -128,8 +128,8 @@ def test_walkover_scores_nothing():
 def test_empire_wins_ties():
     """Decision 7."""
     st = state()
-    st.towns["a"].troops = 2          # strength 6
-    seed_pile(st, "a", influence=6)   # influence 6
+    st.towns["a"].troops = 2          # presence 6
+    seed_pile(st, "a", presence=6)   # presence 6
     assert resolve_town(st, "a", Side.INSURGENCY) is Side.EMPIRE
     assert st.scores[Side.EMPIRE] == 6
 
@@ -137,7 +137,7 @@ def test_empire_wins_ties():
 def test_tiebreaker_is_configurable():
     st = state(empire_wins_ties=False)
     st.towns["a"].troops = 2
-    seed_pile(st, "a", influence=6)
+    seed_pile(st, "a", presence=6)
     assert resolve_town(st, "a", Side.EMPIRE) is Side.INSURGENCY
 
 
@@ -154,25 +154,25 @@ def test_resolution_turns_the_whole_town_face_up():
     """Decision 9: what was in a town is public once it has been fought over."""
     st = state()
     st.towns["a"].troops = 0            # so the Insurgency takes it and the cards stay
-    seed_pile(st, "a", influence=2, dummies=2)
+    seed_pile(st, "a", presence=2, dummies=2)
     uids = {c.uid for c in st.towns["a"].pile}
 
     resolve_town(st, "a", Side.INSURGENCY)
 
     assert not st.towns["a"].pile, "nothing is left face down"
     assert {c.uid for c in st.towns["a"].revealed} == uids
-    assert st.towns["a"].resolved_influence == 2, "and the total is on the record"
+    assert st.towns["a"].resolved_card_presence == 2, "and the total is on the record"
 
 
 def test_the_empire_takes_the_cards_it_beats_off_the_board():
     st = state()
     st.towns["a"].troops = 2
-    seed_pile(st, "a", influence=2, dummies=2)
+    seed_pile(st, "a", presence=2, dummies=2)
 
     resolve_town(st, "a", Side.EMPIRE)
 
     assert st.towns["a"].card_count == 0, "captured cards leave"
-    assert st.towns["a"].resolved_influence == 2, "but the record survives them"
+    assert st.towns["a"].resolved_card_presence == 2, "but the record survives them"
 
 
 # ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ def test_the_empire_takes_the_cards_it_beats_off_the_board():
 def test_empire_cannot_resolve_a_town_it_has_no_troops_in():
     st = state()
     st.to_move = Side.EMPIRE
-    seed_pile(st, "c", influence=3)
+    seed_pile(st, "c", presence=3)
     with pytest.raises(IllegalMove, match="no troops there"):
         apply_empire_turn(st, EmpireTurn(resolve="c"))
 
@@ -214,7 +214,7 @@ def test_a_town_cannot_be_resolved_on_the_turn_it_was_seeded():
 def test_the_empire_cannot_march_in_and_resolve_on_arrival():
     st = state()
     st.towns["a"].troops = 1
-    seed_pile(st, "b", influence=1)
+    seed_pile(st, "b", presence=1)
     st.to_move = Side.EMPIRE
 
     with pytest.raises(IllegalMove, match="no troops there"):
@@ -224,7 +224,7 @@ def test_the_empire_cannot_march_in_and_resolve_on_arrival():
 def test_what_was_standing_at_the_start_of_the_turn_may_be_resolved():
     st = state()
     st.towns["b"].troops = 1
-    seed_pile(st, "b", influence=1)
+    seed_pile(st, "b", presence=1)
     st.to_move = Side.EMPIRE
 
     apply_empire_turn(st, EmpireTurn(resolve="b"))
@@ -263,7 +263,7 @@ def test_placed_cards_land_on_top_of_the_pile():
 def test_a_stationary_troop_reads_one_card_per_turn():
     st = state()
     st.towns["a"].troops = 1
-    seed_pile(st, "a", influence=3)
+    seed_pile(st, "a", presence=3)
     uids = [c.uid for c in st.towns["a"].pile]
 
     for expected_known in (1, 2, 3):
@@ -280,7 +280,7 @@ def test_a_look_is_never_spent_on_a_card_already_face_up():
     """The point of setting cards aside: the pile holds only unknowns."""
     st = state()
     st.towns["a"].troops = 1
-    seed_pile(st, "a", influence=2)
+    seed_pile(st, "a", presence=2)
 
     for _ in range(4):
         st.to_move = Side.EMPIRE
@@ -302,23 +302,23 @@ def test_revealed_cards_still_count_at_resolution():
     """Face up is not out of play: the town is worth its whole contents."""
     st = state()
     st.towns["a"].troops = 1
-    seed_pile(st, "a", influence=4)
+    seed_pile(st, "a", presence=4)
     st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn())
     assert len(st.towns["a"].revealed) == 1, "one card is face up"
     assert len(st.towns["a"].pile) == 3
 
-    # 4 influence against 3 strength. If the face-up card had stopped counting
+    # 4 card presence against 3 troop presence. If the face-up card had stopped counting
     # it would be 3 against 3, and the Empire would take it on the tie.
     winner = resolve_town(st, "a", Side.INSURGENCY)
-    assert st.towns["a"].resolved_influence == 4
+    assert st.towns["a"].resolved_card_presence == 4
     assert winner is Side.INSURGENCY
 
 
 def test_peeks_stack_across_stationary_troops():
     st = state()
     st.towns["a"].troops = 3
-    seed_pile(st, "a", influence=5)
+    seed_pile(st, "a", presence=5)
     st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn())
     assert len(st.towns["a"].revealed) == 3
@@ -328,7 +328,7 @@ def test_peeks_stack_across_stationary_troops():
 def test_a_troop_that_moved_does_not_peek():
     st = state()
     st.towns["a"].troops = 1
-    seed_pile(st, "b", influence=3)
+    seed_pile(st, "b", presence=3)
     st.to_move = Side.EMPIRE
     apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1)]))
     assert st.towns["b"].revealed == []
@@ -429,7 +429,7 @@ def test_a_town_the_rebels_won_never_builds_again():
     factory — which is what makes a production town worth taking."""
     st = state()
     st.towns["a"].troops = 0
-    seed_pile(st, "a", influence=1)
+    seed_pile(st, "a", presence=1)
     resolve_town(st, "a", Side.INSURGENCY)
 
     assert production_sites(st) == []
@@ -444,7 +444,7 @@ def test_an_eliminated_empire_ends_the_game():
     """No troops and nothing that will build any: there is no game left."""
     st = state()
     st.towns["a"].troops = 0
-    seed_pile(st, "a", influence=1)
+    seed_pile(st, "a", presence=1)
     resolve_town(st, "a", Side.INSURGENCY)   # the only factory, gone for good
     st.to_move = Side.EMPIRE
 
@@ -526,7 +526,7 @@ def test_troops_a_network_cannot_supply_starve_and_score():
 
     assert st.towns["a"].troops == 1, "starved down to what supply can hold"
     assert st.towns["a"].starving == 0, "and the warning is spent"
-    assert st.scores[Side.INSURGENCY] == 2 * INFANTRY.strength, (
+    assert st.scores[Side.INSURGENCY] == 2 * INFANTRY.presence, (
         "the Insurgency scores every Empire troop that leaves the board"
     )
 
@@ -587,7 +587,7 @@ def test_severing_a_line_halves_two_ceilings_rather_than_one():
 def test_the_empire_keeps_its_troops_when_it_wins():
     st = state()
     st.towns["a"].troops = 2
-    seed_pile(st, "a", influence=1)
+    seed_pile(st, "a", presence=1)
 
     resolve_town(st, "a", Side.EMPIRE)
 
@@ -599,13 +599,13 @@ def test_the_empire_keeps_its_troops_when_it_wins():
 def test_the_empire_loses_its_troops_when_it_loses():
     st = state()
     st.towns["a"].troops = 1
-    seed_pile(st, "a", influence=5)
+    seed_pile(st, "a", presence=5)
 
     resolve_town(st, "a", Side.INSURGENCY)
 
     assert st.towns["a"].troops == 0
     assert st.towns["a"].card_count == 5, "the winner's cards stay"
-    assert st.scores[Side.INSURGENCY] == INFANTRY.strength
+    assert st.scores[Side.INSURGENCY] == INFANTRY.presence
 
 
 def test_movement_must_follow_an_edge():
@@ -660,8 +660,8 @@ def test_deck_exhaustion_ends_the_game_and_resolves_everything_at_once():
 def test_unresolved_towns_are_deferred_not_safe():
     """Refusing to resolve does not protect a town; it only cedes the timing."""
     st = state()
-    st.towns["b"].troops = 2         # strength 6
-    seed_pile(st, "b", influence=9)  # Insurgency would win this
+    st.towns["b"].troops = 2         # presence 6
+    seed_pile(st, "b", presence=9)  # Insurgency would win this
     st.deck, st.hand = [], []
     prepare_turn(st)
     assert st.towns["b"].winner is Side.INSURGENCY
@@ -699,9 +699,9 @@ def test_scoring_conserves_what_was_actually_committed():
     st = play_game(real, RandomEmpire(rng), RandomInsurgency(rng), rng)
 
     # The Empire scores only what it captures at a resolution, so its total is
-    # exactly the influence it beat.
+    # exactly the presence it beat.
     captured = sum(
-        town.resolved_influence for town in st.towns.values()
+        town.resolved_card_presence for town in st.towns.values()
         if town.winner is Side.EMPIRE
     )
     assert st.scores[Side.EMPIRE] == captured
@@ -709,11 +709,11 @@ def test_scoring_conserves_what_was_actually_committed():
     # The Insurgency scores every Empire troop that left the board, which is the
     # troops it beat at resolutions plus any that starved when a line was cut.
     beaten = sum(
-        town.resolved_strength for town in st.towns.values()
+        town.resolved_troop_presence for town in st.towns.values()
         if town.winner is Side.INSURGENCY
     )
     assert st.scores[Side.INSURGENCY] >= beaten
-    assert (st.scores[Side.INSURGENCY] - beaten) % st.scenario.unit.strength == 0, (
+    assert (st.scores[Side.INSURGENCY] - beaten) % st.scenario.unit.presence == 0, (
         "the excess is whole troops, starved"
     )
 
@@ -728,7 +728,7 @@ def test_a_town_the_rebels_take_never_supplies_the_empire_again():
     # The rebels take b. The Empire may march back in — b is resolved, so it can
     # never be contested again — but it will never feed the Empire again either.
     st.towns["b"].troops = 0
-    seed_pile(st, "b", influence=1)
+    seed_pile(st, "b", presence=1)
     resolve_town(st, "b", Side.INSURGENCY)
     st.towns["b"].troops = 1
 
@@ -741,7 +741,7 @@ def test_a_town_the_rebels_take_never_builds_for_the_empire_again():
     st.towns["b"].troops = 1
     assert production_capacity(st, "b") == 1
 
-    seed_pile(st, "b", influence=5)
+    seed_pile(st, "b", presence=5)
     resolve_town(st, "b", Side.INSURGENCY)
     st.towns["b"].troops = 1
 

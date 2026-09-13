@@ -1,7 +1,7 @@
 {
   "id": "graded36",
   "label": "Graded deck at flat economy",
-  "notes": "60 cards and 36 total influence, the same economy as `flat`, but graded values. Paired with flat/flat_blind to ask whether grading makes information more valuable, with the economy held constant.",
+  "notes": "60 cards and 36 total presence, the same economy as `flat`, but graded values. Paired with flat/flat_blind to ask whether grading makes information more valuable, with the economy held constant.",
   "map": "grid12",
   "unit": "infantry",
   "hand_size": 5,

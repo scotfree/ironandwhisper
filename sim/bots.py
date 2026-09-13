@@ -53,10 +53,10 @@ def _hold(moves: list[tuple[str, str, int]],
 
 
 class EmpireBelief:
-    """Estimates hidden influence from Empire-legal information only.
+    """Estimates hidden presence from Empire-legal information only.
 
     Every card is either face up beside its town or face down in its pile.
-    Total deck composition is public, so the expected influence of any card
+    Total deck composition is public, so the expected presence of any card
     still face down is the ratio across everything unaccounted for.
     """
 
@@ -64,26 +64,26 @@ class EmpireBelief:
         self.state = state
         scenario = state.scenario
 
-        known_influence = 0
+        known_presence = 0
         known_count = 0
         for town in state.towns.values():
             for card in town.revealed:
-                known_influence += card.influence
+                known_presence += card.presence
                 known_count += 1
 
         total_cards = scenario.deck_size
-        total_influence = scenario.total_influence
+        total_card_presence = scenario.total_card_presence
 
         unknown_count = total_cards - known_count
-        unknown_influence = total_influence - known_influence
+        unknown_presence = total_card_presence - known_presence
         self.unknown_rate = (
-            unknown_influence / unknown_count if unknown_count > 0 else 0.0
+            unknown_presence / unknown_count if unknown_count > 0 else 0.0
         )
 
-    def estimated_influence(self, town_id: str) -> float:
-        """Best guess at the real influence sitting in an unresolved pile."""
+    def estimated_presence(self, town_id: str) -> float:
+        """Best guess at the real presence sitting in an unresolved pile."""
         town = self.state.towns[town_id]
-        known = sum(c.influence for c in town.revealed)
+        known = sum(c.presence for c in town.revealed)
         return known + len(town.pile) * self.unknown_rate
 
 
@@ -170,14 +170,14 @@ class RandomEmpire:
 # ---------------------------------------------------------------------------
 
 class HeuristicInsurgency:
-    """Concentrates influence where the Empire has committed, dumps dummies as noise.
+    """Concentrates presence where the Empire has committed, dumps dummies as noise.
 
     Parameters exist so the notebook can ask whether concentrating beats
     spreading, rather than assuming an answer.
 
     min_score   don't bother resolving for fewer points than this
-    margin      how much to overshoot the Empire's strength by when committing
-    spread      how many towns to divide influence across each turn
+    margin      how much to overshoot the Empire's presence by when committing
+    spread      how many towns to divide presence across each turn
     bait        place dummies next to Empire troops to invite over-commitment
     """
 
@@ -190,12 +190,12 @@ class HeuristicInsurgency:
         self.bait = bait
 
     def choose(self, state: GameState) -> InsurgencyTurn:
-        strength_of = state.strength_in
+        troop_presence_of = state.troop_presence_in
         open_towns = [t for t in state.unresolved]
 
         # Resolution happens first in the turn (Decision 4), so it is decided
         # against the board as it stands, not against what we are about to do.
-        resolve = self._resolution(state, open_towns, strength_of)
+        resolve = self._resolution(state, open_towns, troop_presence_of)
         if resolve is not None:
             open_towns = [t for t in open_towns if t.id != resolve]
         if not open_towns:
@@ -204,39 +204,39 @@ class HeuristicInsurgency:
         # Cards are graded, so commit by value rather than by count: spending
         # three ones where a three would do wastes two cards. Biggest first
         # reaches a threshold with the fewest cards, leaving more for elsewhere.
-        influence_idx = sorted(
-            (i for i, c in enumerate(state.hand) if c.influence > 0),
-            key=lambda i: state.hand[i].influence,
+        presence_idx = sorted(
+            (i for i, c in enumerate(state.hand) if c.presence > 0),
+            key=lambda i: state.hand[i].presence,
             reverse=True,
         )
-        worthless_idx = [i for i, c in enumerate(state.hand) if c.influence == 0]
+        worthless_idx = [i for i, c in enumerate(state.hand) if c.presence == 0]
 
         placements: dict[str, list[int]] = {}
 
         # Targets: garrisoned towns we could plausibly flip, richest first.
         targets = sorted(
             (t for t in open_towns if t.troops > 0),
-            key=lambda t: strength_of(t.id),
+            key=lambda t: troop_presence_of(t.id),
             reverse=True,
         )[: max(1, self.spread)]
 
         for town in targets:
-            if not influence_idx:
+            if not presence_idx:
                 break
-            needed = strength_of(town.id) - state.influence_in(town.id) + self.margin
+            needed = troop_presence_of(town.id) - state.card_presence_in(town.id) + self.margin
             chosen: list[int] = []
             committed = 0
-            while influence_idx and committed < needed:
-                index = influence_idx.pop(0)
+            while presence_idx and committed < needed:
+                index = presence_idx.pop(0)
                 chosen.append(index)
-                committed += state.hand[index].influence
+                committed += state.hand[index].presence
             if chosen:
                 placements.setdefault(town.id, []).extend(chosen)
 
-        # Leftover influence goes wherever the Empire is likely to arrive.
-        if influence_idx:
+        # Leftover presence goes wherever the Empire is likely to arrive.
+        if presence_idx:
             fallback = targets[0] if targets else self.rng.choice(open_towns)
-            placements.setdefault(fallback.id, []).extend(influence_idx)
+            placements.setdefault(fallback.id, []).extend(presence_idx)
 
         # Worthless cards: next to Empire troops if baiting, otherwise scattered.
         if self.bait:
@@ -256,17 +256,17 @@ class HeuristicInsurgency:
 
         return InsurgencyTurn(placements=placements, resolve=resolve)
 
-    def _resolution(self, state, open_towns, strength_of) -> str | None:
+    def _resolution(self, state, open_towns, troop_presence_of) -> str | None:
         """Cash a town we have already beaten, if the garrison is worth taking."""
         resolve = None
         best_value = self.min_score - 1
         for town in open_towns:
             if town.card_count == 0:
                 continue
-            influence = state.influence_in(town.id)
-            strength = strength_of(town.id)
-            if influence > strength and strength > best_value:
-                best_value, resolve = strength, town.id
+            card_presence = state.card_presence_in(town.id)
+            troop_presence = troop_presence_of(town.id)
+            if card_presence > troop_presence and troop_presence > best_value:
+                best_value, resolve = troop_presence, town.id
         return resolve
 
 
@@ -274,7 +274,7 @@ class HeuristicEmpire:
     """Marches toward tall piles and resolves when it believes it wins.
 
     min_score      don't resolve for fewer points than this, unless shrinking
-    confidence     required ratio of strength to estimated influence
+    confidence     required ratio of troop presence to estimated card presence
     shrink         resolve any town we can win, even for zero points, to freeze
                    the board and gain a permanent generation anchor
     """
@@ -297,9 +297,9 @@ class HeuristicEmpire:
         for town in open_towns:
             if town.troops <= 0:
                 continue
-            estimate = belief.estimated_influence(town.id)
-            strength = town.troops * state.scenario.unit.strength
-            if strength < estimate * self.confidence:
+            estimate = belief.estimated_presence(town.id)
+            troop_presence = town.troops * state.scenario.unit.presence
+            if troop_presence < estimate * self.confidence:
                 continue
             if not self.shrink and estimate < self.min_score:
                 continue
@@ -308,7 +308,7 @@ class HeuristicEmpire:
                 best_value, resolve = value, town.id
 
         def attractiveness(town) -> float:
-            return belief.estimated_influence(town.id)
+            return belief.estimated_presence(town.id)
 
         # Build wherever we can afford to. Production is per town and the
         # ceiling is per network, so this takes what each site offers until the
@@ -340,18 +340,18 @@ class HeuristicEmpire:
             neighbors = list(town.neighbors)
             if not neighbors:
                 continue
-            best = max(neighbors, key=lambda n: belief.estimated_influence(n))
+            best = max(neighbors, key=lambda n: belief.estimated_presence(n))
 
             if town.resolved:
                 # Nothing left to win here. March toward whatever is still live.
                 moves.append((town.id, best, town.troops))
                 continue
 
-            estimate = belief.estimated_influence(town.id)
-            strength = town.troops * state.scenario.unit.strength
-            if estimate > 0 and strength >= estimate * self.confidence:
+            estimate = belief.estimated_presence(town.id)
+            troop_presence = town.troops * state.scenario.unit.presence
+            if estimate > 0 and troop_presence >= estimate * self.confidence:
                 continue  # hold: we think we win here already
-            if belief.estimated_influence(best) > estimate:
+            if belief.estimated_presence(best) > estimate:
                 moves.append((town.id, best, town.troops))
 
         return EmpireTurn(produce=produce, moves=_hold(moves, resolve), resolve=resolve)
@@ -373,7 +373,7 @@ class GlobEmpire:
     The objective is *ceiling*, not points. Points arrive as a by-product of
     resolving towns it was already safe in — which is why an expansion prefers
     a seeded town it can beat over an empty one: the supply is the same and the
-    influence is free.
+    presence is free.
 
     retreat_margin  how far behind a garrison may fall before it withdraws
 
@@ -394,25 +394,25 @@ class GlobEmpire:
 
     @staticmethod
     def worst_case(state: GameState, town) -> int:
-        """The most influence this pile could possibly be hiding.
+        """The most presence this pile could possibly be hiding.
 
         Face-up cards count exactly. A look moves a card out of the pile and on
         to the table, so everything this bot has peeked at is already in
         `revealed` and is used here without any extra bookkeeping. Whatever is
         still face down is assumed to be the best card in the deck.
 
-        This is an upper bound on real influence, which is what makes a
+        This is an upper bound on real presence, which is what makes a
         resolution against it *certain* rather than merely likely.
         """
-        cap = state.scenario.max_card_influence
-        return sum(c.influence for c in town.revealed) + len(town.pile) * cap
+        cap = state.scenario.max_card_presence
+        return sum(c.presence for c in town.revealed) + len(town.pile) * cap
 
     def _garrison_needed(self, state: GameState, town) -> int:
         """Troops required to hold this town against anything it could hide."""
         if town.resolved:
             return 0
-        strength = state.scenario.unit.strength
-        return -(-self.worst_case(state, town) // strength)  # ceiling division
+        troop_presence = state.scenario.unit.presence
+        return -(-self.worst_case(state, town) // troop_presence)  # ceiling division
 
     # -- the turn ------------------------------------------------------------
 
@@ -463,7 +463,7 @@ class GlobEmpire:
         for town in board.unresolved:
             if town.troops <= 0:
                 continue
-            if town.troops * board.scenario.unit.strength < self.worst_case(board, town):
+            if town.troops * board.scenario.unit.presence < self.worst_case(board, town):
                 continue
             # Richest first for the points; then a production town, whose
             # ownership survives the garrison marching away; then stable.
@@ -525,10 +525,10 @@ class GlobEmpire:
         needs three loses three troops instead of one, which is the mistake the
         margin exists to stop.
         """
-        strength = board.scenario.unit.strength
+        troop_presence = board.scenario.unit.presence
 
         def deficit(town) -> int:
-            return self.worst_case(board, town) - town.troops * strength
+            return self.worst_case(board, town) - town.troops * troop_presence
 
         troubled = sorted(
             (t for t in board.unresolved if t.troops > 0 and deficit(t) >= self.retreat_margin),
@@ -572,14 +572,14 @@ class GlobEmpire:
         supplies nothing, and a town with a taller pile than this one is the
         same mistake one step sideways.
         """
-        strength = board.scenario.unit.strength
+        troop_presence = board.scenario.unit.presence
         arriving = town.troops
         best, best_key = None, None
         for neighbor_id in town.neighbors:
             neighbor = board.towns[neighbor_id]
             if neighbor.resolved and neighbor.winner is Side.INSURGENCY:
                 continue  # permanently barren ground
-            garrison = (neighbor.troops + arriving) * strength
+            garrison = (neighbor.troops + arriving) * troop_presence
             if garrison < self.worst_case(board, neighbor):
                 continue  # losing there too
             key = (
@@ -598,11 +598,11 @@ class GlobEmpire:
         Taken one at a time, re-deriving the options after each, because every
         move changes the network and therefore what the next one can afford.
         The preference is for a *seeded* town over an empty one: the supply is
-        identical and the influence is points the Empire will collect when it
+        identical and the presence is points the Empire will collect when it
         resolves the town next turn.
         """
         toward = _production_distance(board)
-        strength = board.scenario.unit.strength
+        troop_presence = board.scenario.unit.presence
 
         while True:
             candidates = []
@@ -613,7 +613,7 @@ class GlobEmpire:
                     target = board.towns[target_id]
                     if target.resolved or target.troops > 0:
                         continue
-                    needed = max(1, -(-self.worst_case(board, target) // strength))
+                    needed = max(1, -(-self.worst_case(board, target) // troop_presence))
                     if needed > spare(source.id):
                         continue  # cannot be sure of it, so not worth the troops
                     key = (

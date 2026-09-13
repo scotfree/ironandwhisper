@@ -78,8 +78,8 @@ final class View
                 'starving' => $town['starving'],
                 'resolved' => $town['resolved'],
                 'winner' => $town['winner'],
-                'resolvedInfluence' => $town['resolvedInfluence'],
-                'resolvedStrength' => $town['resolvedStrength'],
+                'resolvedCardPresence' => $town['resolvedCardPresence'],
+                'resolvedTroopPresence' => $town['resolvedTroopPresence'],
                 'pileSize' => count($town['pile']),
                 'cardCount' => Rules::townCardCount($town),
                 'pile' => self::pileView($town, $viewerSide),
@@ -106,7 +106,7 @@ final class View
         }
 
         return array_map(
-            static fn(array $card) => ['id' => $card['id'], 'type' => null, 'influence' => null],
+            static fn(array $card) => ['id' => $card['id'], 'type' => null, 'presence' => null],
             array_values($town['pile']),
         );
     }
@@ -118,7 +118,7 @@ final class View
             static fn(array $card) => [
                 'id' => $card['id'],
                 'type' => $card['type'],
-                'influence' => $card['influence'],
+                'presence' => $card['presence'],
             ],
             array_values($cards),
         );
@@ -127,7 +127,7 @@ final class View
     /**
      * Static configuration the client needs to draw the board. Public to both
      * sides: the map, the unit, and the deck composition are all common
-     * knowledge — the Empire's whole estimate of hidden influence depends on
+     * knowledge — the Empire's whole estimate of hidden presence depends on
      * knowing what is in the deck.
      *
      * @return array<string, mixed>

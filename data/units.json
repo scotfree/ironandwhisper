@@ -1,14 +1,14 @@
 {
   "infantry": {
     "label": "Imperial Infantry",
-    "strength": 1,
     "movement": 1,
-    "peek": 1
+    "peek": 1,
+    "presence": 1
   },
   "blind": {
     "label": "Blind Infantry",
-    "strength": 1,
     "movement": 1,
-    "peek": 0
+    "peek": 0,
+    "presence": 1
   }
 }

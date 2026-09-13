@@ -9,7 +9,7 @@ interface CardView {
     id: number;
     /** null when the viewer is not entitled to know what this card is. */
     type: string | null;
-    influence: number | null;
+    presence: number | null;
 }
 
 interface TownView {
@@ -22,8 +22,8 @@ interface TownView {
     starving: number;
     resolved: boolean;
     winner: Side | null;
-    resolvedInfluence: number;
-    resolvedStrength: number;
+    resolvedCardPresence: number;
+    resolvedTroopPresence: number;
     /** Cards still face down. Only the Insurgency is sent their faces. */
     pileSize: number;
     pile: CardView[];
@@ -49,8 +49,8 @@ interface ScenarioView {
     label: string;
     towns: Record<string, TownDef>;
     edges: [string, string][];
-    unit: { id: string; label: string; strength: number; movement: number; peek: number };
-    cardTypes: Record<string, { id: string; label: string; influence: number }>;
+    unit: { id: string; label: string; presence: number; movement: number; peek: number };
+    cardTypes: Record<string, { id: string; label: string; presence: number }>;
     deck: Record<string, number>;
     handSize: number;
     supplyPerTroop: number;

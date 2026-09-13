@@ -316,7 +316,7 @@ class Game extends \Bga\GameFramework\Table
      * full to both players. That is the one moment hidden cards are legitimately
      * revealed.
      *
-     * @return array{winner: string, influence: int, strength: int, points: int}
+     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int}
      */
     public function resolveTown(string $townId, ?string $declaredBy): array
     {
@@ -326,7 +326,7 @@ class Game extends \Bga\GameFramework\Table
         $outcome = Rules::resolveTown(
             $towns,
             $townId,
-            $this->scenario->unitStrength(),
+            $this->scenario->unitPresence(),
             $this->scenario->empireWinsTies,
         );
 
@@ -337,14 +337,14 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'townResolved',
-            clienttranslate('T${turn}: ${town_label} resolves: ${influence} influence against ${strength} strength — ${player_name} takes it for ${points}'),
+            clienttranslate('T${turn}: ${town_label} resolves: rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}'),
             [
                 'turn' => $this->round(),
                 'town_id' => $townId,
                 'town_label' => $this->townLabel($townId),
                 'i18n' => ['town_label'],
-                'influence' => $outcome['influence'],
-                'strength' => $outcome['strength'],
+                'cardPresence' => $outcome['cardPresence'],
+                'troopPresence' => $outcome['troopPresence'],
                 'points' => $outcome['points'],
                 'winner' => $outcome['winner'],
                 'declaredBy' => $declaredBy,
@@ -353,7 +353,7 @@ class Game extends \Bga\GameFramework\Table
                 // Resolution turns whatever was still face down face up, so
                 // this carries the town's whole contents to both players.
                 'pile' => array_map(
-                    fn(array $card) => ['id' => $card['id'], 'type' => $card['type'], 'influence' => $card['influence']],
+                    fn(array $card) => ['id' => $card['id'], 'type' => $card['type'], 'presence' => $card['presence']],
                     array_merge($town['revealed'], $town['pile']),
                 ),
                 // The loser's commitment leaves the board; the winner's stays.
@@ -575,7 +575,7 @@ class Game extends \Bga\GameFramework\Table
      * stopped looking at the board.
      *
      * With a turn of grace the same move becomes a decision. Mass this turn,
-     * resolve at full strength next turn — resolution comes first (Decision 4) —
+     * resolve at full presence next turn — resolution comes first (Decision 4) —
      * then either spread back out onto the supply or accept the loss.
      *
      * The mark is a forecast, never a reservation: what actually falls is
@@ -638,7 +638,7 @@ class Game extends \Bga\GameFramework\Table
     private function reportStarvation(array $losses): void
     {
         $starved = array_sum($losses);
-        $points = $starved * $this->scenario->unitStrength();
+        $points = $starved * $this->scenario->unitPresence();
         $insurgencyId = $this->playerIdForSide(Rules::INSURGENCY);
         $this->addScore($insurgencyId, $points);
 
@@ -697,7 +697,7 @@ class Game extends \Bga\GameFramework\Table
                 fn(int $cardId) => [
                     'id' => $cardId,
                     'type' => $byId[$cardId]['type'],
-                    'influence' => $byId[$cardId]['influence'],
+                    'presence' => $byId[$cardId]['presence'],
                 ],
                 $cardIds,
             );

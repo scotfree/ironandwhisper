@@ -22,13 +22,13 @@ final class Bots
     /** Don't resolve for fewer points than this. */
     private const INSURGENCY_MIN_SCORE = 3;
 
-    /** Overshoot the Empire's strength by this much when committing. */
+    /** Overshoot the Empire's presence by this much when committing. */
     private const INSURGENCY_MARGIN = 1;
 
-    /** How many towns to divide influence across each turn. */
+    /** How many towns to divide presence across each turn. */
     private const INSURGENCY_SPREAD = 1;
 
-    /** Required ratio of strength to estimated influence before resolving. */
+    /** Required ratio of troop presence to estimated card presence before resolving. */
     private const EMPIRE_CONFIDENCE = 1.15;
 
     /** Don't resolve for fewer estimated points than this. */
@@ -50,7 +50,7 @@ final class Bots
     // -- what the Empire is allowed to think -------------------------------
 
     /**
-     * The rate at which an unseen card is worth influence.
+     * The rate at which an unseen card is worth presence.
      *
      * Every card is either face up beside its town or face down in a pile. The
      * deck's composition is public, so the expected value of anything still
@@ -61,19 +61,19 @@ final class Bots
      */
     public static function belief(Scenario $scenario, array $towns): array
     {
-        $knownInfluence = 0;
+        $knownPresence = 0;
         $knownCount = 0;
         foreach ($towns as $town) {
             foreach ($town['revealed'] as $card) {
-                $knownInfluence += (int) $card['influence'];
+                $knownPresence += (int) $card['presence'];
                 $knownCount++;
             }
         }
 
         $unknownCount = $scenario->deckSize() - $knownCount;
-        $unknownInfluence = $scenario->totalInfluence() - $knownInfluence;
+        $unknownPresence = $scenario->totalCardPresence() - $knownPresence;
 
-        return ['rate' => $unknownCount > 0 ? $unknownInfluence / $unknownCount : 0.0];
+        return ['rate' => $unknownCount > 0 ? $unknownPresence / $unknownCount : 0.0];
     }
 
     /**
@@ -86,7 +86,7 @@ final class Bots
     {
         $known = 0;
         foreach ($town['revealed'] as $card) {
-            $known += (int) $card['influence'];
+            $known += (int) $card['presence'];
         }
         return $known + count($town['pile']) * $belief['rate'];
     }
@@ -94,12 +94,12 @@ final class Bots
     // -- the Insurgency ----------------------------------------------------
 
     /**
-     * Concentrate influence where the Empire has committed; scatter dummies as
+     * Concentrate presence where the Empire has committed; scatter dummies as
      * noise, preferring towns the Empire is standing in or beside so the bluff
      * invites over-commitment.
      *
      * @param array<string, array> $towns
-     * @param array<int, array{id: int, influence: int}> $hand
+     * @param array<int, array{id: int, presence: int}> $hand
      * @return array{placements: array<string, int[]>, resolve: ?string}
      */
     public static function insurgencyTurn(Scenario $scenario, array $towns, array $hand): array
@@ -128,40 +128,40 @@ final class Bots
         // Cards are graded, so commit by value rather than by count: spending
         // three ones where a three would do wastes two cards. Biggest first
         // reaches a threshold with the fewest cards, leaving more for elsewhere.
-        $influence = [];
+        $presence = [];
         $worthless = [];
         $valueOf = [];
         foreach ($hand as $card) {
-            $valueOf[(int) $card['id']] = (int) $card['influence'];
-            if ((int) $card['influence'] > 0) {
-                $influence[] = (int) $card['id'];
+            $valueOf[(int) $card['id']] = (int) $card['presence'];
+            if ((int) $card['presence'] > 0) {
+                $presence[] = (int) $card['id'];
             } else {
                 $worthless[] = (int) $card['id'];
             }
         }
-        usort($influence, static fn(int $a, int $b) => $valueOf[$b] <=> $valueOf[$a]);
+        usort($presence, static fn(int $a, int $b) => $valueOf[$b] <=> $valueOf[$a]);
 
-        $strengthOf = static fn(array $town): int
-            => Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
+        $troopPresenceOf = static fn(array $town): int
+            => Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
 
         // Garrisoned towns we could plausibly flip, richest first.
         $targets = array_filter($open, static fn(array $town) => $town['troops'] > 0);
-        uasort($targets, static fn(array $a, array $b) => $strengthOf($b) <=> $strengthOf($a));
+        uasort($targets, static fn(array $a, array $b) => $troopPresenceOf($b) <=> $troopPresenceOf($a));
         $targets = array_slice(array_keys($targets), 0, max(1, self::INSURGENCY_SPREAD));
 
         $placements = [];
         foreach ($targets as $townId) {
-            if (!$influence) {
+            if (!$presence) {
                 break;
             }
-            $needed = $strengthOf($open[$townId])
-                - Rules::townInfluence($open[$townId])
+            $needed = $troopPresenceOf($open[$townId])
+                - Rules::cardPresence($open[$townId])
                 + self::INSURGENCY_MARGIN;
 
             $chosen = [];
             $committed = 0;
-            while ($influence && $committed < $needed) {
-                $cardId = array_shift($influence);
+            while ($presence && $committed < $needed) {
+                $cardId = array_shift($presence);
                 $chosen[] = $cardId;
                 $committed += $valueOf[$cardId];
             }
@@ -170,10 +170,10 @@ final class Bots
             }
         }
 
-        // Leftover influence goes where the Empire is likeliest to arrive.
-        if ($influence) {
+        // Leftover presence goes where the Empire is likeliest to arrive.
+        if ($presence) {
             $fallback = $targets[0] ?? array_rand($open);
-            $placements[$fallback] = array_merge($placements[$fallback] ?? [], $influence);
+            $placements[$fallback] = array_merge($placements[$fallback] ?? [], $presence);
         }
 
         // Worthless cards go next to troops, so the noise looks like something.
@@ -214,13 +214,13 @@ final class Bots
             if (Rules::townCardCount($town) === 0) {
                 continue;
             }
-            $influence = Rules::townInfluence($town);
-            $strength = Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
+            $presence = Rules::cardPresence($town);
+            $troopPresence = Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
 
             // Only worth cashing if we beat the garrison, and the garrison was
-            // worth beating: the Insurgency scores the strength it overcomes.
-            if ($influence > $strength && $strength > $best) {
-                $best = $strength;
+            // worth beating: the Insurgency scores the presence it overcomes.
+            if ($presence > $troopPresence && $troopPresence > $best) {
+                $best = $troopPresence;
                 $resolve = $townId;
             }
         }
@@ -353,8 +353,8 @@ final class Bots
             }
 
             $estimate = $estimateOf[$townId];
-            $strength = Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
-            if ($estimate > 0 && $strength >= $estimate * self::EMPIRE_CONFIDENCE) {
+            $troopPresence = Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
+            if ($estimate > 0 && $troopPresence >= $estimate * self::EMPIRE_CONFIDENCE) {
                 continue; // hold: we think we already win here
             }
             if ($estimateOf[$best] > $estimate) {
@@ -387,8 +387,8 @@ final class Bots
                 continue;
             }
             $estimate = $estimateOf[$townId];
-            $strength = Rules::townStrength((int) $towns[$townId]['troops'], $scenario->unitStrength());
-            if ($strength < $estimate * self::EMPIRE_CONFIDENCE) {
+            $troopPresence = Rules::troopPresence((int) $towns[$townId]['troops'], $scenario->unitPresence());
+            if ($troopPresence < $estimate * self::EMPIRE_CONFIDENCE) {
                 continue;
             }
             if ($estimate < self::EMPIRE_MIN_SCORE) {
@@ -419,7 +419,7 @@ final class Bots
      * The objective is *ceiling*, not points. Points arrive as a by-product of
      * resolving towns it was already safe in — which is why an expansion
      * prefers a seeded town it can beat over an empty one: the supply is the
-     * same and the influence is free.
+     * same and the presence is free.
      *
      * A direct port of GlobEmpire in sim/bots.py. If the two disagree, this one
      * is wrong.
@@ -460,14 +460,14 @@ final class Bots
     }
 
     /**
-     * The most influence a pile could possibly be hiding.
+     * The most presence a pile could possibly be hiding.
      *
      * Face-up cards count exactly. A look moves a card out of the pile and on
      * to the table, so everything the bot has peeked at is already in
      * `revealed` and is used here without any extra bookkeeping. Whatever is
      * still face down is assumed to be the best card in the deck.
      *
-     * This is an upper bound on real influence, which is what makes a
+     * This is an upper bound on real presence, which is what makes a
      * resolution against it *certain* rather than merely likely.
      *
      * @param array{pile: array, revealed: array} $town
@@ -476,9 +476,9 @@ final class Bots
     {
         $known = 0;
         foreach ($town['revealed'] as $card) {
-            $known += (int) $card['influence'];
+            $known += (int) $card['presence'];
         }
-        return $known + count($town['pile']) * $scenario->maxCardInfluence();
+        return $known + count($town['pile']) * $scenario->maxCardPresence();
     }
 
     /** Troops required to hold a town against anything it could be hiding. */
@@ -487,7 +487,7 @@ final class Bots
         if ($town['resolved']) {
             return 0;
         }
-        return (int) ceil(self::globWorstCase($scenario, $town) / $scenario->unitStrength());
+        return (int) ceil(self::globWorstCase($scenario, $town) / $scenario->unitPresence());
     }
 
     /**
@@ -515,7 +515,7 @@ final class Bots
                 continue;
             }
             $worst = self::globWorstCase($scenario, $town);
-            if (Rules::townStrength((int) $town['troops'], $scenario->unitStrength()) < $worst) {
+            if (Rules::troopPresence((int) $town['troops'], $scenario->unitPresence()) < $worst) {
                 continue;
             }
             // Richest first for the points; then a production town, whose
@@ -627,7 +627,7 @@ final class Bots
         callable $commit,
     ): void {
         $deficit = fn(array $town): int => self::globWorstCase($scenario, $town)
-            - Rules::townStrength((int) $town['troops'], $scenario->unitStrength());
+            - Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
 
         $troubled = [];
         foreach ($board as $townId => $town) {
@@ -703,9 +703,9 @@ final class Bots
             if ($neighbor['resolved'] && $neighbor['winner'] === Rules::INSURGENCY) {
                 continue; // permanently barren ground
             }
-            $garrison = Rules::townStrength(
+            $garrison = Rules::troopPresence(
                 (int) $neighbor['troops'] + $arriving,
-                $scenario->unitStrength(),
+                $scenario->unitPresence(),
             );
             if ($garrison < self::globWorstCase($scenario, $neighbor)) {
                 continue; // losing there too
@@ -731,7 +731,7 @@ final class Bots
      * Taken one at a time, re-deriving the options after each, because every
      * move changes the network and therefore what the next one can afford. The
      * preference is for a *seeded* town over an empty one: the supply is
-     * identical and the influence is points the Empire will collect when it
+     * identical and the presence is points the Empire will collect when it
      * resolves the town next turn.
      *
      * @param array<string, array> $board
@@ -756,7 +756,7 @@ final class Bots
                         continue;
                     }
                     $worst = self::globWorstCase($scenario, $target);
-                    $needed = max(1, (int) ceil($worst / $scenario->unitStrength()));
+                    $needed = max(1, (int) ceil($worst / $scenario->unitPresence()));
                     if ($needed > $spare($sourceId)) {
                         continue; // cannot be sure of it, so not worth the troops
                     }

@@ -21,7 +21,7 @@ SCENARIOS_DIR = PROJECT_ROOT / "scenarios"
 class Unit:
     id: str
     label: str
-    strength: int
+    presence: int
     movement: int
     peek: int
 
@@ -30,7 +30,7 @@ class Unit:
 class CardType:
     id: str
     label: str
-    influence: int
+    presence: int
 
 
 @dataclass(frozen=True)
@@ -121,14 +121,14 @@ class Scenario:
         return sum(self.deck.values())
 
     @property
-    def total_influence(self) -> int:
+    def total_card_presence(self) -> int:
         return sum(
-            quantity * self.card_types[type_id].influence
+            quantity * self.card_types[type_id].presence
             for type_id, quantity in self.deck.items()
         )
 
     @property
-    def max_card_influence(self) -> int:
+    def max_card_presence(self) -> int:
         """The best card the deck can hold.
 
         An Empire that can see a pile's height but not its faces knows the pile
@@ -136,7 +136,7 @@ class Scenario:
         tell a certain win from a likely one.
         """
         return max(
-            (self.card_types[type_id].influence
+            (self.card_types[type_id].presence
              for type_id, quantity in self.deck.items() if quantity > 0),
             default=0,
         )
@@ -164,18 +164,18 @@ class Scenario:
         return sum(t.supply for t in self.map.towns)
 
     @property
-    def total_strength(self) -> int:
+    def total_troop_presence(self) -> int:
         """The most force the Empire could ever have standing at once.
 
         Not a budget for the whole game the way it used to be: troops are no
         longer spent at resolution, they are limited by supply.
         """
-        return (self.map_supply // self.supply_per_troop) * self.unit.strength
+        return (self.map_supply // self.supply_per_troop) * self.unit.presence
 
     @property
     def empire_premium(self) -> float:
         """Empire's total force as a multiple of the Insurgency's."""
-        return self.total_strength / self.total_influence
+        return self.total_troop_presence / self.total_card_presence
 
     def summary(self) -> str:
         return (
@@ -183,8 +183,8 @@ class Scenario:
             f"  map               {self.map.label} — {len(self.map.towns)} towns, "
             f"avg degree {self.map.average_degree:.2f}, diameter {self.map.diameter}\n"
             f"  game length       {self.turns} Insurgency turns\n"
-            f"  total influence   {self.total_influence}\n"
-            f"  total strength    {self.total_strength}\n"
+            f"  rebel presence    {self.total_card_presence}  (the whole deck)\n"
+            f"  Empire presence   {self.total_troop_presence}  (the most it could stand at once)\n"
             f"  Empire premium    {self.empire_premium:.2f}x"
         )
 
@@ -197,7 +197,7 @@ def _load_json(path: Path) -> dict:
 def load_units() -> dict[str, Unit]:
     raw = _load_json(DATA_DIR / "units.json")
     return {
-        uid: Unit(id=uid, label=u["label"], strength=u["strength"],
+        uid: Unit(id=uid, label=u["label"], presence=u["presence"],
                   movement=u["movement"], peek=u["peek"])
         for uid, u in raw.items()
     }
@@ -206,7 +206,7 @@ def load_units() -> dict[str, Unit]:
 def load_card_types() -> dict[str, CardType]:
     raw = _load_json(DATA_DIR / "cards.json")
     return {
-        cid: CardType(id=cid, label=c["label"], influence=c["influence"])
+        cid: CardType(id=cid, label=c["label"], presence=c["presence"])
         for cid, c in raw.items()
     }
 

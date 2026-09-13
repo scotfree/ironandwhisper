@@ -18,8 +18,8 @@ final class Scenario
 
     /**
      * @param array<string, array{id: string, label: string, x: float, y: float, neighbors: string[]}> $towns
-     * @param array{id: string, label: string, strength: int, movement: int, peek: int} $unit
-     * @param array<string, array{id: string, label: string, influence: int}> $cardTypes
+     * @param array{id: string, label: string, presence: int, movement: int, peek: int} $unit
+     * @param array<string, array{id: string, label: string, presence: int}> $cardTypes
      * @param array<string, int> $deck        card type id => quantity
      * @param array<string, int> $empireStart town id => starting troops
      * @param array<array{0: string, 1: string}> $edges
@@ -125,9 +125,9 @@ final class Scenario
         );
     }
 
-    public function unitStrength(): int
+    public function unitPresence(): int
     {
-        return (int) $this->unit['strength'];
+        return (int) $this->unit['presence'];
     }
 
     public function unitPeek(): int
@@ -135,12 +135,12 @@ final class Scenario
         return (int) $this->unit['peek'];
     }
 
-    public function influenceOf(string $cardType): int
+    public function presenceOf(string $cardType): int
     {
         if (!isset($this->cardTypes[$cardType])) {
             throw new \RuntimeException("unknown card type {$cardType}");
         }
-        return (int) $this->cardTypes[$cardType]['influence'];
+        return (int) $this->cardTypes[$cardType]['presence'];
     }
 
     /**
@@ -169,11 +169,11 @@ final class Scenario
         return $seen;
     }
 
-    public function totalInfluence(): int
+    public function totalCardPresence(): int
     {
         $total = 0;
         foreach ($this->deck as $typeId => $quantity) {
-            $total += $this->influenceOf($typeId) * $quantity;
+            $total += $this->presenceOf($typeId) * $quantity;
         }
         return $total;
     }
@@ -200,12 +200,12 @@ final class Scenario
      * is worth at most this much per card. That upper bound is what lets a bot
      * tell a certain win from a likely one.
      */
-    public function maxCardInfluence(): int
+    public function maxCardPresence(): int
     {
         $best = 0;
         foreach ($this->deck as $typeId => $quantity) {
             if ($quantity > 0) {
-                $best = max($best, $this->influenceOf($typeId));
+                $best = max($best, $this->presenceOf($typeId));
             }
         }
         return $best;

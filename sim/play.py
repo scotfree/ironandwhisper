@@ -79,22 +79,22 @@ def render_board(state: GameState, view: Side | None = None) -> str:
         if town.resolved:
             status = (
                 f"resolved · {town.winner.value} · "
-                f"inf {town.resolved_influence} v str {town.resolved_strength}"
+                f"inf {town.resolved_card_presence} v str {town.resolved_troop_presence}"
             )
         else:
             status = ""
             if not pile_size:
                 intel = ""
             elif view is Side.INSURGENCY or view is None:
-                influence = sum(c.influence for c in town.cards)
-                intel = f"influence {influence} of {pile_size}"
+                presence = sum(c.presence for c in town.cards)
+                intel = f"presence {presence} of {pile_size}"
             elif view is Side.EMPIRE:
                 known = town.revealed
                 if known:
-                    known_influence = sum(c.influence for c in known)
+                    known_presence = sum(c.presence for c in known)
                     intel = (
                         f"seen {len(known)}/{pile_size}: "
-                        f"{known_influence} influence"
+                        f"{known_presence} presence"
                     )
                 elif pile_size:
                     intel = "nothing seen"
@@ -106,12 +106,12 @@ def render_board(state: GameState, view: Side | None = None) -> str:
     if state.hand and view is not Side.EMPIRE:
         counts: dict[int, int] = {}
         for card in state.hand:
-            counts[card.influence] = counts.get(card.influence, 0) + 1
+            counts[card.presence] = counts.get(card.presence, 0) + 1
         summary = "  ".join(
             f"{count}x{value}" for value, count in sorted(counts.items(), reverse=True)
         )
         lines.append("")
-        lines.append(f"HAND ({len(state.hand)}): {summary}   total {sum(c.influence for c in state.hand)}")
+        lines.append(f"HAND ({len(state.hand)}): {summary}   total {sum(c.presence for c in state.hand)}")
 
     return "\n".join(lines)
 
@@ -214,7 +214,7 @@ class Table:
             turn = self._pending_insurgency
             for town_id, indices in turn.placements.items():
                 values = sorted(
-                    (self.state.hand[i].influence for i in indices), reverse=True
+                    (self.state.hand[i].presence for i in indices), reverse=True
                 )
                 parts.append(
                     f"  place [{' '.join(str(v) for v in values)}] "
@@ -259,7 +259,7 @@ class Table:
         available = [i for i in range(len(self.state.hand)) if i not in already]
 
         chosen = []
-        wanted = [(1, (lambda v: (lambda c: c.influence == v))(value)) for value in values]
+        wanted = [(1, (lambda v: (lambda c: c.presence == v))(value)) for value in values]
         for want, predicate in wanted + [(cards, lambda c: True)]:
             for _ in range(want):
                 match = next(

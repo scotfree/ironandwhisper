@@ -27,10 +27,10 @@ from .engine import (
 )
 from .config import load_scenario
 
-FOOT = Unit(id="foot", label="Foot", strength=1, movement=1, peek=1)
+FOOT = Unit(id="foot", label="Foot", presence=1, movement=1, peek=1)
 CARD_TYPES = {
-    "influence0": CardType(id="influence0", label="Influence 0", influence=0),
-    "influence1": CardType(id="influence1", label="Influence 1", influence=1),
+    "influence0": CardType(id="influence0", label="Agent +0", presence=0),
+    "influence1": CardType(id="influence1", label="Agent +1", presence=1),
 }
 
 
@@ -71,11 +71,11 @@ def board(**overrides):
     return st
 
 
-def seed(st, town_id: str, count: int, influence: int = 1) -> None:
+def seed(st, town_id: str, count: int, presence: int = 1) -> None:
     """Put `count` face-down cards into a pile. The bot may not look at them."""
     for i in range(count):
         st.towns[town_id].pile.insert(
-            0, Card(uid=1000 + i, type_id=f"influence{influence}", influence=influence)
+            0, Card(uid=1000 + i, type_id=f"presence{presence}", presence=presence)
         )
 
 
@@ -123,7 +123,7 @@ def test_a_card_it_has_already_seen_counts_at_its_real_value():
     st.towns["a"].troops = 1
     seed(st, "a", 2)
     st.towns["a"].revealed.append(st.towns["a"].pile.pop(0))
-    st.towns["a"].revealed[0] = Card(uid=9, type_id="influence0", influence=0)
+    st.towns["a"].revealed[0] = Card(uid=9, type_id="influence0", presence=0)
     assert turn(st).resolve == "a"
 
 
@@ -171,7 +171,7 @@ def test_it_expands_into_several_towns_at_once():
 
 
 def test_a_seeded_town_it_can_beat_is_preferred_to_an_empty_one():
-    """The supply is identical and the influence is points it will collect."""
+    """The supply is identical and the presence is points it will collect."""
     st = board()
     st.towns["a"].troops = 3
     seed(st, "c", 2)

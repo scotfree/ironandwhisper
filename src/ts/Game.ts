@@ -190,7 +190,7 @@ export class Game {
         }
 
         element.innerHTML = this.hand.map(card => {
-            const label = String(card.influence ?? 0);
+            const label = String(card.presence ?? 0);
             const staged = assigned[card.id] ? ' staged' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
             return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
@@ -250,7 +250,7 @@ export class Game {
             // Placed one at a time, so the last one given ends up on top.
             [...cardIds].reverse().forEach(cardId => {
                 const known = this.cardById(cardId);
-                town.pile.unshift(known ?? { id: cardId, type: null, influence: null });
+                town.pile.unshift(known ?? { id: cardId, type: null, presence: null });
             });
             town.pileSize = town.pile.length;
             town.cardCount += cardIds.length;
@@ -313,8 +313,8 @@ export class Game {
     async notif_townResolved(args: {
         town_id: string;
         winner: Side;
-        influence: number;
-        strength: number;
+        cardPresence: number;
+        troopPresence: number;
         points: number;
         player_id: number;
         pile: CardView[];
@@ -330,8 +330,8 @@ export class Game {
         const town = this.board.getTown(args.town_id);
         town.resolved = true;
         town.winner = args.winner;
-        town.resolvedInfluence = args.influence;
-        town.resolvedStrength = args.strength;
+        town.resolvedCardPresence = args.cardPresence;
+        town.resolvedTroopPresence = args.troopPresence;
         // Only the loser's commitment leaves. The Empire keeps its garrison in
         // a town it wins, so zeroing troops here made them vanish until the
         // next turn's notification put them back.

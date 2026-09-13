@@ -48,9 +48,9 @@ def positions(scenario, count: int, seed: int = 7):
                     town.troops = 0  # the rebels took it; nothing of ours stands
             pile = [] if town.resolved else [rng.choice([0, 1]) for _ in range(rng.randint(0, 5))]
             revealed = [] if town.resolved else [rng.choice([0, 1]) for _ in range(rng.randint(0, 2))]
-            town.pile = [Card(uid=1000 + j, type_id=f"influence{v}", influence=v)
+            town.pile = [Card(uid=1000 + j, type_id=f"presence{v}", presence=v)
                          for j, v in enumerate(pile)]
-            town.revealed = [Card(uid=2000 + j, type_id=f"influence{v}", influence=v)
+            town.revealed = [Card(uid=2000 + j, type_id=f"presence{v}", presence=v)
                              for j, v in enumerate(revealed)]
             position[town_id] = {
                 "troops": town.troops,

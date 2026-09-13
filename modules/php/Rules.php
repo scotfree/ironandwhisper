@@ -13,7 +13,7 @@
  *     'neighbors' => string[],
  *     'troops'    => int,
  *     'resolved'  => bool,
- *     'pile'      => face-down cards, list of ['id', 'type', 'influence'],
+ *     'pile'      => face-down cards, list of ['id', 'type', 'presence'],
  *     'revealed'  => face-up cards beside the pile, same shape,
  *   ]
  * Pile index 0 is the TOP. New cards are placed on top; a look flips the top
@@ -42,11 +42,11 @@ final class Rules
      *
      * @param array{pile: array, revealed: array} $town
      */
-    public static function townInfluence(array $town): int
+    public static function cardPresence(array $town): int
     {
         $total = 0;
         foreach (array_merge($town['pile'], $town['revealed']) as $card) {
-            $total += (int) $card['influence'];
+            $total += (int) $card['presence'];
         }
         return $total;
     }
@@ -57,9 +57,9 @@ final class Rules
         return count($town['pile']) + count($town['revealed']);
     }
 
-    public static function townStrength(int $troops, int $unitStrength): int
+    public static function troopPresence(int $troops, int $unitPresence): int
     {
-        return $troops * $unitStrength;
+        return $troops * $unitPresence;
     }
 
     /** @param array<string, array> $towns */
@@ -400,16 +400,16 @@ final class Rules
      * Who takes a town, and what the winner scores.
      *
      * You score only what you take off the opponent: the Empire banks the
-     * influence it suppressed, the Insurgency banks the strength it absorbed.
+     * presence it suppressed, the Insurgency banks the presence it absorbed.
      * The Empire wins ties (Decision 7).
      *
-     * @return array{winner: string, influence: int, strength: int, points: int}
+     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int}
      */
-    public static function resolutionOutcome(int $influence, int $strength, bool $empireWinsTies): array
+    public static function resolutionOutcome(int $cardPresence, int $troopPresence, bool $empireWinsTies): array
     {
-        if ($strength > $influence) {
+        if ($troopPresence > $cardPresence) {
             $winner = self::EMPIRE;
-        } elseif ($influence > $strength) {
+        } elseif ($cardPresence > $troopPresence) {
             $winner = self::INSURGENCY;
         } else {
             $winner = $empireWinsTies ? self::EMPIRE : self::INSURGENCY;
@@ -417,9 +417,9 @@ final class Rules
 
         return [
             'winner' => $winner,
-            'influence' => $influence,
-            'strength' => $strength,
-            'points' => $winner === self::EMPIRE ? $influence : $strength,
+            'cardPresence' => $cardPresence,
+            'troopPresence' => $troopPresence,
+            'points' => $winner === self::EMPIRE ? $cardPresence : $troopPresence,
         ];
     }
 
@@ -427,9 +427,9 @@ final class Rules
      * Resolution outcome for one town on the given board.
      *
      * @param array<string, array> $towns
-     * @return array{winner: string, influence: int, strength: int, points: int}
+     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int}
      */
-    public static function resolveTown(array $towns, string $townId, int $unitStrength, bool $empireWinsTies): array
+    public static function resolveTown(array $towns, string $townId, int $unitPresence, bool $empireWinsTies): array
     {
         if (!isset($towns[$townId])) {
             throw new IllegalMove("unknown town {$townId}");
@@ -439,8 +439,8 @@ final class Rules
         }
 
         return self::resolutionOutcome(
-            self::townInfluence($towns[$townId]),
-            self::townStrength((int) $towns[$townId]['troops'], $unitStrength),
+            self::cardPresence($towns[$townId]),
+            self::troopPresence((int) $towns[$townId]['troops'], $unitPresence),
             $empireWinsTies,
         );
     }

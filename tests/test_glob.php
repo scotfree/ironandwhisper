@@ -46,7 +46,7 @@ function globSeed(array $town, int $count, int $value = 1): array
 {
     for ($i = 0; $i < $count; $i++) {
         $town['pile'][] = [
-            'id' => 100 + $i, 'type' => "influence{$value}", 'influence' => $value, 'seen' => false,
+            'id' => 100 + $i, 'type' => "presence{$value}", 'presence' => $value, 'seen' => false,
         ];
     }
     return $town;
@@ -103,7 +103,7 @@ function test_glob_counts_a_card_it_has_seen_at_its_real_value(): void
     $towns['everlan']['troops'] = 1;
     $towns['everlan'] = globSeed($towns['everlan'], 1);
     $towns['everlan']['revealed'][] = [
-        'id' => 9, 'type' => 'influence0', 'influence' => 0, 'seen' => true,
+        'id' => 9, 'type' => 'influence0', 'presence' => 0, 'seen' => true,
     ];
 
     assertSame('everlan', Bots::globEmpireTurn($scenario, $towns)['resolve']);
@@ -153,7 +153,7 @@ function test_glob_expands_into_several_towns_at_once(): void
 function test_glob_sends_exactly_enough_to_be_certain_of_a_seeded_town(): void
 {
     // A seeded town it can beat is preferred to an empty one — the supply is
-    // identical and the influence is points it will collect next turn — but it
+    // identical and the presence is points it will collect next turn — but it
     // pays no more for it than certainty costs.
     $scenario = Scenario::load('baseline');
     $towns = globBoard($scenario);
@@ -298,8 +298,8 @@ function test_glob_decides_exactly_what_the_simulator_decides(): void
                 foreach ($recorded[$where] as $i => $value) {
                     $towns[$townId][$where][] = [
                         'id' => ($where === 'pile' ? 1000 : 2000) + $i,
-                        'type' => "influence{$value}",
-                        'influence' => (int) $value,
+                        'type' => "presence{$value}",
+                        'presence' => (int) $value,
                         'seen' => $where === 'revealed',
                     ];
                 }

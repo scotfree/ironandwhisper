@@ -12,6 +12,17 @@ reasoning behind every decision.
 
 ## CRITICAL
 
+**Presence is the one quantity, and the vocabulary is settled** (2026-09-13). Both sides
+accumulate **presence** in a town and the higher total wins; say **card presence** and
+**troop presence** when the source matters. *Influence* and *strength* are gone — they were
+two names for one thing in the exact place a player has to compare them. Cards are
+**agents** (`Agent +0` is a decoy). The old boolean sense of "presence" — the Decision 5
+gate — is replaced by **occupied** (troops there), **seeded** (cards there) and
+**controlled** (resolved and won), because it was never clear which of the three it meant.
+Card type ids stay `influence0`…`influence3`: arbitrary, unseen, and not worth churning
+every scenario file for. See *Vocabulary* in `ironandwhisper.md`.
+
+
 **The rules are settled and encoded in `sim/`. Port from the simulator, not from memory.**
 `sim/engine.py` is the executable specification and `sim/test_engine.py` has 50 tests, each
 named for the design decision it pins down. If the PHP disagrees with the simulator, the
@@ -44,7 +55,7 @@ march them out to the supply that will feed them in one turn. Do not put the cei
 into production: it was one word doing two jobs, and it left a network at its ceiling with
 an idle factory. Production is a separate per-town
 number. The two are independent on purpose — a poor town can be a depot, a rich one can
-build nothing. An earlier design had the network contribute *attack strength* instead;
+build nothing. An earlier design had the network contribute *attack presence* instead;
 it fails, and `ironandwhisper.md` Decision 2 records why.
 
 **Resolution happens first in a turn, and is judged on the board as your opponent left
@@ -71,7 +82,7 @@ PHP.** Changing their shape means changing both. That sharing is the whole reaso
 tuning work transfers.
 
 **`baseline` is currently set for feel, not for balance.** Cards are 0 or 1, a troop is
-strength 1 and costs 1 supply, every town supplies 2 — deliberately minimal, at the
+presence 1 and costs 1 supply, every town supplies 2 — deliberately minimal, at the
 player's request, so the shape of the game can be felt. **Hand size is 3** (was 5, changed
 2026-09-11): a five-card hand lets the rebels rush the Empire's starting city before it can
 stand anything up, which real play found and the bots do not, and placing five cards a turn
@@ -80,20 +91,20 @@ is a chore. It makes the game 20 turns rather than 12 — the deck is the clock,
 off with a smaller hand, in two framings (deck held at 60, and deck scaled to hold the game
 at 10 turns), so the effect survives controlling for game length. The mechanism is *not* the number of towns the
 Empire wins — that is flat at about 4 of 12 whatever the hand size. What changes is what
-those towns are worth: at hand 6 the Empire captures 0.1% of the rebels' influence, at hand
+those towns are worth: at hand 6 the Empire captures 0.1% of the rebels' presence, at hand
 3 it captures 4.8%. A big hand buries every town under a pile no garrison can match, so
 anything the Empire wins is something the rebels did not bother contesting. At those
 numbers the Empire wins **0.6%** against the bots.
 
 **Everlan starts with 3 troops rather than 2** (2026-09-12). Not a balance number but a
-threshold one: at strength 1, against a hand of three cards worth at most 1 each, a
+threshold one: at presence 1, against a hand of three cards worth at most 1 each, a
 garrison of 2 loses Everlan to the opening placement and a garrison of 3 *ties* it — and
 the Empire wins ties. The rush now takes the rebels two turns, and the Empire gets one in
 between. **This lever is spent at 4 troops in total.** Everlan and Belmar supply 2 each, so
 the network ceiling is exactly 4; a fifth starting troop is over supply on turn one,
 starves, and scores for the rebels. A sweep has the Insurgency's mean score going
 8.7 → 13.2 → 16.1 as the garrison goes 3 → 4 → 6, while the Empire's win rate stays flat
-inside noise. More help has to come from troop strength or from supply, not from more
+inside noise. More help has to come from troop presence or from supply, not from more
 starting troops.
 
 > An earlier reading of this sweep had the Empire taking 10.3 of 12 towns at hand 6 and
@@ -103,22 +114,22 @@ starting troops.
 > direction of the hand-size finding was unaffected, but the story about why was wrong —
 > which is the usual lesson about measuring a mechanic inside a broken configuration. Do not read anything into a game played on them, and do not "fix"
 them without asking: the simplification is deliberate. The last roughly-even settings —
-graded cards, heterogeneous map, strength 3 — are in the git history at `dedba1a`.
+graded cards, heterogeneous map, presence 3 — are in the git history at `dedba1a`.
 
 **Why 0% is the ordering change working rather than failing.** With cards worth at most 1,
-public pile height is an exact upper bound on a town's influence, and ties go to the Empire,
+public pile height is an exact upper bound on a town's presence, and ties go to the Empire,
 so N troops beat any N-card pile *with certainty*. The Empire's whole game at these
 parameters was the guaranteed snipe: march one troop in, resolve on arrival, take the town
 and its supply for free. Resolution-first removes it and leaves the Empire nothing. The
 two things that give it a game back are parameter edits, not code: **graded cards** (a
-lone-troop attack becomes a bet on whether that card is a 3) and **troop strength above 1**.
+lone-troop attack becomes a bet on whether that card is a 3) and **troop presence above 1**.
 Graded cards are also what make concealment mean anything at all — with a maximum of 1,
 peeking can only tell you a pile is worth less than you already knew it could not exceed.
 
-**Troop strength against card value is the lever, not the Insurgency's economy.** Cutting
-influence from 36 to 18 made the Empire *worse* (2% to 0.3%), because the Empire scores by
-capturing influence — a poorer Insurgency is a smaller prize. What moves it is how much a
-garrison is worth: at strength 1 a lone troop is beaten by two cards, at strength 3 it
+**Troop presence against card value is the lever, not the Insurgency's economy.** Cutting
+presence from 36 to 18 made the Empire *worse* (2% to 0.3%), because the Empire scores by
+capturing presence — a poorer Insurgency is a smaller prize. What moves it is how much a
+garrison is worth: at presence 1 a lone troop is beaten by two cards, at presence 3 it
 takes four. Every parameter sweep so far has found a **cliff** rather than a curve, in the
 same place each time — where the bots' strategy flips — so treat single measurements
 either side of it with suspicion.
@@ -151,7 +162,7 @@ Done:
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
   supply and network drawn on the board, a log with a line per action. A town draws its
-  cards as **two stacks** — face down with a height, face up with a height and the influence
+  cards as **two stacks** — face down with a height, face up with a height and the presence
   they total, individual values on the tooltip. Laying every card out made a well-seeded
   town enormous, and the row's only readable property was its length. The Insurgency is
   still *sent* its own face-down cards and is simply not shown them: once a card is down it
@@ -230,7 +241,7 @@ Not done, in rough order of how much it hurts:
 - **The Empire is losing badly at the table, and that has not changed.** What changed is
   that the *bot* now wins, which mostly says the old bot was bad. Hand size and the starting
   garrison are both spent as levers (see the notes above each). The next moves are still
-  **graded cards** and **troop strength above 1** — open question 2.
+  **graded cards** and **troop presence above 1** — open question 2.
 - **`GlobEmpire`'s certainty test does not survive graded cards.** It resolves when troops
   beat `revealed + pile height x the best card in the deck`, which is exact at baseline
   where cards are 0 or 1 and useless at `graded36`, where every face-down card is assumed to
@@ -317,8 +328,8 @@ Specifics:
 
 ```
 ironandwhisper.md      rules + Decisions & Constraints (the source of truth for design)
-data/units.json        strength / movement / peek per unit type
-data/cards.json        influence value per card type
+data/units.json        presence / movement / peek per unit type
+data/cards.json        presence value per card type
 maps/*.json            geography: towns with x/y, edges
 scenarios/*.json       references a map, sets the knobs. `baseline` is the game;
                        `flat`, `graded36`, `blind`, `flat_blind`, `graded36_blind`
@@ -436,8 +447,8 @@ from 0.5% against the Insurgency bot to **64%**.
 
 The rules, in the order the turn applies them:
 
-1. **Resolve only a certain win.** `worstCase = revealed influence + pile height x the best
-   card in the deck`. Resolve if `strength >= worstCase`, ties included, and never
+1. **Resolve only a certain win.** `worstCase = revealed presence + pile height x the best
+   card in the deck`. Resolve if `troop presence >= worstCase`, ties included, and never
    otherwise. Peeked cards need no special handling — a look moves a card face up, so it is
    already in `revealed` and already counted exactly.
 2. **Richest certain win first**, tie-broken toward a production town, whose ownership
@@ -445,7 +456,7 @@ The rules, in the order the turn applies them:
 3. **An empty town is a certain win worth nothing, and worth taking anyway**: it locks the
    ground, its supply and its production for the rest of the game.
 4. **Expand in a wave** into every free adjacent town the spare troops can certainly hold,
-   preferring a *seeded* town to an empty one — same supply, and the influence is free. One
+   preferring a *seeded* town to an empty one — same supply, and the presence is free. One
    move at a time, re-deriving the options after each, since every move changes the network.
 5. **Rescue or withdraw, never dribble.** A garrison behind by `GLOB_RETREAT_MARGIN` or more
    is either reinforced to a certain win in one motion or pulled out entirely. Half a relief
@@ -514,7 +525,7 @@ query breaks a test rather than a table on the Studio.
 
 `tests/test_rules.php` mirrors `sim/test_engine.py` case for case. `tests/test_game.php`
 drives whole games and checks the invariants that matter: every town resolves, the deck is
-an exact twelve-turn clock, all 36 influence is accounted for, scoring conserves what was
+an exact twelve-turn clock, all 36 presence is accounted for, scoring conserves what was
 committed, and no public notification ever carries a hidden card.
 
 **PHP is not installed system-wide.** `~/.local/bin/php` is a standalone static build
@@ -524,18 +535,18 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
 ## Open questions for a human
 
 1. **The Insurgency can only score where the Empire chooses to stand.** Capture-only
-   scoring means its influence is worth nothing in a town the Empire never garrisons — a
-   real game ended with 28 influence across four towns scoring zero. The Empire's answer is
+   scoring means its presence is worth nothing in a town the Empire never garrisons — a
+   real game ended with 28 presence across four towns scoring zero. The Empire's answer is
    to take empty towns and never contest a stacked one, which is board-shrinking with
    teeth now that resolution also locks supply permanently. **Intrinsic town values** are
    the long-deferred counter and the thing most likely to fix it: if a town is worth points
-   to whoever holds it, the Empire cannot ignore a seeded town and the rebels' 28 influence
+   to whoever holds it, the Empire cannot ignore a seeded town and the rebels' 28 presence
    buys something. Town supply is a natural place to hang it.
-2. **Put the graded cards and troop strength back.** This is now the top of the list
+2. **Put the graded cards and troop presence back.** This is now the top of the list
    rather than a someday item. Several sessions of real play have the Empire losing badly,
    and the two subtler levers tried instead — hand size and the starting garrison — are
-   both measured and both spent. Troop strength is the one that moves what a garrison is
-   *worth*: at strength 1 a lone troop is beaten by two cards, at strength 3 it takes four.
+   both measured and both spent. Troop presence is the one that moves what a garrison is
+   *worth*: at presence 1 a lone troop is beaten by two cards, at presence 3 it takes four.
    Graded cards are what make peeking mean anything and what turn a lone-troop attack into
    a bet. See the CRITICAL note on why 0% is expected without them. The last
    roughly-even settings are in the git history at `dedba1a`; expect to re-tune rather than
@@ -655,8 +666,8 @@ Constraints the port itself introduced:
 Two methodological notes worth keeping:
 
 - **The "Empire premium" heuristic in the design doc does not predict balance.** Equalising
-  total force does almost nothing, because capture-only scoring makes troop strength
-  self-cancelling. Influence density is the knob that moves the game.
+  total force does almost nothing, because capture-only scoring makes troop presence
+  self-cancelling. Presence density is the knob that moves the game.
 - **Measuring a mechanic inside a broken configuration tells you nothing.** Two findings
   reversed when the rules were fixed — peeking looked inert and board-shrinking looked like
   a trap; both were measured while the Empire won regardless. Re-measure after any rules

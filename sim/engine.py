@@ -41,7 +41,7 @@ class Card:
     """
     uid: int
     type_id: str
-    influence: int
+    presence: int
 
     def __repr__(self) -> str:
         return f"<{self.type_id}#{self.uid}>"
@@ -71,8 +71,8 @@ class Town:
     winner: Side | None = None
 
     # Recorded at resolution so the board stays a readable history.
-    resolved_influence: int = 0
-    resolved_strength: int = 0
+    resolved_card_presence: int = 0
+    resolved_troop_presence: int = 0
 
     # How many of this town's troops are forecast to starve, worked out at the
     # end of the Empire's last turn. A warning, not a reservation: the loss is
@@ -81,7 +81,7 @@ class Town:
     starving: int = 0
 
     @property
-    def has_empire_presence(self) -> bool:
+    def is_occupied(self) -> bool:
         """Whether the Empire may generate here."""
         return self.troops > 0
 
@@ -148,8 +148,8 @@ class GameState:
                     id=t.id, label=t.label, neighbors=t.neighbors,
                     pile=list(t.pile), revealed=list(t.revealed),
                     troops=t.troops, resolved=t.resolved,
-                    winner=t.winner, resolved_influence=t.resolved_influence,
-                    resolved_strength=t.resolved_strength,
+                    winner=t.winner, resolved_card_presence=t.resolved_card_presence,
+                    resolved_troop_presence=t.resolved_troop_presence,
                 )
                 for tid, t in self.towns.items()
             },
@@ -172,12 +172,12 @@ class GameState:
     def resolved(self) -> list[Town]:
         return [t for t in self.towns.values() if t.resolved]
 
-    def influence_in(self, town_id: str) -> int:
-        """True total influence in a pile. Omniscient: the Empire cannot see this."""
-        return sum(c.influence for c in self.towns[town_id].cards)
+    def card_presence_in(self, town_id: str) -> int:
+        """True total presence in a pile. Omniscient: the Empire cannot see this."""
+        return sum(c.presence for c in self.towns[town_id].cards)
 
-    def strength_in(self, town_id: str) -> int:
-        return self.towns[town_id].troops * self.scenario.unit.strength
+    def troop_presence_in(self, town_id: str) -> int:
+        return self.towns[town_id].troops * self.scenario.unit.presence
 
     def total_troops(self) -> int:
         return sum(t.troops for t in self.towns.values())
@@ -201,7 +201,7 @@ def new_game(scenario: Scenario, rng: random.Random | None = None) -> GameState:
         card_type = scenario.card_types[type_id]
         for _ in range(quantity):
             deck.append(Card(uid=next(uids), type_id=type_id,
-                             influence=card_type.influence))
+                             presence=card_type.presence))
     rng.shuffle(deck)
 
     for town_id, quantity in scenario.empire_start.items():
@@ -233,26 +233,27 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     if town.resolved:
         raise IllegalMove(f"{town_id} is already resolved")
 
-    influence = sum(c.influence for c in town.cards)
-    strength = town.troops * state.scenario.unit.strength
+    # Both sides bring presence to a town; only what carries it differs.
+    card_presence = sum(c.presence for c in town.cards)
+    troop_presence = town.troops * state.scenario.unit.presence
 
-    if strength > influence:
+    if troop_presence > card_presence:
         winner = Side.EMPIRE
-    elif influence > strength:
+    elif card_presence > troop_presence:
         winner = Side.INSURGENCY
     else:
         winner = Side.EMPIRE if state.scenario.empire_wins_ties else Side.INSURGENCY
 
     # You score only what you take off the opponent.
     if winner is Side.EMPIRE:
-        state.scores[Side.EMPIRE] += influence
+        state.scores[Side.EMPIRE] += card_presence
     else:
-        state.scores[Side.INSURGENCY] += strength
+        state.scores[Side.INSURGENCY] += troop_presence
 
     town.resolved = True
     town.winner = winner
-    town.resolved_influence = influence
-    town.resolved_strength = strength
+    town.resolved_card_presence = card_presence
+    town.resolved_troop_presence = troop_presence
 
     # The flip is public whatever happens next.
     town.revealed.extend(town.pile)
@@ -269,8 +270,9 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     who = "auto" if declared_by is None else declared_by.value
     state.log.append(
         f"R{state.round_number}: {town.label} resolved ({who}) — "
-        f"influence {influence} vs strength {strength} — {winner.value} takes it, "
-        f"scoring {influence if winner is Side.EMPIRE else strength}"
+        f"rebels {card_presence} presence, Empire {troop_presence} presence — "
+        f"{winner.value} takes it, "
+        f"scoring {card_presence if winner is Side.EMPIRE else troop_presence}"
     )
     return winner
 
@@ -620,7 +622,7 @@ def _attrition(state: GameState, disband: dict[str, int]) -> None:
     the loss landed after the player had stopped looking at the board.
 
     With a turn of grace the same move becomes a decision. Mass this turn,
-    resolve at full strength next turn — resolution comes first (Decision 4) —
+    resolve at full presence next turn — resolution comes first (Decision 4) —
     then either spread back out to re-occupy the supply or accept the loss.
 
     The mark is a forecast, never a reservation: what actually falls is
@@ -647,7 +649,7 @@ def _attrition(state: GameState, disband: dict[str, int]) -> None:
                 starved += take
 
     if starved:
-        state.scores[Side.INSURGENCY] += starved * state.scenario.unit.strength
+        state.scores[Side.INSURGENCY] += starved * state.scenario.unit.presence
         state.log.append(
             f"R{state.round_number}: {starved} Empire troops starve for want of supply"
         )

@@ -145,7 +145,7 @@ export class InsurgencyTurn {
     private placementsHtml(): string {
         return this.order.map(cardId => {
             const card = this.game.cardById(cardId);
-            const value = card?.influence ?? 0;
+            const value = card?.presence ?? 0;
             return `<div>${_('Influence')} ${value} ${_('to')}
                     <b>${this.townLabel(this.assigned[cardId])}</b></div>`;
         }).join('');

@@ -24,11 +24,11 @@ function test_the_empire_bot_reads_only_what_is_face_up(): void
     $card = fn(int $id, string $type) => [
         'id' => $id,
         'type' => $type,
-        'influence' => $scenario->influenceOf($type),
+        'presence' => $scenario->presenceOf($type),
         'seen' => false,
     ];
 
-    // A town holding four influence cards, none of them turned over. The bot
+    // A town holding four presence cards, none of them turned over. The bot
     // must not be able to tell it apart from four dummies.
     $hidden = [
         'a' => ['neighbors' => [], 'troops' => 0, 'resolved' => false,
@@ -54,7 +54,7 @@ function test_turning_cards_over_moves_the_estimate(): void
 {
     $scenario = Scenario::load('baseline');
     $card = fn(int $id, string $type) => [
-        'id' => $id, 'type' => $type, 'influence' => $scenario->influenceOf($type), 'seen' => true,
+        'id' => $id, 'type' => $type, 'presence' => $scenario->presenceOf($type), 'seen' => true,
     ];
 
     $town = ['neighbors' => [], 'troops' => 0, 'resolved' => false, 'pile' => [], 'revealed' => []];
@@ -69,7 +69,7 @@ function test_turning_cards_over_moves_the_estimate(): void
     assertSame(
         2.0,
         Bots::estimate(Bots::belief($scenario, $scenarioTowns), $read),
-        'two influence cards face up are worth exactly two',
+        'two presence cards face up are worth exactly two',
     );
     assertTrue(
         Bots::estimate(Bots::belief($scenario, ['a' => $unknown]), $unknown) < 2.0,
@@ -125,13 +125,13 @@ function test_the_bot_scores_without_a_player_row(): void
     $beaten = 0;
     foreach ($game->board->towns() as $town) {
         if ($town['winner'] === Rules::EMPIRE) {
-            $captured += $town['resolvedInfluence'];
+            $captured += $town['resolvedCardPresence'];
         } else {
-            $beaten += $town['resolvedStrength'];
+            $beaten += $town['resolvedTroopPresence'];
         }
     }
 
-    // The bot is the Empire here, so its score is the influence it captured and
+    // The bot is the Empire here, so its score is the presence it captured and
     // the human seat's is what it beat plus anything it starved.
     $total = $game->botScore() + $game->bga->playerScore->get(P_ONE);
     assertTrue($total >= $captured + $beaten, 'nothing scored goes unaccounted for');
@@ -172,26 +172,26 @@ function test_bots_play_whole_games_without_breaking_a_rule(): void
             $game->playBotTurn($game->toMove());
         }
 
-        $influence = 0;
+        $presence = 0;
         foreach ($game->board->towns() as $townId => $town) {
             assertTrue(
                 $town['resolved'] || Rules::townIsUncontested($town),
                 "seed {$seed}: {$townId} had something in it and was left unresolved",
             );
-            $influence += $town['resolvedInfluence'];
+            $presence += $town['resolvedCardPresence'];
         }
 
         // A game can now end before the deck does: the board can run out, and
         // so can the Empire, which at these parameters it usually does. The
         // conservation check still has to hold either way.
         assertTrue(
-            $influence <= $game->scenario->totalInfluence(),
-            "seed {$seed}: more influence resolved than exists",
+            $presence <= $game->scenario->totalCardPresence(),
+            "seed {$seed}: more presence resolved than exists",
         );
         if ($game->board->deckCount() === 0) {
             assertSame(
-                $game->scenario->totalInfluence(),
-                $influence,
+                $game->scenario->totalCardPresence(),
+                $presence,
                 "seed {$seed}: a game that ran the clock out places and counts every card",
             );
         }

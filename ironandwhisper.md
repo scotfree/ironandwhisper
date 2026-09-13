@@ -19,17 +19,51 @@ Once a town is **resolved**, it is frozen for the rest of the game: no more card
 
 There are no capitals. See [Decision 2](#2-troop-generation--one-per-turn-anywhere-the-empire-already-stands).
 
+## Vocabulary
+
+Settled 2026-09-13, after a table found the old words confusing.
+
+**Presence** is the one quantity the game compares. Both sides accumulate it in a town,
+and at a resolution the higher total wins. It used to be called *influence* on the rebel
+side and *strength* on the Empire's, which was two names for one thing in the exact place
+where a player has to compare them. Where the source matters, say **card presence** and
+**troop presence**; where it does not, it is just presence.
+
+**Agents** are the Insurgency's cards, named to parallel *troops* — a vehicle that carries
+presence onto the board. An `Agent +0` is a decoy: still an agent, worth nothing at a
+resolution, and indistinguishable from any other face-down card.
+
+The word *presence* previously meant something else — the Decision 5 gate on whether you
+may resolve a town at all. That use is gone, because it was ambiguous anyway: it was never
+clear whether it meant holding troops, holding cards, or having won the place. The three
+now have their own words:
+
+| word | means |
+|---|---|
+| **occupied** | the Empire has troops standing there |
+| **seeded** | the Insurgency has at least one card in the pile |
+| **controlled** | resolved, and won by that side |
+
+Decision 5 therefore reads "you may only resolve a town you are in" rather than naming a
+requirement after a noun.
+
+Card *type ids* are still `influence0`…`influence3` in `data/cards.json` and the scenario
+deck blocks. They are arbitrary identifiers that no player sees, and renaming them would
+churn every scenario file for nothing.
+
+---
+
 ## The Pieces
 
 **Insurgency**
 - A **draw deck** containing two kinds of cards mixed together at a set ratio:
-  - **Influence cards** — real strength, each worth 1 at resolution.
-  - **Dummy cards** — blanks. Worth zero at resolution. Their only purpose is to disguise where real influence sits.
+  - **Presence cards** — real presence, each worth 1 at resolution.
+  - **Dummy cards** — blanks. Worth zero at resolution. Their only purpose is to disguise where real presence sits.
 - Cards get placed face-down into town piles over the course of the game.
 
 **Empire**
 - **Troop pawns** — identical **Imperial Infantry** in the MVP. Each infantry has three defining numbers:
-  - **Strength 3** — how much it counts for at resolution.
+  - **Presence 3** — how much it counts for at resolution.
   - **Movement 1** — how many edges it can travel per turn.
   - **Peek 1** — how many hidden cards it can secretly look at when it holds still.
 
@@ -42,8 +76,8 @@ There are no capitals. See [Decision 2](#2-troop-generation--one-per-turn-anywhe
 ## The Core Idea
 
 - The **Insurgency** places cards secretly and can place them *anywhere* on the map. Because dummy cards are mixed in, the Empire can see a pile growing but never knows how much of it is real.
-- The **Empire** plays *no cards at all*. It only moves troops (visible to everyone) and spends **looks** to peek at hidden piles. Its strength in a town is simply the troops standing there.
-- A town is scored when someone calls for **resolution**. The pile flips, real influence is weighed against troop strength, and the higher total wins.
+- The **Empire** plays *no cards at all*. It only moves troops (visible to everyone) and spends **looks** to peek at hidden piles. Its presence in a town is simply the troops standing there.
+- A town is scored when someone calls for **resolution**. The pile flips, real presence is weighed against troop presence, and the higher total wins.
 - **You only score points for what you capture from the opponent.** Taking an undefended town is worth nothing. The points come from beating a committed enemy.
 - **Everything committed to a resolved town is spent permanently.** Both sides are playing from a finite budget, so the ideal outcome is winning a town by the narrowest possible margin against the largest possible enemy investment.
 
@@ -58,7 +92,7 @@ Resolution comes first on both turns and is settled before anything else happens
 ### Insurgency turn
 1. Draw a full hand up to the **hand size**.
 2. Optionally declare a **resolution** on one town where the Insurgency has at least one card. It resolves at once, on the pile as it already stands: this turn's cards are not down yet and do not count.
-3. Place **the entire hand** face-down into unresolved town piles — any mix of influence and dummy cards, any number of towns, any number of cards into the same town. A town resolved in step 2 is closed and takes none of them.
+3. Place **the entire hand** face-down into unresolved town piles — any mix of presence and dummy cards, any number of towns, any number of cards into the same town. A town resolved in step 2 is closed and takes none of them.
 
 ### Empire turn
 1. Optionally declare a **resolution** on one town where the Empire has at least one troop. It resolves at once, against the cards already standing there.
@@ -73,8 +107,8 @@ Resolution comes first on both turns and is settled before anything else happens
 Either player may declare one town resolved per turn, as a free action, on a town where **they have presence** — the Empire needs at least one troop there, the Insurgency at least one card in the pile. When a resolution is declared:
 
 1. Flip the town's entire pile face-up. It stays face up for the rest of the game.
-2. Total the **Insurgency influence** (sum of influence cards; dummies count zero).
-3. Total the **Empire strength** (sum of the Strength of all troops in that town).
+2. Total the **Insurgency presence** (sum of presence cards; dummies count zero).
+3. Total the **Empire presence** (sum of the presence of all troops in that town).
 4. The higher total **wins the town**. **The Empire wins ties.**
 5. The town is frozen and marked with the winner.
 
@@ -82,13 +116,13 @@ Either player may declare one town resolved per turn, as a free action, on a tow
 
 The winner scores points equal to **the opponent's committed presence in that town** — nothing more.
 
-- **Insurgency wins** → scores points equal to the **Empire strength** that was present.
-- **Empire wins** → scores points equal to the **Insurgency influence** that was present (real influence cards only; dummies are worth nothing).
+- **Insurgency wins** → scores points equal to the **Empire presence** that was present.
+- **Empire wins** → scores points equal to the **Insurgency presence** that was present (real presence cards only; dummies are worth nothing).
 
 Consequences that fall straight out of this one rule:
 - Grabbing an empty or undefended town is worth **zero**. Walkovers don't pay.
 - The bigger the enemy commitment you overcome, the bigger the score.
-- A pile of dummy cards can bait the Empire into marching in a large garrison. If the Empire then wins the resolution, it captures only real influence — which was zero. A whole campaign spent on a phantom pays nothing. The bluff has teeth.
+- A pile of dummy cards can bait the Empire into marching in a large garrison. If the Empire then wins the resolution, it captures only real presence — which was zero. A whole campaign spent on a phantom pays nothing. The bluff has teeth.
 
 ### After resolution
 
@@ -105,7 +139,7 @@ Because commitment is permanent, waiting costs resources: the longer a town goes
 
 ## End of the Game
 
-The Insurgency deck is **finite and never reshuffles**. When it is exhausted and the Insurgency can no longer refill its hand, the game ends: **every remaining town anybody committed to resolves simultaneously**, by the normal rules, and all resulting points are scored. A town neither side ever set foot in — no troops, no cards — is left open instead. Presence is required to resolve a town (Decision 5), and that holds for the sweep as much as for a declared resolution: such a town is worth nothing to either side by definition, and handing it to whoever wins ties is noise on the board and in the log.
+The Insurgency deck is **finite and never reshuffles**. When it is exhausted and the Insurgency can no longer refill its hand, the game ends: **every remaining town anybody committed to resolves simultaneously**, by the normal rules, and all resulting points are scored. A town neither side ever set foot in — no troops, no cards — is left open instead. You may only resolve a town you are in (Decision 5), and that holds for the sweep as much as for a declared resolution: such a town is worth nothing to either side by definition, and handing it to whoever wins ties is noise on the board and in the log.
 
 Whoever has the most points wins.
 
@@ -115,7 +149,7 @@ There are three other ways the game ends, all of which do the same thing — res
 
 - **Every town is resolved.** There is nothing left to play for.
 - **The Empire is eliminated**: no troops on the board, and no town left that will build it any. It can never act again, so the remaining turns would be the Insurgency placing cards nobody will contest. This costs the Insurgency nothing, because an undefended town is worth zero to it under capture-only scoring.
-- **Both sides agree to stop.** Either player may put up a standing **offer to end**, and withdraw it again; when both offers are up, the game ends. This is *not* a pass in the turn-skipping sense — skipping a turn would stop the deck draining, and two cautious players could then stall forever, which is the failure this whole decision exists to prevent. It is an agreement, and it is not free: mass resolution settles every outstanding fight at the strength standing in it today, so agreeing to end is a real decision rather than a way of leaving the room. In a solo game one offer is enough, since the bot has no opinion to give.
+- **Both sides agree to stop.** Either player may put up a standing **offer to end**, and withdraw it again; when both offers are up, the game ends. This is *not* a pass in the turn-skipping sense — skipping a turn would stop the deck draining, and two cautious players could then stall forever, which is the failure this whole decision exists to prevent. It is an agreement, and it is not free: mass resolution settles every outstanding fight at the presence standing in it today, so agreeing to end is a real decision rather than a way of leaving the room. In a solo game one offer is enough, since the bot has no opinion to give.
 
 ---
 
@@ -130,33 +164,33 @@ The tunable knobs. These are starting values to playtest first, and all are expe
 | Town supply | 5 to 7, no two towns alike | What a town adds to its network's troop ceiling. |
 | Town production | 1, at Everlan and Kirn only | Troops the town can build per turn. |
 | Supply per troop | 2 | Divides network supply into a troop ceiling. |
-| Infantry — Strength | 3 | Deliberately higher than one card so troops are "heavy." |
+| Infantry — Presence | 3 | Deliberately higher than one card so troops are "heavy." |
 | Infantry — Movement | 1 | Edges per turn. |
 | Infantry — Peek | 1 | Cards a stationary troop turns face up each turn. |
 | Rebel hand size | 5 | Drawn and fully placed each Insurgency turn. |
 | Rebel deck size | 60 | Finite, no reshuffle. Sets game length. |
-| Deck composition | 24×0, 24×1, 9×2, 3×3 | Graded influence. There is no separate "dummy": a bluff is a card worth 0. |
+| Deck composition | 24×0, 24×1, 9×2, 3×3 | Graded presence. There is no separate "dummy": a bluff is a card worth 0. |
 | Town point values | none (MVP) | Capture-only scoring; intrinsic values are deferred. |
 
 **Derived quantities**, which is where the tuning pressure actually lives:
 
 - **Game length** = `deck_size / hand_size` = **12 Insurgency turns**. Deterministic, because the whole hand must be placed every turn.
-- **Total Insurgency influence** = the deck's values summed = **51**.
-- **Total Empire strength** = the whole map's supply, if the Empire ever held all of it = `(72 ÷ 2) × 3` = **108**. Unlike the Insurgency's influence this is a ceiling, not a budget: troops are no longer spent, they are limited by supply.
+- **Total Insurgency presence** = the deck's values summed = **51**.
+- **Total Empire presence** = the whole map's supply, if the Empire ever held all of it = `(72 ÷ 2) × 3` = **108**. Unlike the Insurgency's presence this is a ceiling, not a budget: troops are no longer spent, they are limited by supply.
 
-The Empire commands about **0.88×** the Insurgency's total force. That is deliberate but temporary: it is headroom for the network-strength change under design, which will raise the Empire's effective strength considerably. As the rules stand today it is badly Insurgency-favoured — see the measurements below.
+The Empire commands about **0.88×** the Insurgency's total force. That is deliberate but temporary: it is headroom for the network-presence change under design, which will raise the Empire's effective presence considerably. As the rules stand today it is badly Insurgency-favoured — see the measurements below.
 
 **Card values decouple the clock from the economy.** Deck size sets game length, because the whole hand is placed every turn: 60 cards ÷ 5 = 12 turns, exactly. Card *values* set the Insurgency's economy. Grading the cards is therefore the only way to change what the Insurgency can buy without changing how long the game lasts.
 
-> **Simulation says this premium is the wrong thing to tune.** See `notebooks/exploration.ipynb`. Bringing the premium to exactly 1.00 by lowering troop strength moves the win rate almost not at all, because capture-only scoring makes troop strength self-cancelling: weaker troops win fewer fights, but each fight the Insurgency wins is also worth fewer points, and the two effects nearly cancel.
+> **Simulation says this premium is the wrong thing to tune.** See `notebooks/exploration.ipynb`. Bringing the premium to exactly 1.00 by lowering troop presence moves the win rate almost not at all, because capture-only scoring makes troop presence self-cancelling: weaker troops win fewer fights, but each fight the Insurgency wins is also worth fewer points, and the two effects nearly cancel.
 >
-> The knob that actually moves the game is **influence density** — the share of the deck that is real. At the original 50:50 the Empire won about 73% of games; balance against the current bots lands near **36 influence : 24 dummy**, roughly 60% density, and the table above now carries that.
+> The knob that actually moves the game is **presence density** — the share of the deck that is real. At the original 50:50 the Empire won about 73% of games; balance against the current bots lands near **36 presence : 24 dummy**, roughly 60% density, and the table above now carries that.
 >
 > **Nobody has played any of it.** These are simulator outputs adopted as starting points, measured against bots that are not good players.
 
 > **Graded cards, measured.** 1000 games per configuration, heuristic bots, current rules. `scenarios/` holds each of these so they can be re-run.
 >
-> | deck | total influence | Empire wins | with no peeking | peeking is worth |
+> | deck | total presence | Empire wins | with no peeking | peeking is worth |
 > |---|---|---|---|---|
 > | `flat` — 36×1, 24×0 | 36 | 44.4% | 34.4% | **10.0 points** |
 > | `graded36` — 15×1, 6×2, 3×3, 36×0 | 36 | 57.0% | 55.2% | **1.8 points** |
@@ -164,9 +198,9 @@ The Empire commands about **0.88×** the Insurgency's total force. That is delib
 >
 > Two things fall out, and one of them is uncomfortable.
 >
-> **Grading helps the Empire**, holding the economy fixed: 44.4% → 57.0%. Concentrating the same influence into fewer, bigger cards means more towns hold nothing but noise, and the Insurgency has fewer real cards to spread across twelve towns. So grading is not in itself a way to strengthen the Insurgency — the economy increase to 51 is what does that, and it does it hard.
+> **Grading helps the Empire**, holding the economy fixed: 44.4% → 57.0%. Concentrating the same presence into fewer, bigger cards means more towns hold nothing but noise, and the Insurgency has fewer real cards to spread across twelve towns. So grading is not in itself a way to strengthen the Insurgency — the economy increase to 51 is what does that, and it does it hard.
 >
-> **Peeking measures as worth much less with graded cards** — 10.0 points down to 1.8 — which is the opposite of the design intent. Do not take that at face value. Each look is genuinely more informative: per-card influence variance triples, from 0.24 to 0.74. What the number really says is that *these bots* cannot cash the extra information, because the Empire bot reduces every pile to one expected-value estimate and marches at the biggest number. "There is a 3 in that town" and "that town estimates at 1.8" are the same thing to it. A human who turns over a 3 knows something categorical. The simulator can measure balance; it is a poor instrument for whether a decision is interesting, and this is exactly where it is weakest.
+> **Peeking measures as worth much less with graded cards** — 10.0 points down to 1.8 — which is the opposite of the design intent. Do not take that at face value. Each look is genuinely more informative: per-card presence variance triples, from 0.24 to 0.74. What the number really says is that *these bots* cannot cash the extra information, because the Empire bot reduces every pile to one expected-value estimate and marches at the biggest number. "There is a 3 in that town" and "that town estimates at 1.8" are the same thing to it. A human who turns over a 3 knows something categorical. The simulator can measure balance; it is a poor instrument for whether a decision is interesting, and this is exactly where it is weakest.
 
 ---
 
@@ -197,17 +231,17 @@ A poor town can be a depot; a rich one can be unable to build anything.
 
 The mark is a forecast, not a reservation: what actually falls is recomputed when it falls, so moving troops moves where it lands. Within a town there is no choice to make, because a town holds a count of troops rather than troops; across a network, losses come off the largest garrisons first unless the Empire names somewhere.
 
-**Why:** this is the Empire's whole character in one subsystem. It does not out-fight the Insurgency, it out-organises it — and an organisation can be cut. It also produces the tension the game needs from the Empire's side: **spread for economy, concentrate for battle.** Supply is per town, so thinning out raises your ceiling; attack strength is local, so thin garrisons lose fights and are removed. The two pull against each other every turn.
+**Why:** this is the Empire's whole character in one subsystem. It does not out-fight the Insurgency, it out-organises it — and an organisation can be cut. It also produces the tension the game needs from the Empire's side: **spread for economy, concentrate for battle.** Supply is per town, so thinning out raises your ceiling; attack presence is local, so thin garrisons lose fights and are removed. The two pull against each other every turn.
 
 > **An older version of this rule read "one troop per turn, anywhere the Empire already stands", with a warning that per-town generation was degenerate** — the Empire splits up to occupy more towns, occupies more towns to generate more, and out-produces the Insurgency deck. Per-town production is exactly what that warned against, and it is safe now for a reason that did not hold then: dilution is no longer free. A thin garrison loses its local fight, and the troops in it are removed and scored. Spreading buys economy and sells safety, which is a trade rather than a strictly correct move.
 
 > **Balance is very sensitive to ordinary towns, and not to capitals.** Sweeping the values found a cliff: at 2.5 supply-troops per ordinary town the Empire wins about 38%, at 3.0 about 65%, with nothing in between reachable on a uniform map. Raising the *capitals* instead moved it the wrong way — concentrating supply makes the Empire fragile, because losing one node collapses a ceiling and starves an army into the Insurgency's score. The map is therefore deliberately heterogeneous, which straddles the cliff and lands near even. Treat the cliff as a property of the current bots as much as of the game: it is where their strategy flips, and a human plays the margin differently.
 
-> **A rejected version had the network contribute *attack strength* rather than supply**, so every fight was backed by the whole army. It fails: a troop contributes the same strength wherever it stands, so there is never a reason to expose one. The Empire wins a town, parks its army there permanently out of reach, and pushes forward with a single token troop. That is the failure in Decision 3 wearing a different hat — the Empire never accepts a bad fight, and the Insurgency's only scoring route closes. Network-as-production has no such incentive, because collecting a town's supply costs a garrison that counts against the very ceiling it raises.
+> **A rejected version had the network contribute *attack presence* rather than supply**, so every fight was backed by the whole army. It fails: a troop contributes the same presence wherever it stands, so there is never a reason to expose one. The Empire wins a town, parks its army there permanently out of reach, and pushes forward with a single token troop. That is the failure in Decision 3 wearing a different hat — the Empire never accepts a bad fight, and the Insurgency's only scoring route closes. Network-as-production has no such incentive, because collecting a town's supply costs a garrison that counts against the very ceiling it raises.
 
 ### 3. The loser's commitment is taken off the board; the winner's stays
 
-When a town resolves, whoever lost has their commitment removed from the board and scored by the winner. The Empire loses a town: its troops there are taken and the Insurgency scores their strength. The Empire wins: the cards are taken and it scores their influence, and **its garrison stays**, so the town goes on carrying supply and, if it can, building.
+When a town resolves, whoever lost has their commitment removed from the board and scored by the winner. The Empire loses a town: its troops there are taken and the Insurgency scores their presence. The Empire wins: the cards are taken and it scores their presence, and **its garrison stays**, so the town goes on carrying supply and, if it can, building.
 
 **Why:** it reads correctly — you take the enemy's stuff — and it is one rule where there used to be two. It also means winning a town is worth something lasting rather than converting your army into points, which is what makes the Empire's game about holding a map rather than trading pieces for score.
 
@@ -215,7 +249,7 @@ Resolved towns are never contested again, so a town the Empire won and garrisons
 
 > **An earlier version spent the winner's troops too**, on the grounds that commitment should cost something. The simulator showed the opposite arrangement — troops always surviving — was catastrophic at **99.7%** Empire wins, because an Empire that keeps its army never has to accept a bad fight and the Insurgency's only scoring route closes. What reopens it here is that the Empire's troops *are* removed when it loses, and that supply gives the Insurgency a second way to take them off the board without winning a fight at all.
 
-> **Simulation result, and a corrected earlier decision.** We first tried the opposite — troops survive resolution — on the grounds that it removes a field from the state. It makes the game degenerate. The Empire wins **99.7%** at the starting parameters, **96.7%** even at 83% influence density, and **90.8%** with a fixed force of only two troops and no generation at all. Across every configuration, under 4% of Empire strength was ever overcome.
+> **Simulation result, and a corrected earlier decision.** We first tried the opposite — troops survive resolution — on the grounds that it removes a field from the state. It makes the game degenerate. The Empire wins **99.7%** at the starting parameters, **96.7%** even at 83% presence density, and **90.8%** with a fixed force of only two troops and no generation at all. Across every configuration, under 4% of Empire presence was ever overcome.
 >
 > The mechanism: consumption is the only thing that makes Empire commitment cost anything. Without it the Empire fights only battles it expects to win, keeps its army afterwards, and marches on. Since the Insurgency can score *only* by beating a committed garrison, an Empire that never has to accept a bad fight closes the Insurgency's only scoring route entirely. No parameter reopens it — which is why a two-troop Empire still wins 91%.
 >
@@ -227,7 +261,7 @@ Declare before you do anything else. A resolution is judged on the board as your
 
 **Why free and once per turn:** making it cost a whole turn is too expensive for the Empire, and impossible to price for the Insurgency, which is compelled to place its whole hand every turn (Decision 6) and so has nothing to trade away. One per turn caps the rate at two towns per round, ample for a twelve-town map.
 
-**Why first:** because it was the last thing, and that made every resolution risk-free. Whoever declared did so with complete knowledge and no reply — the Empire marched a single troop into a lightly-held town and took it on arrival; the Insurgency dropped exactly enough influence on a garrison and cashed it in the same breath. Moving resolution to the start of the turn fixes both with an ordering rather than a restriction: what you commit has to survive your opponent's turn before you can collect on it.
+**Why first:** because it was the last thing, and that made every resolution risk-free. Whoever declared did so with complete knowledge and no reply — the Empire marched a single troop into a lightly-held town and took it on arrival; the Insurgency dropped exactly enough presence on a garrison and cashed it in the same breath. Moving resolution to the start of the turn fixes both with an ordering rather than a restriction: what you commit has to survive your opponent's turn before you can collect on it.
 
 The consequence worth knowing is that your opponent gets the first shot at anything you just committed. March into a seeded town and the rebels may resolve it before you can. That is the cost of advancing, and the game had no such cost before.
 
@@ -235,25 +269,25 @@ The consequence worth knowing is that your opponent gets the first shot at anyth
 
 ### 5. You may only resolve a town where you have presence
 
-**Why:** without it there is a degenerate line where the Empire resolves empty towns from anywhere, freezing the map for free, shrinking the board and forcing the Insurgency to overstack. The presence requirement closes it and reads correctly — you cannot force a confrontation somewhere you do not exist.
+**Why:** without it there is a degenerate line where the Empire resolves empty towns from anywhere, freezing the map for free, shrinking the board and forcing the Insurgency to overstack. The requirement closes it and reads correctly — you cannot force a confrontation somewhere you do not exist.
 
 ### 6. The Insurgency must place its entire hand every turn
 
-**Why:** forced placement is what makes pile height uninformative. If cards could be held, you would place only when it helped, and pile growth would start to correlate with real influence — the Empire could read the board directly. Being forced to dump an all-dummy hand somewhere generates the noise the entire bluffing layer depends on.
+**Why:** forced placement is what makes pile height uninformative. If cards could be held, you would place only when it helped, and pile growth would start to correlate with real presence — the Empire could read the board directly. Being forced to dump an all-dummy hand somewhere generates the noise the entire bluffing layer depends on.
 
 It also makes the deck an exact clock, which is lost if the placement rate can vary.
 
-Under Decision 9, this is less punishing than it sounds: **dummies are free to lose**, so forced placement is the Insurgency's cheap noise generator while it rations real influence.
+Under Decision 9, this is less punishing than it sounds: **dummies are free to lose**, so forced placement is the Insurgency's cheap noise generator while it rations real presence.
 
 ### 6a. The Insurgency scores every Empire troop that leaves the board
 
-**Why:** it is the same rule it always had — score the strength you take off the enemy — but it now covers two ways of taking it. Beat a garrison at a resolution and you score it. Cut the supply line that fed it and it starves, and you score that too.
+**Why:** it is the same rule it always had — score the presence you take off the enemy — but it now covers two ways of taking it. Beat a garrison at a resolution and you score it. Cut the supply line that fed it and it starves, and you score that too.
 
 **Why supply does not cap building.** It caps how many troops a network can *keep*. Making it cap production too was one word doing two jobs, and it cost the Empire a natural move: raise troops and march them out to the ground that will feed them, in one turn. It also meant a network at its ceiling had an idle factory, which reads as a bug at the table rather than as a rule. Building past it is now legal, and the overshoot is charged to attrition — which, with a turn of grace, makes it a stated risk instead of an instant loss.
 
 **Why attrition waits a turn.** Because massing was self-defeating in a way nobody could see coming. Supply comes only from towns the Empire *occupies*, so concentrating an army destroys the supply that would have fed it: march eight troops into one town out of three and the ceiling collapses at the moment they arrive. Under immediate attrition six of them died inside the commit, between the player's turn and the opponent's, at the one point in the game where nobody is looking at the board — and the rebels then resolved the town against the two survivors.
 
-A turn of grace makes the same move a decision instead of an ambush. Mass this turn; resolve at full strength next turn, since resolution comes first (Decision 4); then either spread back out onto the supply or accept the loss and consolidate. It also subsumes the older reason for ending attrition at the end of the turn rather than the start — a line the Insurgency cut can still be answered, with a full turn to do it in rather than the remainder of one.
+A turn of grace makes the same move a decision instead of an ambush. Mass this turn; resolve at full presence next turn, since resolution comes first (Decision 4); then either spread back out onto the supply or accept the loss and consolidate. It also subsumes the older reason for ending attrition at the end of the turn rather than the start — a line the Insurgency cut can still be answered, with a full turn to do it in rather than the remainder of one.
 
 The mark is public, because the networks are computed from the board and anyone can see them. An overextended Empire is visible, and the Insurgency's counter is to decline the fight and wait: resolving a town whose garrison is about to starve pays for troops that were leaving anyway.
 
@@ -261,7 +295,7 @@ This is what keeps the Insurgency's strategy and its scoring pointed the same wa
 
 ### 7. The Empire wins ties
 
-**Why:** thematic (the entrenched defender holds), trivial to implement, and easy to reason about at the table — with troops at Strength 3, the Insurgency always knows it must *beat* a multiple of 3 rather than match it.
+**Why:** thematic (the entrenched defender holds), trivial to implement, and easy to reason about at the table — with troops at presence 3, the Insurgency always knows it must *beat* a multiple of 3 rather than match it.
 
 Alternative considered: ties go to whoever did *not* declare, which makes speculative resolution risky. Better in isolation, but one more thing to hold in your head, and the MVP does not need it.
 
@@ -291,7 +325,7 @@ Two consequences worth knowing:
 
 **Why:** simpler than removing pieces to a discard pile, and the board becomes a record of the game. Resolution turns anything still face down face up, so the whole town is public afterwards, and the cards do nothing further. Troops do **not** stay: they are spent (Decision 3), so a resolved town ends up holding a face-up pile and no garrison, and stops anchoring generation.
 
-The significant side effect: **face-up resolved piles make the finite deck countable.** By mid-game both players can count revealed influence and infer how much real strength remains in the deck and in hand. The fog thins on its own as the game progresses, so early play is pure guessing and the endgame is sharp and calculable — and dummies get weaker precisely when the stakes are highest. Card counting becomes a genuine skill without a single extra rule.
+The significant side effect: **face-up resolved piles make the finite deck countable.** By mid-game both players can count revealed presence and infer how much real presence remains in the deck and in hand. The fog thins on its own as the game progresses, so early play is pure guessing and the endgame is sharp and calculable — and dummies get weaker precisely when the stakes are highest. Card counting becomes a genuine skill without a single extra rule.
 
 ### 10. The Insurgency moves first
 
@@ -303,8 +337,8 @@ The significant side effect: **face-up resolved piles make the finite deck count
 
 Rules content is **data, not code**, so the numbers above can be tuned without touching game logic. The Python simulator and the PHP game both read these same files, which is what makes tuning transfer:
 
-- `data/units.json` — unit types: strength, movement, peek.
-- `data/cards.json` — card types: influence value, share of deck.
+- `data/units.json` — unit types: presence, movement, peek.
+- `data/cards.json` — card types: presence value, share of deck.
 - `maps/*.json` — pure geography: towns (id, label, x/y for rendering), edges.
 - `scenarios/*.json` — references a map and sets the knobs: hand size, deck size and composition, generation rate, starting Empire placement.
 
@@ -318,16 +352,16 @@ Explicitly **out of the MVP**. These are the directions worth growing into once 
 
 **Generation:** the most promising direction is *earned capitals* — make generation per-anchor rather than one-per-turn, so the Empire's recruitment network grows out of where it actually fought. Note this requires revisiting Decision 3 at the same time (see the coupling warning).
 
-**Richer cards** (revealed at resolution alongside plain influence):
-- A card worth *extra* influence.
+**Richer cards** (revealed at resolution alongside plain presence):
+- A card worth *extra* presence.
 - A card that *doubles* the town's stakes — a way to gamble on a contested town.
 - A card that *resets* a town (clears the pile) without resolving it.
 - A card that *delays* resolution — the town doesn't lock even though someone called it.
 
 **Richer Empire units** (the Empire trades card-play flexibility for unit variety):
-- **Scouts** — fast movement, low strength.
+- **Scouts** — fast movement, low presence.
 - **Political agents** — troops that grant extra looks per action.
-- Generally, new units defined by trading among Strength / Movement / Peek.
+- Generally, new units defined by trading among Presence / Movement / Peek.
 
 **Information mechanics** (letting the Empire partially pierce the fog):
 - The Empire occasionally gets to see the Insurgency's hand before placement, or learn *how many* real cards are in it, or the current real/dummy ratio.

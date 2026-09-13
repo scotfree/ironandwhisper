@@ -79,7 +79,7 @@ final class Board
     {
         $rows = Game::getCollectionFromDB(
             'SELECT `town_id`, `troops`, `starving`, `resolved`, `winner`,
-                    `resolved_influence`, `resolved_strength`
+                    `resolved_card_presence`, `resolved_troop_presence`
              FROM `iaw_town`'
         );
 
@@ -108,8 +108,8 @@ final class Board
                 'starving' => (int) $row['starving'],
                 'resolved' => (bool) (int) $row['resolved'],
                 'winner' => $row['winner'],
-                'resolvedInfluence' => (int) $row['resolved_influence'],
-                'resolvedStrength' => (int) $row['resolved_strength'],
+                'resolvedCardPresence' => (int) $row['resolved_card_presence'],
+                'resolvedTroopPresence' => (int) $row['resolved_troop_presence'],
                 'pile' => $piles[$townId] ?? [],
                 'revealed' => $revealed[$townId] ?? [],
             ];
@@ -120,7 +120,7 @@ final class Board
     /**
      * Every card sitting in a town pile, in pile order.
      *
-     * @return array<int, array{id: int, type: string, influence: int, seen: bool, townId: string}>
+     * @return array<int, array{id: int, type: string, presence: int, seen: bool, townId: string}>
      */
     private function pileCards(): array
     {
@@ -133,7 +133,7 @@ final class Board
         return array_map(fn(array $row) => [
             'id' => (int) $row['card_id'],
             'type' => $row['card_type'],
-            'influence' => $this->scenario->influenceOf($row['card_type']),
+            'presence' => $this->scenario->presenceOf($row['card_type']),
             'seen' => (bool) (int) $row['empire_seen'],
             'townId' => substr($row['card_location'], strlen('town:')),
         ], $rows);
@@ -142,7 +142,7 @@ final class Board
     /**
      * The Insurgency's hand, in draw order.
      *
-     * @return array<int, array{id: int, type: string, influence: int}>
+     * @return array<int, array{id: int, type: string, presence: int}>
      */
     public function hand(): array
     {
@@ -154,7 +154,7 @@ final class Board
         return array_map(fn(array $row) => [
             'id' => (int) $row['card_id'],
             'type' => $row['card_type'],
-            'influence' => $this->scenario->influenceOf($row['card_type']),
+            'presence' => $this->scenario->presenceOf($row['card_type']),
         ], $rows);
     }
 
@@ -177,7 +177,7 @@ final class Board
      * Draw up to `$count` cards from the deck into the hand. Returns what was
      * actually drawn, which is short of `$count` only as the deck runs out.
      *
-     * @return array<int, array{id: int, type: string, influence: int}>
+     * @return array<int, array{id: int, type: string, presence: int}>
      */
     public function drawToHand(int $count): array
     {
@@ -314,7 +314,7 @@ final class Board
      * is. An Empire that holds a town keeps its garrison, so the town goes on
      * carrying supply and, if it can, building.
      *
-     * @param array{winner: string, influence: int, strength: int} $outcome
+     * @param array{winner: string, cardPresence: int, troopPresence: int} $outcome
      */
     public function markResolved(string $townId, array $outcome): void
     {
@@ -327,11 +327,11 @@ final class Board
         // The loser's commitment is taken off the board; the winner's stays.
         $empireWon = $outcome['winner'] === Rules::EMPIRE;
         Game::DbQuery(sprintf(
-            "UPDATE `iaw_town` SET `resolved` = 1, `winner` = '%s', `resolved_influence` = %d,
-             `resolved_strength` = %d%s WHERE `town_id` = '%s'",
+            "UPDATE `iaw_town` SET `resolved` = 1, `winner` = '%s', `resolved_card_presence` = %d,
+             `resolved_troop_presence` = %d%s WHERE `town_id` = '%s'",
             $outcome['winner'],
-            $outcome['influence'],
-            $outcome['strength'],
+            $outcome['cardPresence'],
+            $outcome['troopPresence'],
             $empireWon ? '' : ', `troops` = 0',
             $townId,
         ));

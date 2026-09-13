@@ -508,7 +508,7 @@ export class BoardView {
             return '';
         }
 
-        const values = cards.map(card => card.influence ?? 0);
+        const values = cards.map(card => card.presence ?? 0);
         const total = values.reduce((sum, value) => sum + value, 0);
 
         return `<span class="iaw-stack face-up"

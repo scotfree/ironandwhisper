@@ -38,7 +38,7 @@ class NextTurn extends GameState
         // needs a state of its own, because only a human has to be asked.
         for ($guard = 0; $guard < 100; $guard++) {
             // Both sides have offered to stop. Ending is not free — mass
-            // resolution settles every outstanding fight at today's strength —
+            // resolution settles every outstanding fight at today's presence —
             // so an agreement to end is a real decision, not just a shortcut.
             if ($this->game->endAgreed()) {
                 return $this->endGame(clienttranslate('both sides agreed to end'));

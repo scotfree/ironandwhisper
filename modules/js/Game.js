@@ -432,7 +432,7 @@ class BoardView {
         if (cards.length === 0) {
             return '';
         }
-        const values = cards.map(card => card.influence ?? 0);
+        const values = cards.map(card => card.presence ?? 0);
         const total = values.reduce((sum, value) => sum + value, 0);
         return `<span class="iaw-stack face-up"
                       title="${_('Face up')}: ${values.join(', ')}"
@@ -563,7 +563,7 @@ function endOfferLabel(offered) {
 function endOfferHtml(offered, opponentOffered) {
     if (offered && opponentOffered) {
         return `<div class="iaw-warning"><b>${_('Confirming ends the game.')}</b>
-                ${_('Your opponent has already offered, so every remaining town resolves at once — at the strength standing in it today.')}</div>`;
+                ${_('Your opponent has already offered, so every remaining town resolves at once — at the presence standing in it today.')}</div>`;
     }
     if (offered) {
         return `<div class="iaw-hint"><b>${_('Offering to end.')}</b>
@@ -995,7 +995,7 @@ class InsurgencyTurn {
     placementsHtml() {
         return this.order.map(cardId => {
             const card = this.game.cardById(cardId);
-            const value = card?.influence ?? 0;
+            const value = card?.presence ?? 0;
             return `<div>${_('Influence')} ${value} ${_('to')}
                     <b>${this.townLabel(this.assigned[cardId])}</b></div>`;
         }).join('');
@@ -1179,7 +1179,7 @@ class Help {
     paragraphs() {
         const ties = this.scenario.empireWinsTies ? _('ties go to the Empire') : _('ties go to the Insurgency');
         return `
-            <p>${_('An asymmetric game for two. The Empire moves troops everyone can see; the Insurgency plays cards nobody can. A town is settled when one side <b>resolves</b> it: the influence in the town against the troops standing in it, higher wins, and')} ${ties}. ${_('The winner scores what the loser committed — the Empire scores the influence it captures, the rebels score the troops they chase out — and the loser\'s commitment leaves the board for good. A walkover scores nothing: there is no prize for a town nobody contested.')}</p>
+            <p>${_('An asymmetric game for two. The Empire moves troops everyone can see; the Insurgency plays cards nobody can. A town is settled when one side <b>resolves</b> it: the presence the rebels have there against the presence the Empire has, higher wins, and')} ${ties}. ${_('The winner scores what the loser committed — each side scores the presence it took off the other — and the loser\'s commitment leaves the board for good. A walkover scores nothing: there is no prize for a town nobody contested.')}</p>
 
             <p>${_('<b>Resolution comes first in a turn</b>, and it is judged on the board as your opponent left it. You may only resolve a town you are present in — the Empire needs a troop there, the rebels need a card in the pile — so you cannot march in and cash out on arrival. Whatever you commit has to survive a reply.')}</p>
 
@@ -1198,8 +1198,8 @@ class Help {
                 _('A city, marked with a hammer. Also builds a troop a turn for whoever holds it.')],
             [`<span class="iaw-troops">${this.board.pawnSvg()
                     ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}<span class="iaw-troop-count">3</span></span>`,
-                _('Empire troops standing here. Each is worth ${strength} strength at a resolution.')
-                    .replace('${strength}', String(this.scenario.unit.strength))],
+                _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
+                    .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4),
                 _('Face-down cards: the height, and nothing else. Neither player sees the faces once they are down.')],
             [stack('face-up', 2, 3),
@@ -1225,9 +1225,9 @@ class Help {
     primerHtml(side) {
         const rebel = side === 'insurgency';
         const summary = rebel
-            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some real influence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the troops you chase out, if you win.')
+            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
                 .replace('${hand}', String(this.scenario.handSize))
-            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison out-influences the rebels in a town, <b>resolve</b> it and find out: you score the influence you capture, if you win.');
+            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
         const steps = rebel
             ? [
                 _('Resolve a town you have a card in'),
@@ -1404,7 +1404,7 @@ class Game {
             return;
         }
         element.innerHTML = this.hand.map(card => {
-            const label = String(card.influence ?? 0);
+            const label = String(card.presence ?? 0);
             const staged = assigned[card.id] ? ' staged' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
             return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
@@ -1457,7 +1457,7 @@ class Game {
             // Placed one at a time, so the last one given ends up on top.
             [...cardIds].reverse().forEach(cardId => {
                 const known = this.cardById(cardId);
-                town.pile.unshift(known ?? { id: cardId, type: null, influence: null });
+                town.pile.unshift(known ?? { id: cardId, type: null, presence: null });
             });
             town.pileSize = town.pile.length;
             town.cardCount += cardIds.length;
@@ -1519,8 +1519,8 @@ class Game {
         const town = this.board.getTown(args.town_id);
         town.resolved = true;
         town.winner = args.winner;
-        town.resolvedInfluence = args.influence;
-        town.resolvedStrength = args.strength;
+        town.resolvedCardPresence = args.cardPresence;
+        town.resolvedTroopPresence = args.troopPresence;
         // Only the loser's commitment leaves. The Empire keeps its garrison in
         // a town it wins, so zeroing troops here made them vanish until the
         // next turn's notification put them back.
