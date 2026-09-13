@@ -12,6 +12,19 @@ interface CardView {
     presence: number | null;
 }
 
+/** A card drawn above a town: a value to show, or null for a face-down back. */
+interface OverlayCard {
+    presence: number | null;
+}
+
+/** One side's completed turn, kept so the other side can see what happened. */
+interface LastTurn {
+    side: Side;
+    moves: StagedMove[];
+    produced: Record<string, number>;
+    placed: Record<string, OverlayCard[]>;
+}
+
 interface TownView {
     id: string;
     troops: number;

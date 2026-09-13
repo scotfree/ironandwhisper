@@ -21,17 +21,21 @@ export class BoardView {
     /** The outlines, once img/town.svg, city.svg and pawn.svg have loaded. */
     private frames: { town: string; city: string; pawn: string } | null = null;
     private clickHandler: (townId: string) => void = () => {};
+    private stackHandler: (townId: string, faceUp: boolean) => void = () => {};
     private dropHandler: ((townId: string, cardId: number) => void) | null = null;
 
     /** Called after any redraw, so the panels beside the board can follow. */
     private changeHandler: () => void = () => {};
 
-    /** Extra text shown on a town while a turn is being staged. */
     /** Town id => cards the Insurgency is staging for it this turn. */
     private cardDelta: Record<string, number> = {};
 
     /** Signed troop changes being staged, shown on the troop badge as 2+1. */
     private troopDelta: Record<string, number> = {};
+
+    /** Cards drawn above a town: staged this turn, or placed on the last one. */
+    private overlay: Record<string, OverlayCard[]> = {};
+    private overlayGhost = false;
 
     constructor(
         private container: HTMLElement,
@@ -53,6 +57,7 @@ export class BoardView {
             <div id="iaw-board" style="width:${width}px;height:${height}px">
                 ${this.edgesSvg(width, height)}
                 ${definitions.map(town => this.townHtml(town)).join('')}
+                <div id="iaw-overlays"></div>
             </div>
         `;
 
@@ -62,7 +67,17 @@ export class BoardView {
                 return;
             }
 
-            element.addEventListener('click', () => this.clickHandler(town.id));
+            element.addEventListener('click', event => {
+                // A stack opens itself rather than selecting the town under it.
+                const stack = (event.target as HTMLElement)
+                    ?.closest('.iaw-stack.clickable') as HTMLElement | null;
+                if (stack) {
+                    event.stopPropagation();
+                    this.stackHandler(stack.dataset.stack!, stack.dataset.face === 'up');
+                    return;
+                }
+                this.clickHandler(town.id);
+            });
 
             // Cards can be dragged onto a town as well as clicked into one.
             // Dragging is what people expect of a hand; clicking is what works
@@ -107,6 +122,7 @@ export class BoardView {
                 </marker>
             </defs>
             <g id="iaw-roads-edges">${lines}</g>
+            <g id="iaw-ghost-arrows"></g>
             <g id="iaw-move-arrows"></g>
         </svg>`;
     }
@@ -478,20 +494,31 @@ export class BoardView {
             return '';
         }
 
+        // The rebels see the total of their own pile; everyone else gets a "?".
+        // Showing the unknown as a symbol rather than an absence says what the
+        // Empire is missing, instead of leaving a gap it has to interpret.
+        const mine = this.viewerSide === 'insurgency';
+        const total = mine
+            ? String(town.pile.reduce((sum, card) => sum + (card.presence ?? 0), 0))
+            : '?';
+
         // Beside the pile, not across the bottom of the box: the change reads
         // against the number it changes, exactly as the garrison's does on the
         // Empire side. A town with no pile yet still shows the marker, or the
         // first card placed anywhere would land invisibly.
         const stack = town.pileSize > 0
-            ? `<span class="iaw-stack face-down"
-                     title="${town.pileSize} ${_('face down')}"
-                ><span class="iaw-stack-count">${town.pileSize}</span></span>`
+            ? `<span class="iaw-stack face-down clickable" data-stack="${townId}"
+                     data-face="down"
+                     title="${town.pileSize} ${_('face down')} — ${_('click to see the pile in order')}"
+                ><span class="iaw-stack-count">${town.pileSize}</span
+                ><span class="iaw-stack-sum${mine ? '' : ' unknown'}">${total}</span></span>`
             : '';
         const change = delta === 0 ? ''
             : `<span class="iaw-card-delta"
-                     title="${_('Cards you are placing here this turn')}">+${delta}</span>`;
+                     title="${_('Agents you are placing here this turn')}">+${delta} ${
+                        delta === 1 ? _('card') : _('cards')}</span>`;
 
-        return `<div class="iaw-pile-row">${stack}${change}</div>`;
+        return `<div class="iaw-pile-line">${stack}${change}</div>`;
     }
 
     /**
@@ -511,8 +538,9 @@ export class BoardView {
         const values = cards.map(card => card.presence ?? 0);
         const total = values.reduce((sum, value) => sum + value, 0);
 
-        return `<span class="iaw-stack face-up"
-                      title="${_('Face up')}: ${values.join(', ')}"
+        return `<span class="iaw-stack face-up clickable" data-stack="${town.id}"
+                      data-face="up"
+                      title="${_('Face up')}: ${values.join(', ')} — ${_('click to see them in order')}"
                  ><span class="iaw-stack-count">${cards.length}</span
                  ><span class="iaw-stack-sum">${total}</span></span>`;
     }
@@ -521,6 +549,15 @@ export class BoardView {
 
     onTownClick(handler: (townId: string) => void): void {
         this.clickHandler = handler;
+    }
+
+    /**
+     * A click on either of a town's stacks, which opens it rather than
+     * selecting the town. Bound once on the board and delegated, because the
+     * stacks are rewritten on every update.
+     */
+    onStackClick(handler: (townId: string, faceUp: boolean) => void): void {
+        this.stackHandler = handler;
     }
 
     /**
@@ -591,6 +628,53 @@ export class BoardView {
         this.updateAll();
     }
 
+    /**
+     * Cards to draw above a town.
+     *
+     * Used twice: face up for what you are staging right now, and greyed for
+     * what landed on the opponent's last turn. A card with a null presence is
+     * drawn as a back, which is what the Empire sees of a rebel placement.
+     */
+    setOverlay(overlay: Record<string, OverlayCard[]>, ghost = false): void {
+        this.overlay = overlay;
+        this.overlayGhost = ghost;
+        this.drawOverlay();
+    }
+
+    /**
+     * Drawn on a layer of its own rather than inside the town box, because
+     * `.iaw-town` clips its contents — the box is a fixed 120x104 whatever it
+     * holds, and these sit above it.
+     */
+    private drawOverlay(): void {
+        const layer = document.getElementById('iaw-overlays');
+        if (!layer) {
+            return;
+        }
+
+        layer.innerHTML = Object.entries(this.overlay)
+            .filter(([, cards]) => cards.length > 0)
+            .map(([townId, cards]) => {
+                const town = this.scenario.towns[townId];
+                return `<div class="iaw-town-overlay${this.overlayGhost ? ' ghost' : ''}"
+                             style="left:${this.px(town.x)}px;top:${
+                                 this.px(town.y) - TOWN_HEIGHT / 2 - 4}px"
+                        >${cards.map(card => card.presence === null
+                            ? '<span class="iaw-chip face-down"></span>'
+                            : `<span class="iaw-chip">+${card.presence}</span>`).join('')}</div>`;
+            }).join('');
+    }
+
+    /**
+     * Last turn's marches, drawn faded along the roads they used.
+     *
+     * A separate layer from the staging arrows so the two can be on screen at
+     * once: what your opponent did, and what you are about to do in reply.
+     */
+    setGhostArrows(moves: StagedMove[]): void {
+        this.drawArrows('iaw-ghost-arrows', moves);
+    }
+
     /** @param delta town id => signed troop change being staged this turn */
     setTroopDelta(delta: Record<string, number>): void {
         this.troopDelta = delta;
@@ -602,7 +686,11 @@ export class BoardView {
      * the plan is visible on the map rather than only in a list.
      */
     setMoveArrows(moves: StagedMove[]): void {
-        const layer = document.getElementById('iaw-move-arrows');
+        this.drawArrows('iaw-move-arrows', moves);
+    }
+
+    private drawArrows(layerId: string, moves: StagedMove[]): void {
+        const layer = document.getElementById(layerId);
         if (!layer) {
             return;
         }
@@ -626,6 +714,7 @@ export class BoardView {
         this.dropHandler = null;
         this.cardDelta = {};
         this.troopDelta = {};
+        this.setOverlay({});
         this.setMoveArrows([]);
         this.setSelectable([]);
         this.setSelected([]);

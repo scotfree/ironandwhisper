@@ -48,10 +48,14 @@ export class EmpireTurn {
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} must move'));
             this.game.setStagingText(this.watchingHtml());
+            this.game.setPhase(-1);
             return;
         }
 
         this.game.board.onTownClick(townId => this.onTownClick(townId));
+        // The troop is the Empire's only piece, so its card sits there for the
+        // whole turn rather than appearing on a selection.
+        this.game.showTroopZoom();
         this.refresh();
     }
 
@@ -67,6 +71,9 @@ export class EmpireTurn {
         this.reset();
         this.game.board.clearInteraction();
         this.game.setStagingText('');
+        this.game.clearZoom();
+        this.game.setPhase(-1);
+        this.game.renderLastTurn();
     }
 
     private reset(): void {
@@ -181,6 +188,8 @@ export class EmpireTurn {
     private refresh(): void {
         const title = this.title();
         this.bga.statusBar.setTitle(title.text, title.args);
+        // Building is step 2 of the Empire's turn, marching step 3.
+        this.game.setPhase(this.step === 'build' ? 1 : 2);
 
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.
@@ -246,8 +255,11 @@ export class EmpireTurn {
         lines.push(this.supplyWarningHtml());
         lines.push(endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
 
-        this.moves.forEach(move => {
-            lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
+        this.moves.forEach((move, index) => {
+            // The newest march flashes until the next action, so the thing you
+            // just did is distinguishable from the pile of things you staged.
+            const flash = index === this.moves.length - 1 ? ' class="iaw-flash"' : '';
+            lines.push(`<div${flash}>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
                         ${_('to')} <b>${this.townLabel(move.to)}</b></div>`);
         });
         if (!this.moves.length) {

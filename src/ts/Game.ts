@@ -28,6 +28,22 @@ export class Game {
     /** The cheat sheet and the side reminder. Built once the board exists. */
     private help: Help;
 
+    /** Which step of the current side's turn we are on; -1 for none. */
+    private phase = -1;
+
+    /** Reused rather than rebuilt, so repeated opens do not leak dialogs. */
+    private pileDialog: PopinDialog | null = null;
+
+    /**
+     * What happened on the last turn somebody else took.
+     *
+     * Deliberately persistent rather than animated: an animation plays once and
+     * is gone, and in a turn-based game you often arrive after it played. These
+     * markers survive a reload and can be read at your own pace. Cleared when
+     * the acting side is you — you do not need a ghost of your own move.
+     */
+    private lastTurn: LastTurn | null = null;
+
     private gamedatas: IronAndWhisperGamedatas;
     private handClickHandler: (cardId: number) => void = () => {};
 
@@ -51,12 +67,17 @@ export class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
-                    <div id="iaw-clock"></div>
+                    <div id="iaw-state">
+                        <div id="iaw-clock"></div>
+                        <div id="iaw-phases"></div>
+                    </div>
+                    <div id="iaw-zoom"></div>
                     <div id="iaw-staging">
                         <div id="iaw-staging-text"></div>
                         <div id="iaw-hand"></div>
                     </div>
                     <div id="iaw-armies"></div>
+                    <div id="iaw-last-turn"></div>
                     <div id="iaw-primer"></div>
                 </div>
             </div>
@@ -101,6 +122,8 @@ export class Game {
         this.help = new Help(gamedatas.scenario, this.board);
         this.help.install();
         this.renderPrimer();
+        this.renderPhases();
+        this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
 
         this.renderHand();
         this.updateClock(gamedatas.deckCount, gamedatas.handCount, gamedatas.round);
@@ -173,8 +196,9 @@ export class Game {
 
     /**
      * @param assigned card id => town it is staged for, drawn as already dealt with
+     * @param selected the card currently picked up, drawn as picked up
      */
-    renderHand(assigned: Record<number, string> = {}): void {
+    renderHand(assigned: Record<number, string> = {}, selected: number | null = null): void {
         const element = document.getElementById('iaw-hand');
         if (!element) {
             return;
@@ -192,8 +216,9 @@ export class Game {
         element.innerHTML = this.hand.map(card => {
             const label = String(card.presence ?? 0);
             const staged = assigned[card.id] ? ' staged' : '';
+            const picked = card.id === selected ? ' selected' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
-            return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
+            return `<span class="iaw-card hand ${card.type}${staged}${picked}" draggable="true"
                           data-card-id="${card.id}"${where}>${label}</span>`;
         }).join('');
 
@@ -206,6 +231,85 @@ export class Game {
             });
             node.addEventListener('dragend', () => node.classList.remove('dragging'));
         });
+    }
+
+    /**
+     * Which step of your side's turn the game is waiting on, or -1 for none.
+     *
+     * The steps that happen on commit — looking, starving, drawing — are never
+     * current, because nobody is ever asked about them. Each state class sets
+     * this on entering; `NextTurn` and the opponent's turn clear it.
+     */
+    setPhase(phase: number): void {
+        this.phase = phase;
+        this.renderPhases();
+    }
+
+    private renderPhases(): void {
+        const element = document.getElementById('iaw-phases');
+        if (element && this.help) {
+            element.innerHTML = this.help.phaseListHtml(this.side, this.phase);
+        }
+    }
+
+    /**
+     * The card or troop under inspection, drawn large in the side column.
+     *
+     * Clicking a card in hand selects it for placement *and* shows it here —
+     * selection used to change nothing on screen at all, which is why players
+     * reported that click-then-click did not work.
+     */
+    showZoom(html: string, footer = ''): void {
+        const element = document.getElementById('iaw-zoom');
+        if (element) {
+            element.innerHTML = html
+                ? html + (footer ? `<div class="iaw-zoom-hint">${footer}</div>` : '')
+                : '';
+        }
+    }
+
+    clearZoom(): void {
+        this.showZoom('');
+    }
+
+    zoomCard(card: CardView, footer = ''): void {
+        this.showZoom(this.help.cardDetailHtml(card), footer);
+    }
+
+    showTroopZoom(): void {
+        this.showZoom(this.help.troopDetailHtml());
+    }
+
+    /**
+     * A town's agents, in the order they were placed, newest on top.
+     *
+     * Order is real information for both sides: the top of the pile is what the
+     * Empire's next look reads. The rebels see the faces of their own cards —
+     * remembering twenty turns of placements across twelve towns is clerical
+     * rather than strategic, and the player who keeps notes should not beat the
+     * player who does not.
+     */
+    showPile(townId: string, faceUp: boolean): void {
+        const town = this.board.getTown(townId);
+        const cards = faceUp ? town.revealed : town.pile;
+        const label = this.gamedatas.scenario.towns[townId].label;
+
+        if (!this.pileDialog) {
+            this.pileDialog = new ebg.popindialog();
+            this.pileDialog.create('iaw-pile-dialog');
+            this.pileDialog.setMaxWidth(560);
+        }
+        this.pileDialog.setTitle(`${label} — ${faceUp
+            ? _('face up') : _('face down')}`);
+        this.pileDialog.setContent(cards.length
+            ? `<div class="iaw-pile-view">${cards.map((card, index) => `
+                   <div class="iaw-pile-row">
+                       <span class="iaw-pile-position">${index === 0
+                           ? _('top') : String(index + 1)}</span>
+                       ${this.help.cardDetailHtml(card)}
+                   </div>`).join('')}</div>`
+            : `<p>${_('Nothing here.')}</p>`);
+        this.pileDialog.show();
     }
 
     setStagingText(html: string): void {
@@ -257,6 +361,19 @@ export class Game {
             this.board.updateTown(townId);
         });
 
+        // Face up if they are yours, backs if they are not: the payload carries
+        // real types only for the side that placed them.
+        const placed: Record<string, OverlayCard[]> = {};
+        Object.entries(args.cards).forEach(([townId, cardIds]) => {
+            placed[townId] = cardIds.map(cardId => ({
+                presence: this.board.getTown(townId).pile
+                    .find(card => card.id === cardId)?.presence ?? null,
+            }));
+        });
+        this.recordLastTurn('insurgency', {
+            side: 'insurgency', moves: [], produced: {}, placed,
+        });
+
         this.hand = [];
         if (this.gamedatas.hand !== null) {
             this.gamedatas.hand = [];
@@ -287,11 +404,81 @@ export class Game {
     async notif_endOffered(args: unknown) {
     }
 
-    async notif_empireMoved(args: { troops: Record<string, number> }) {
+    async notif_empireMoved(args: {
+        player_id: number;
+        troops: Record<string, number>;
+        produced: Record<string, number>;
+        moves: StagedMove[];
+    }) {
         Object.entries(args.troops).forEach(([townId, troops]) => {
             this.board.getTown(townId).troops = troops;
             this.board.updateTown(townId);
         });
+
+        this.recordLastTurn('empire', {
+            side: 'empire',
+            moves: args.moves ?? [],
+            produced: args.produced ?? {},
+            placed: {},
+        });
+    }
+
+    /**
+     * Remember one side's turn, unless it was yours.
+     *
+     * `mine` is decided from the side rather than the player id, because the
+     * bot has no player row and would otherwise never be recognised as the
+     * opponent.
+     */
+    private recordLastTurn(actingSide: Side, turn: LastTurn): void {
+        this.lastTurn = actingSide === this.side ? null : turn;
+        this.renderLastTurn();
+    }
+
+    /**
+     * Draw what the opponent just did: ghost arrows on the roads they used,
+     * their cards above the towns they landed in, and the same lines their own
+     * staging panel showed them, in the side column.
+     */
+    renderLastTurn(): void {
+        const element = document.getElementById('iaw-last-turn');
+        const turn = this.lastTurn;
+
+        this.board.setGhostArrows(turn?.moves ?? []);
+        this.board.setOverlay(turn?.placed ?? {}, true);
+
+        if (!element) {
+            return;
+        }
+        if (!turn) {
+            element.innerHTML = '';
+            return;
+        }
+
+        const label = (townId: string) => this.gamedatas.scenario.towns[townId].label;
+        const lines: string[] = [];
+
+        Object.entries(turn.produced).forEach(([townId, count]) => {
+            lines.push(`${_('Built')} ${count} ${_('at')} <b>${label(townId)}</b>`);
+        });
+        turn.moves.forEach(move => {
+            lines.push(`${move.count} ${_('from')} <b>${label(move.from)}</b>
+                        ${_('to')} <b>${label(move.to)}</b>`);
+        });
+        Object.entries(turn.placed).forEach(([townId, cards]) => {
+            lines.push(`${cards.length} ${cards.length === 1 ? _('agent') : _('agents')}
+                        ${_('to')} <b>${label(townId)}</b>`);
+        });
+
+        element.innerHTML = `
+            <div class="iaw-last-turn">
+                <div class="iaw-heading">${turn.side === 'empire'
+                    ? _('The Empire\'s last turn') : _('The rebels\' last turn')}</div>
+                ${lines.length
+                    ? lines.map(line => `<div>${line}</div>`).join('')
+                    : `<div class="iaw-hint">${_('Nothing moved.')}</div>`}
+            </div>
+        `;
     }
 
     /**

@@ -20,14 +20,17 @@ class BoardView {
         /** The outlines, once img/town.svg, city.svg and pawn.svg have loaded. */
         this.frames = null;
         this.clickHandler = () => { };
+        this.stackHandler = () => { };
         this.dropHandler = null;
         /** Called after any redraw, so the panels beside the board can follow. */
         this.changeHandler = () => { };
-        /** Extra text shown on a town while a turn is being staged. */
         /** Town id => cards the Insurgency is staging for it this turn. */
         this.cardDelta = {};
         /** Signed troop changes being staged, shown on the troop badge as 2+1. */
         this.troopDelta = {};
+        /** Cards drawn above a town: staged this turn, or placed on the last one. */
+        this.overlay = {};
+        this.overlayGhost = false;
         this.towns = towns;
     }
     // -- building -----------------------------------------------------------
@@ -39,6 +42,7 @@ class BoardView {
             <div id="iaw-board" style="width:${width}px;height:${height}px">
                 ${this.edgesSvg(width, height)}
                 ${definitions.map(town => this.townHtml(town)).join('')}
+                <div id="iaw-overlays"></div>
             </div>
         `;
         definitions.forEach(town => {
@@ -46,7 +50,17 @@ class BoardView {
             if (!element) {
                 return;
             }
-            element.addEventListener('click', () => this.clickHandler(town.id));
+            element.addEventListener('click', event => {
+                // A stack opens itself rather than selecting the town under it.
+                const stack = event.target
+                    ?.closest('.iaw-stack.clickable');
+                if (stack) {
+                    event.stopPropagation();
+                    this.stackHandler(stack.dataset.stack, stack.dataset.face === 'up');
+                    return;
+                }
+                this.clickHandler(town.id);
+            });
             // Cards can be dragged onto a town as well as clicked into one.
             // Dragging is what people expect of a hand; clicking is what works
             // on a touchscreen, so both are supported.
@@ -87,6 +101,7 @@ class BoardView {
                 </marker>
             </defs>
             <g id="iaw-roads-edges">${lines}</g>
+            <g id="iaw-ghost-arrows"></g>
             <g id="iaw-move-arrows"></g>
         </svg>`;
     }
@@ -405,19 +420,28 @@ class BoardView {
         if (town.pileSize === 0 && delta === 0) {
             return '';
         }
+        // The rebels see the total of their own pile; everyone else gets a "?".
+        // Showing the unknown as a symbol rather than an absence says what the
+        // Empire is missing, instead of leaving a gap it has to interpret.
+        const mine = this.viewerSide === 'insurgency';
+        const total = mine
+            ? String(town.pile.reduce((sum, card) => sum + (card.presence ?? 0), 0))
+            : '?';
         // Beside the pile, not across the bottom of the box: the change reads
         // against the number it changes, exactly as the garrison's does on the
         // Empire side. A town with no pile yet still shows the marker, or the
         // first card placed anywhere would land invisibly.
         const stack = town.pileSize > 0
-            ? `<span class="iaw-stack face-down"
-                     title="${town.pileSize} ${_('face down')}"
-                ><span class="iaw-stack-count">${town.pileSize}</span></span>`
+            ? `<span class="iaw-stack face-down clickable" data-stack="${townId}"
+                     data-face="down"
+                     title="${town.pileSize} ${_('face down')} — ${_('click to see the pile in order')}"
+                ><span class="iaw-stack-count">${town.pileSize}</span
+                ><span class="iaw-stack-sum${mine ? '' : ' unknown'}">${total}</span></span>`
             : '';
         const change = delta === 0 ? ''
             : `<span class="iaw-card-delta"
-                     title="${_('Cards you are placing here this turn')}">+${delta}</span>`;
-        return `<div class="iaw-pile-row">${stack}${change}</div>`;
+                     title="${_('Agents you are placing here this turn')}">+${delta} ${delta === 1 ? _('card') : _('cards')}</span>`;
+        return `<div class="iaw-pile-line">${stack}${change}</div>`;
     }
     /**
      * The face-up stack: how many, and what they add up to.
@@ -434,14 +458,23 @@ class BoardView {
         }
         const values = cards.map(card => card.presence ?? 0);
         const total = values.reduce((sum, value) => sum + value, 0);
-        return `<span class="iaw-stack face-up"
-                      title="${_('Face up')}: ${values.join(', ')}"
+        return `<span class="iaw-stack face-up clickable" data-stack="${town.id}"
+                      data-face="up"
+                      title="${_('Face up')}: ${values.join(', ')} — ${_('click to see them in order')}"
                  ><span class="iaw-stack-count">${cards.length}</span
                  ><span class="iaw-stack-sum">${total}</span></span>`;
     }
     // -- interaction --------------------------------------------------------
     onTownClick(handler) {
         this.clickHandler = handler;
+    }
+    /**
+     * A click on either of a town's stacks, which opens it rather than
+     * selecting the town. Bound once on the board and delegated, because the
+     * stacks are rewritten on every update.
+     */
+    onStackClick(handler) {
+        this.stackHandler = handler;
     }
     /**
      * Anything drawn from the board but living outside it — the army list —
@@ -503,6 +536,48 @@ class BoardView {
         this.cardDelta = delta;
         this.updateAll();
     }
+    /**
+     * Cards to draw above a town.
+     *
+     * Used twice: face up for what you are staging right now, and greyed for
+     * what landed on the opponent's last turn. A card with a null presence is
+     * drawn as a back, which is what the Empire sees of a rebel placement.
+     */
+    setOverlay(overlay, ghost = false) {
+        this.overlay = overlay;
+        this.overlayGhost = ghost;
+        this.drawOverlay();
+    }
+    /**
+     * Drawn on a layer of its own rather than inside the town box, because
+     * `.iaw-town` clips its contents — the box is a fixed 120x104 whatever it
+     * holds, and these sit above it.
+     */
+    drawOverlay() {
+        const layer = document.getElementById('iaw-overlays');
+        if (!layer) {
+            return;
+        }
+        layer.innerHTML = Object.entries(this.overlay)
+            .filter(([, cards]) => cards.length > 0)
+            .map(([townId, cards]) => {
+            const town = this.scenario.towns[townId];
+            return `<div class="iaw-town-overlay${this.overlayGhost ? ' ghost' : ''}"
+                             style="left:${this.px(town.x)}px;top:${this.px(town.y) - TOWN_HEIGHT / 2 - 4}px"
+                        >${cards.map(card => card.presence === null
+                ? '<span class="iaw-chip face-down"></span>'
+                : `<span class="iaw-chip">+${card.presence}</span>`).join('')}</div>`;
+        }).join('');
+    }
+    /**
+     * Last turn's marches, drawn faded along the roads they used.
+     *
+     * A separate layer from the staging arrows so the two can be on screen at
+     * once: what your opponent did, and what you are about to do in reply.
+     */
+    setGhostArrows(moves) {
+        this.drawArrows('iaw-ghost-arrows', moves);
+    }
     /** @param delta town id => signed troop change being staged this turn */
     setTroopDelta(delta) {
         this.troopDelta = delta;
@@ -513,7 +588,10 @@ class BoardView {
      * the plan is visible on the map rather than only in a list.
      */
     setMoveArrows(moves) {
-        const layer = document.getElementById('iaw-move-arrows');
+        this.drawArrows('iaw-move-arrows', moves);
+    }
+    drawArrows(layerId, moves) {
+        const layer = document.getElementById(layerId);
         if (!layer) {
             return;
         }
@@ -535,6 +613,7 @@ class BoardView {
         this.dropHandler = null;
         this.cardDelta = {};
         this.troopDelta = {};
+        this.setOverlay({});
         this.setMoveArrows([]);
         this.setSelectable([]);
         this.setSelected([]);
@@ -618,9 +697,13 @@ class EmpireTurn {
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} must move'));
             this.game.setStagingText(this.watchingHtml());
+            this.game.setPhase(-1);
             return;
         }
         this.game.board.onTownClick(townId => this.onTownClick(townId));
+        // The troop is the Empire's only piece, so its card sits there for the
+        // whole turn rather than appearing on a selection.
+        this.game.showTroopZoom();
         this.refresh();
     }
     /**
@@ -634,6 +717,9 @@ class EmpireTurn {
         this.reset();
         this.game.board.clearInteraction();
         this.game.setStagingText('');
+        this.game.clearZoom();
+        this.game.setPhase(-1);
+        this.game.renderLastTurn();
     }
     reset() {
         this.produce = {};
@@ -733,6 +819,8 @@ class EmpireTurn {
     refresh() {
         const title = this.title();
         this.bga.statusBar.setTitle(title.text, title.args);
+        // Building is step 2 of the Empire's turn, marching step 3.
+        this.game.setPhase(this.step === 'build' ? 1 : 2);
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.
         const delta = {};
@@ -787,8 +875,11 @@ class EmpireTurn {
         }
         lines.push(this.supplyWarningHtml());
         lines.push(endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
-        this.moves.forEach(move => {
-            lines.push(`<div>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
+        this.moves.forEach((move, index) => {
+            // The newest march flashes until the next action, so the thing you
+            // just did is distinguishable from the pile of things you staged.
+            const flash = index === this.moves.length - 1 ? ' class="iaw-flash"' : '';
+            lines.push(`<div${flash}>${move.count} ${_('from')} <b>${this.townLabel(move.from)}</b>
                         ${_('to')} <b>${this.townLabel(move.to)}</b></div>`);
         });
         if (!this.moves.length) {
@@ -897,6 +988,13 @@ class InsurgencyTurn {
         this.selectedCard = null;
         /** Standing offer to end the game, sent with the turn. */
         this.offerEnd = false;
+        /** Escape drops the card you were holding, as it does everywhere else. */
+        this.onKey = (event) => {
+            if (event.key === 'Escape' && this.selectedCard !== null) {
+                this.selectedCard = null;
+                this.refresh();
+            }
+        };
     }
     onEnteringState(args, isCurrentPlayerActive) {
         this.args = {
@@ -908,11 +1006,14 @@ class InsurgencyTurn {
         this.bga.statusBar.setTitle(isCurrentPlayerActive
             ? _('${you} must place the entire hand')
             : _('${actplayer} must place the whole hand'));
+        this.game.setPhase(-1);
         if (!isCurrentPlayerActive) {
             this.game.setStagingText(`<div class="iaw-hint">${_('The Insurgency is placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`);
             return;
         }
+        this.game.setPhase(1); // placing the hand
         this.game.onHandClick(cardId => this.onCardClick(cardId));
+        document.addEventListener('keydown', this.onKey);
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
         this.refresh();
@@ -921,7 +1022,11 @@ class InsurgencyTurn {
         this.reset();
         this.game.board.clearInteraction();
         this.game.setStagingText('');
+        this.game.clearZoom();
+        this.game.setPhase(-1);
         this.game.renderHand();
+        this.game.renderLastTurn();
+        document.removeEventListener('keydown', this.onKey);
     }
     reset() {
         this.assigned = {};
@@ -934,6 +1039,23 @@ class InsurgencyTurn {
     onCardClick(cardId) {
         this.selectedCard = this.selectedCard === cardId ? null : cardId;
         this.refresh();
+    }
+    /**
+     * The zoom panel, which is also the only feedback that a card is selected.
+     *
+     * Selecting used to change nothing on screen — `selectedCard` was never
+     * passed to the renderer — so players reported that click-then-click did
+     * not work. It always did; it just said nothing.
+     */
+    refreshZoom() {
+        if (this.selectedCard === null) {
+            this.game.clearZoom();
+            return;
+        }
+        const card = this.game.cardById(this.selectedCard);
+        if (card) {
+            this.game.zoomCard(card, _('Click a town to place it, or press Escape.'));
+        }
     }
     onTownClick(townId) {
         if (!this.args.openTowns.includes(townId)) {
@@ -968,8 +1090,20 @@ class InsurgencyTurn {
         Object.values(this.assigned).forEach(townId => {
             delta[townId] = (delta[townId] ?? 0) + 1;
         });
+        // Your own staged cards, face up over the town they are going to. Safe
+        // pre-commit — they are yours — and cleared on leaving, or they would
+        // still be on screen once they are face down.
+        const overlay = {};
+        this.order.forEach(cardId => {
+            const townId = this.assigned[cardId];
+            (overlay[townId] ?? (overlay[townId] = [])).push({
+                presence: this.game.cardById(cardId)?.presence ?? null,
+            });
+        });
+        this.game.board.setOverlay(overlay);
         this.game.board.setCardDelta(delta);
-        this.game.renderHand(this.assigned);
+        this.game.renderHand(this.assigned, this.selectedCard);
+        this.refreshZoom();
         this.game.board.setSelectable(this.args.openTowns);
         this.game.board.setSelected([]);
         const remaining = this.unassigned().length;
@@ -1056,6 +1190,7 @@ class Resolve {
             resolvable: args?.resolvable ?? [],
         };
         this.target = null;
+        this.game.setPhase(isCurrentPlayerActive ? 0 : -1);
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} may resolve a town'));
             this.game.setStagingText(`<div class="iaw-hint">${_('Your opponent is deciding whether to resolve a town.')}</div>`);
@@ -1190,7 +1325,7 @@ class Help {
     }
     legendHtml() {
         const art = (svg) => `<span class="iaw-legend-art">${svg}</span>`;
-        const stack = (kind, count, sum) => `<span class="iaw-stack ${kind}"><span class="iaw-stack-count">${count}</span>${sum === undefined ? '' : `<span class="iaw-stack-sum">${sum}</span>`}</span>`;
+        const stack = (kind, count, sum) => `<span class="iaw-stack ${kind}"><span class="iaw-stack-count">${count}</span>${sum === undefined ? '' : `<span class="iaw-stack-sum${sum === '?' ? ' unknown' : ''}">${sum}</span>`}</span>`;
         const rows = [
             [art(this.board.townSvg()),
                 _('A town. Adds its supply to whatever Empire network holds it.')],
@@ -1200,35 +1335,42 @@ class Help {
                     ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}<span class="iaw-troop-count">3</span></span>`,
                 _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                     .replace('${presence}', String(this.scenario.unit.presence))],
-            [stack('face-down', 4),
-                _('Face-down cards: the height, and nothing else. Neither player sees the faces once they are down.')],
+            [stack('face-down', 4, '?'),
+                _('Face-down agents: how many, and what they total. The rebels see their own total; the Empire sees a question mark. Click either stack to see the pile in order.')],
             [stack('face-up', 2, 3),
-                _('Face-up cards and what they total. A troop that does not march turns one card over each turn.')],
+                _('Face-up agents and their presence. A troop that does not march turns one card over each turn.')],
             [`<span class="iaw-supply">2/4</span>`,
                 _('Troops standing in this network, and the most it can supply.')],
             [`<span class="iaw-contribution">(2)</span>`,
                 _('What this town adds to that. A town the rebels have won adds nothing, for ever.')],
             [`<span class="iaw-troops-doomed">&minus;1</span>`,
                 _('Starving. Lost at the end of the Empire\'s next turn unless the supply line is repaired first.')],
-            [`<span class="iaw-troop-delta">+1</span> <span class="iaw-card-delta">+2</span>`,
+            [`<span class="iaw-troop-delta">+1</span>
+              <span class="iaw-card-delta">+2 ${_('cards')}</span>`,
                 _('What you are staging this turn, shown beside what is already there.')],
+            [`<span class="iaw-chip">+2</span><span class="iaw-chip face-down"></span>`,
+                _('Agents above a town: face up while you are placing them, and greyed afterwards to show what your opponent placed on their last turn.')],
         ];
         return `<table class="iaw-legend">${rows.map(([icon, text]) => `<tr><td class="iaw-legend-icon">${icon}</td><td>${text}</td></tr>`).join('')}</table>`;
     }
     // -- the reminder beside the board --------------------------------------
     /**
-     * A permanent few lines saying what your side does and in what order.
+     * The numbered turn order for a side, and which step is live.
      *
-     * Spectators get the Empire's, arbitrarily: something is more use than an
-     * empty box, and the turn order is the same shape either way.
+     * Split out of the primer so the two can be shown separately: the phase
+     * list changes constantly and belongs with the turn and deck counts, while
+     * the primer never changes and is the part an experienced player wants to
+     * hide. `current` is a step index, or -1 for none of them — the steps that
+     * happen on commit are never "current", because nobody is ever asked about
+     * them.
      */
-    primerHtml(side) {
-        const rebel = side === 'insurgency';
-        const summary = rebel
-            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
-                .replace('${hand}', String(this.scenario.handSize))
-            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
-        const steps = rebel
+    phaseListHtml(side, current) {
+        return `
+            <ol class="iaw-phases">${this.steps(side).map((step, index) => `<li class="${index === current ? 'current' : ''}">${step}</li>`).join('')}</ol>
+        `;
+    }
+    steps(side) {
+        return side === 'insurgency'
             ? [
                 _('Resolve a town you have a card in'),
                 _('Place your entire hand'),
@@ -1241,14 +1383,72 @@ class Help {
                 _('Troops that stayed put each read a card'),
                 _('Troops over supply starve'),
             ];
+    }
+    /**
+     * A permanent few lines saying what your side does.
+     *
+     * Spectators get the Empire's, arbitrarily: something is more use than an
+     * empty box. No turn order here any more — that is `phaseListHtml`, which
+     * lives with the rest of the game state.
+     */
+    primerHtml(side) {
+        const rebel = side === 'insurgency';
+        const summary = rebel
+            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
+                .replace('${hand}', String(this.scenario.handSize))
+            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
                 <div class="iaw-heading">${rebel
             ? _('You play the Rebels')
             : _('You play the Empire')}</div>
                 <p>${summary}</p>
-                <ol class="iaw-primer-steps">${steps.map(step => `<li>${step}</li>`).join('')}</ol>
                 <button type="button" class="iaw-primer-more">${_('How to play')}</button>
+            </div>
+        `;
+    }
+    /**
+     * One card, big, with what it does spelled out.
+     *
+     * Built from `data/cards.json` rather than written here, so a card that
+     * gains a rule gains it in one place. The decoy line is the whole reason
+     * this exists: a zero is not a broken card, it is a card with a use.
+     */
+    cardDetailHtml(card) {
+        const known = card.presence !== null;
+        const type = known ? this.scenario.cardTypes[card.type] : null;
+        const value = card.presence ?? 0;
+        return `
+            <div class="iaw-detail">
+                <div class="iaw-detail-card ${known ? card.type : 'unknown'}"
+                    >${known ? `+${value}` : '?'}</div>
+                <div class="iaw-detail-name">${known
+            ? (type?.label ?? `${_('Agent')} +${value}`)
+            : _('A face-down agent')}</div>
+                <div class="iaw-detail-text">${known
+            ? (value > 0
+                ? _('Adds ${n} presence to the rebels in the town it is placed in.')
+                    .replace('${n}', String(value))
+                : _('Adds no presence. Use it as a decoy: face down it is indistinguishable from any other agent, and it makes a pile look dangerous.'))
+            : _('The Empire knows it is there and how deep in the pile it sits, but not what it is worth.')}</div>
+            </div>
+        `;
+    }
+    /**
+     * One troop, in the same shape as a card, so the two read as comparable
+     * things — which is the point of both carrying presence.
+     */
+    troopDetailHtml() {
+        const unit = this.scenario.unit;
+        return `
+            <div class="iaw-detail">
+                <div class="iaw-detail-art">${this.board.pawnSvg()}</div>
+                <div class="iaw-detail-name">${unit.label}</div>
+                <div class="iaw-detail-text">${_('Presence +${presence}. Moves ${movement} town per turn. Costs ${supply} supply to keep standing, and reads ${peek} card per turn when it holds still.')
+            .replace('${presence}', String(unit.presence))
+            .replace('${movement}', String(unit.movement))
+            .replace('${supply}', String(this.scenario.supplyPerTroop))
+            .replace('${peek}', String(unit.peek))}</div>
             </div>
         `;
     }
@@ -1270,6 +1470,19 @@ class Game {
         this.hand = [];
         /** The solo opponent, or null in a two-player game. */
         this.bot = null;
+        /** Which step of the current side's turn we are on; -1 for none. */
+        this.phase = -1;
+        /** Reused rather than rebuilt, so repeated opens do not leak dialogs. */
+        this.pileDialog = null;
+        /**
+         * What happened on the last turn somebody else took.
+         *
+         * Deliberately persistent rather than animated: an animation plays once and
+         * is gone, and in a turn-based game you often arrive after it played. These
+         * markers survive a reload and can be read at your own pace. Cleared when
+         * the acting side is you — you do not need a ghost of your own move.
+         */
+        this.lastTurn = null;
         this.handClickHandler = () => { };
         this.bga = bga;
         this.bga.states.register('Resolve', new Resolve(this, bga));
@@ -1287,12 +1500,17 @@ class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
-                    <div id="iaw-clock"></div>
+                    <div id="iaw-state">
+                        <div id="iaw-clock"></div>
+                        <div id="iaw-phases"></div>
+                    </div>
+                    <div id="iaw-zoom"></div>
                     <div id="iaw-staging">
                         <div id="iaw-staging-text"></div>
                         <div id="iaw-hand"></div>
                     </div>
                     <div id="iaw-armies"></div>
+                    <div id="iaw-last-turn"></div>
                     <div id="iaw-primer"></div>
                 </div>
             </div>
@@ -1326,6 +1544,8 @@ class Game {
         this.help = new Help(gamedatas.scenario, this.board);
         this.help.install();
         this.renderPrimer();
+        this.renderPhases();
+        this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
         this.renderHand();
         this.updateClock(gamedatas.deckCount, gamedatas.handCount, gamedatas.round);
         this.setupNotifications();
@@ -1389,8 +1609,9 @@ class Game {
     }
     /**
      * @param assigned card id => town it is staged for, drawn as already dealt with
+     * @param selected the card currently picked up, drawn as picked up
      */
-    renderHand(assigned = {}) {
+    renderHand(assigned = {}, selected = null) {
         const element = document.getElementById('iaw-hand');
         if (!element) {
             return;
@@ -1406,8 +1627,9 @@ class Game {
         element.innerHTML = this.hand.map(card => {
             const label = String(card.presence ?? 0);
             const staged = assigned[card.id] ? ' staged' : '';
+            const picked = card.id === selected ? ' selected' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
-            return `<span class="iaw-card hand ${card.type}${staged}" draggable="true"
+            return `<span class="iaw-card hand ${card.type}${staged}${picked}" draggable="true"
                           data-card-id="${card.id}"${where}>${label}</span>`;
         }).join('');
         element.querySelectorAll('.iaw-card').forEach(node => {
@@ -1419,6 +1641,77 @@ class Game {
             });
             node.addEventListener('dragend', () => node.classList.remove('dragging'));
         });
+    }
+    /**
+     * Which step of your side's turn the game is waiting on, or -1 for none.
+     *
+     * The steps that happen on commit — looking, starving, drawing — are never
+     * current, because nobody is ever asked about them. Each state class sets
+     * this on entering; `NextTurn` and the opponent's turn clear it.
+     */
+    setPhase(phase) {
+        this.phase = phase;
+        this.renderPhases();
+    }
+    renderPhases() {
+        const element = document.getElementById('iaw-phases');
+        if (element && this.help) {
+            element.innerHTML = this.help.phaseListHtml(this.side, this.phase);
+        }
+    }
+    /**
+     * The card or troop under inspection, drawn large in the side column.
+     *
+     * Clicking a card in hand selects it for placement *and* shows it here —
+     * selection used to change nothing on screen at all, which is why players
+     * reported that click-then-click did not work.
+     */
+    showZoom(html, footer = '') {
+        const element = document.getElementById('iaw-zoom');
+        if (element) {
+            element.innerHTML = html
+                ? html + (footer ? `<div class="iaw-zoom-hint">${footer}</div>` : '')
+                : '';
+        }
+    }
+    clearZoom() {
+        this.showZoom('');
+    }
+    zoomCard(card, footer = '') {
+        this.showZoom(this.help.cardDetailHtml(card), footer);
+    }
+    showTroopZoom() {
+        this.showZoom(this.help.troopDetailHtml());
+    }
+    /**
+     * A town's agents, in the order they were placed, newest on top.
+     *
+     * Order is real information for both sides: the top of the pile is what the
+     * Empire's next look reads. The rebels see the faces of their own cards —
+     * remembering twenty turns of placements across twelve towns is clerical
+     * rather than strategic, and the player who keeps notes should not beat the
+     * player who does not.
+     */
+    showPile(townId, faceUp) {
+        const town = this.board.getTown(townId);
+        const cards = faceUp ? town.revealed : town.pile;
+        const label = this.gamedatas.scenario.towns[townId].label;
+        if (!this.pileDialog) {
+            this.pileDialog = new ebg.popindialog();
+            this.pileDialog.create('iaw-pile-dialog');
+            this.pileDialog.setMaxWidth(560);
+        }
+        this.pileDialog.setTitle(`${label} — ${faceUp
+            ? _('face up') : _('face down')}`);
+        this.pileDialog.setContent(cards.length
+            ? `<div class="iaw-pile-view">${cards.map((card, index) => `
+                   <div class="iaw-pile-row">
+                       <span class="iaw-pile-position">${index === 0
+                ? _('top') : String(index + 1)}</span>
+                       ${this.help.cardDetailHtml(card)}
+                   </div>`).join('')}</div>`
+            : `<p>${_('Nothing here.')}</p>`);
+        this.pileDialog.show();
     }
     setStagingText(html) {
         const element = document.getElementById('iaw-staging-text');
@@ -1463,6 +1756,18 @@ class Game {
             town.cardCount += cardIds.length;
             this.board.updateTown(townId);
         });
+        // Face up if they are yours, backs if they are not: the payload carries
+        // real types only for the side that placed them.
+        const placed = {};
+        Object.entries(args.cards).forEach(([townId, cardIds]) => {
+            placed[townId] = cardIds.map(cardId => ({
+                presence: this.board.getTown(townId).pile
+                    .find(card => card.id === cardId)?.presence ?? null,
+            }));
+        });
+        this.recordLastTurn('insurgency', {
+            side: 'insurgency', moves: [], produced: {}, placed,
+        });
         this.hand = [];
         if (this.gamedatas.hand !== null) {
             this.gamedatas.hand = [];
@@ -1493,6 +1798,63 @@ class Game {
             this.board.getTown(townId).troops = troops;
             this.board.updateTown(townId);
         });
+        this.recordLastTurn('empire', {
+            side: 'empire',
+            moves: args.moves ?? [],
+            produced: args.produced ?? {},
+            placed: {},
+        });
+    }
+    /**
+     * Remember one side's turn, unless it was yours.
+     *
+     * `mine` is decided from the side rather than the player id, because the
+     * bot has no player row and would otherwise never be recognised as the
+     * opponent.
+     */
+    recordLastTurn(actingSide, turn) {
+        this.lastTurn = actingSide === this.side ? null : turn;
+        this.renderLastTurn();
+    }
+    /**
+     * Draw what the opponent just did: ghost arrows on the roads they used,
+     * their cards above the towns they landed in, and the same lines their own
+     * staging panel showed them, in the side column.
+     */
+    renderLastTurn() {
+        const element = document.getElementById('iaw-last-turn');
+        const turn = this.lastTurn;
+        this.board.setGhostArrows(turn?.moves ?? []);
+        this.board.setOverlay(turn?.placed ?? {}, true);
+        if (!element) {
+            return;
+        }
+        if (!turn) {
+            element.innerHTML = '';
+            return;
+        }
+        const label = (townId) => this.gamedatas.scenario.towns[townId].label;
+        const lines = [];
+        Object.entries(turn.produced).forEach(([townId, count]) => {
+            lines.push(`${_('Built')} ${count} ${_('at')} <b>${label(townId)}</b>`);
+        });
+        turn.moves.forEach(move => {
+            lines.push(`${move.count} ${_('from')} <b>${label(move.from)}</b>
+                        ${_('to')} <b>${label(move.to)}</b>`);
+        });
+        Object.entries(turn.placed).forEach(([townId, cards]) => {
+            lines.push(`${cards.length} ${cards.length === 1 ? _('agent') : _('agents')}
+                        ${_('to')} <b>${label(townId)}</b>`);
+        });
+        element.innerHTML = `
+            <div class="iaw-last-turn">
+                <div class="iaw-heading">${turn.side === 'empire'
+            ? _('The Empire\'s last turn') : _('The rebels\' last turn')}</div>
+                ${lines.length
+            ? lines.map(line => `<div>${line}</div>`).join('')
+            : `<div class="iaw-hint">${_('Nothing moved.')}</div>`}
+            </div>
+        `;
     }
     /**
      * A look turns the top card of a pile face up, where it stays. This is

@@ -39,6 +39,7 @@ export class InsurgencyTurn {
             ? _('${you} must place the entire hand')
             : _('${actplayer} must place the whole hand'));
 
+        this.game.setPhase(-1);
         if (!isCurrentPlayerActive) {
             this.game.setStagingText(
                 `<div class="iaw-hint">${_('The Insurgency is placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`
@@ -46,7 +47,9 @@ export class InsurgencyTurn {
             return;
         }
 
+        this.game.setPhase(1);  // placing the hand
         this.game.onHandClick(cardId => this.onCardClick(cardId));
+        document.addEventListener('keydown', this.onKey);
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
         this.refresh();
@@ -56,8 +59,20 @@ export class InsurgencyTurn {
         this.reset();
         this.game.board.clearInteraction();
         this.game.setStagingText('');
+        this.game.clearZoom();
+        this.game.setPhase(-1);
         this.game.renderHand();
+        this.game.renderLastTurn();
+        document.removeEventListener('keydown', this.onKey);
     }
+
+    /** Escape drops the card you were holding, as it does everywhere else. */
+    private onKey = (event: KeyboardEvent): void => {
+        if (event.key === 'Escape' && this.selectedCard !== null) {
+            this.selectedCard = null;
+            this.refresh();
+        }
+    };
 
     private reset(): void {
         this.assigned = {};
@@ -72,6 +87,24 @@ export class InsurgencyTurn {
     private onCardClick(cardId: number): void {
         this.selectedCard = this.selectedCard === cardId ? null : cardId;
         this.refresh();
+    }
+
+    /**
+     * The zoom panel, which is also the only feedback that a card is selected.
+     *
+     * Selecting used to change nothing on screen — `selectedCard` was never
+     * passed to the renderer — so players reported that click-then-click did
+     * not work. It always did; it just said nothing.
+     */
+    private refreshZoom(): void {
+        if (this.selectedCard === null) {
+            this.game.clearZoom();
+            return;
+        }
+        const card = this.game.cardById(this.selectedCard);
+        if (card) {
+            this.game.zoomCard(card, _('Click a town to place it, or press Escape.'));
+        }
     }
 
     private onTownClick(townId: string): void {
@@ -115,8 +148,20 @@ export class InsurgencyTurn {
             delta[townId] = (delta[townId] ?? 0) + 1;
         });
 
+        // Your own staged cards, face up over the town they are going to. Safe
+        // pre-commit — they are yours — and cleared on leaving, or they would
+        // still be on screen once they are face down.
+        const overlay: Record<string, OverlayCard[]> = {};
+        this.order.forEach(cardId => {
+            const townId = this.assigned[cardId];
+            (overlay[townId] ??= []).push({
+                presence: this.game.cardById(cardId)?.presence ?? null,
+            });
+        });
+        this.game.board.setOverlay(overlay);
         this.game.board.setCardDelta(delta);
-        this.game.renderHand(this.assigned);
+        this.game.renderHand(this.assigned, this.selectedCard);
+        this.refreshZoom();
         this.game.board.setSelectable(this.args.openTowns);
         this.game.board.setSelected([]);
 

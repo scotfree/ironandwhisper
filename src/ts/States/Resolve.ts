@@ -29,6 +29,7 @@ export class Resolve {
             resolvable: args?.resolvable ?? [],
         };
         this.target = null;
+        this.game.setPhase(isCurrentPlayerActive ? 0 : -1);
 
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} may resolve a town'));

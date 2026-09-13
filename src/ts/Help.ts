@@ -94,9 +94,10 @@ export class Help {
 
     private legendHtml(): string {
         const art = (svg: string) => `<span class="iaw-legend-art">${svg}</span>`;
-        const stack = (kind: string, count: number, sum?: number) =>
+        const stack = (kind: string, count: number, sum?: number | string) =>
             `<span class="iaw-stack ${kind}"><span class="iaw-stack-count">${count}</span>${
-                sum === undefined ? '' : `<span class="iaw-stack-sum">${sum}</span>`}</span>`;
+                sum === undefined ? '' : `<span class="iaw-stack-sum${
+                    sum === '?' ? ' unknown' : ''}">${sum}</span>`}</span>`;
 
         const rows: [string, string][] = [
             [art(this.board.townSvg()),
@@ -108,18 +109,21 @@ export class Help {
              }<span class="iaw-troop-count">3</span></span>`,
              _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                 .replace('${presence}', String(this.scenario.unit.presence))],
-            [stack('face-down', 4),
-             _('Face-down cards: the height, and nothing else. Neither player sees the faces once they are down.')],
+            [stack('face-down', 4, '?'),
+             _('Face-down agents: how many, and what they total. The rebels see their own total; the Empire sees a question mark. Click either stack to see the pile in order.')],
             [stack('face-up', 2, 3),
-             _('Face-up cards and what they total. A troop that does not march turns one card over each turn.')],
+             _('Face-up agents and their presence. A troop that does not march turns one card over each turn.')],
             [`<span class="iaw-supply">2/4</span>`,
              _('Troops standing in this network, and the most it can supply.')],
             [`<span class="iaw-contribution">(2)</span>`,
              _('What this town adds to that. A town the rebels have won adds nothing, for ever.')],
             [`<span class="iaw-troops-doomed">&minus;1</span>`,
              _('Starving. Lost at the end of the Empire\'s next turn unless the supply line is repaired first.')],
-            [`<span class="iaw-troop-delta">+1</span> <span class="iaw-card-delta">+2</span>`,
+            [`<span class="iaw-troop-delta">+1</span>
+              <span class="iaw-card-delta">+2 ${_('cards')}</span>`,
              _('What you are staging this turn, shown beside what is already there.')],
+            [`<span class="iaw-chip">+2</span><span class="iaw-chip face-down"></span>`,
+             _('Agents above a town: face up while you are placing them, and greyed afterwards to show what your opponent placed on their last turn.')],
         ];
 
         return `<table class="iaw-legend">${rows.map(([icon, text]) =>
@@ -129,20 +133,24 @@ export class Help {
     // -- the reminder beside the board --------------------------------------
 
     /**
-     * A permanent few lines saying what your side does and in what order.
+     * The numbered turn order for a side, and which step is live.
      *
-     * Spectators get the Empire's, arbitrarily: something is more use than an
-     * empty box, and the turn order is the same shape either way.
+     * Split out of the primer so the two can be shown separately: the phase
+     * list changes constantly and belongs with the turn and deck counts, while
+     * the primer never changes and is the part an experienced player wants to
+     * hide. `current` is a step index, or -1 for none of them — the steps that
+     * happen on commit are never "current", because nobody is ever asked about
+     * them.
      */
-    primerHtml(side: Side | null): string {
-        const rebel = side === 'insurgency';
+    phaseListHtml(side: Side | null, current: number): string {
+        return `
+            <ol class="iaw-phases">${this.steps(side).map((step, index) =>
+                `<li class="${index === current ? 'current' : ''}">${step}</li>`).join('')}</ol>
+        `;
+    }
 
-        const summary = rebel
-            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
-                .replace('${hand}', String(this.scenario.handSize))
-            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
-
-        const steps = rebel
+    private steps(side: Side | null): string[] {
+        return side === 'insurgency'
             ? [
                 _('Resolve a town you have a card in'),
                 _('Place your entire hand'),
@@ -155,6 +163,22 @@ export class Help {
                 _('Troops that stayed put each read a card'),
                 _('Troops over supply starve'),
             ];
+    }
+
+    /**
+     * A permanent few lines saying what your side does.
+     *
+     * Spectators get the Empire's, arbitrarily: something is more use than an
+     * empty box. No turn order here any more — that is `phaseListHtml`, which
+     * lives with the rest of the game state.
+     */
+    primerHtml(side: Side | null): string {
+        const rebel = side === 'insurgency';
+
+        const summary = rebel
+            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
+                .replace('${hand}', String(this.scenario.handSize))
+            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
 
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
@@ -162,9 +186,56 @@ export class Help {
                     ? _('You play the Rebels')
                     : _('You play the Empire')}</div>
                 <p>${summary}</p>
-                <ol class="iaw-primer-steps">${
-                    steps.map(step => `<li>${step}</li>`).join('')}</ol>
                 <button type="button" class="iaw-primer-more">${_('How to play')}</button>
+            </div>
+        `;
+    }
+
+    /**
+     * One card, big, with what it does spelled out.
+     *
+     * Built from `data/cards.json` rather than written here, so a card that
+     * gains a rule gains it in one place. The decoy line is the whole reason
+     * this exists: a zero is not a broken card, it is a card with a use.
+     */
+    cardDetailHtml(card: CardView): string {
+        const known = card.presence !== null;
+        const type = known ? this.scenario.cardTypes[card.type as string] : null;
+        const value = card.presence ?? 0;
+
+        return `
+            <div class="iaw-detail">
+                <div class="iaw-detail-card ${known ? card.type : 'unknown'}"
+                    >${known ? `+${value}` : '?'}</div>
+                <div class="iaw-detail-name">${known
+                    ? (type?.label ?? `${_('Agent')} +${value}`)
+                    : _('A face-down agent')}</div>
+                <div class="iaw-detail-text">${known
+                    ? (value > 0
+                        ? _('Adds ${n} presence to the rebels in the town it is placed in.')
+                            .replace('${n}', String(value))
+                        : _('Adds no presence. Use it as a decoy: face down it is indistinguishable from any other agent, and it makes a pile look dangerous.'))
+                    : _('The Empire knows it is there and how deep in the pile it sits, but not what it is worth.')}</div>
+            </div>
+        `;
+    }
+
+    /**
+     * One troop, in the same shape as a card, so the two read as comparable
+     * things — which is the point of both carrying presence.
+     */
+    troopDetailHtml(): string {
+        const unit = this.scenario.unit;
+        return `
+            <div class="iaw-detail">
+                <div class="iaw-detail-art">${this.board.pawnSvg()}</div>
+                <div class="iaw-detail-name">${unit.label}</div>
+                <div class="iaw-detail-text">${
+                    _('Presence +${presence}. Moves ${movement} town per turn. Costs ${supply} supply to keep standing, and reads ${peek} card per turn when it holds still.')
+                        .replace('${presence}', String(unit.presence))
+                        .replace('${movement}', String(unit.movement))
+                        .replace('${supply}', String(this.scenario.supplyPerTroop))
+                        .replace('${peek}', String(unit.peek))}</div>
             </div>
         `;
     }

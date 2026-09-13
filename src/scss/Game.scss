@@ -248,10 +248,288 @@ $board: #e6e6e8;
 }
 
 // The face-down stack and whatever is being staged onto it, on one line.
-.iaw-pile-row {
+.iaw-pile-line {
     display: flex;
     align-items: center;
     gap: 3px;
+}
+
+// A stack you can open. The pile's order is real information for both sides:
+// the top is what the Empire's next look reads.
+.iaw-stack.clickable {
+    cursor: pointer;
+
+    &:hover {
+        outline: 2px solid $ui;
+        outline-offset: 1px;
+    }
+}
+
+// The Empire knows a pile is there and how deep; it does not know the total.
+// Saying so with a symbol beats leaving a gap it has to interpret.
+.iaw-stack-sum.unknown {
+    background: #777;
+}
+
+/********* cards drawn above a town *********/
+
+// Used twice: face up for what you are staging now, greyed for what the
+// opponent placed last turn.
+#iaw-overlays {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.iaw-town-overlay {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    width: 120px;
+    pointer-events: none;
+
+    &.ghost {
+        opacity: 0.55;
+        filter: grayscale(0.5);
+    }
+}
+
+.iaw-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 15px;
+    height: 19px;
+    padding: 0 3px;
+    border-radius: 2px;
+    border: 1px solid color.adjust($insurgency, $lightness: -18%);
+    background: color.mix($insurgency, #fff, 22%);
+    color: color.adjust($insurgency, $lightness: -28%);
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+    &.face-down {
+        background: repeating-linear-gradient(
+            45deg,
+            color.adjust($insurgency, $lightness: -12%),
+            color.adjust($insurgency, $lightness: -12%) 3px,
+            color.adjust($insurgency, $lightness: -20%) 3px,
+            color.adjust($insurgency, $lightness: -20%) 6px
+        );
+        border-color: color.adjust($insurgency, $lightness: -30%);
+    }
+}
+
+/********* the game state frame *********/
+
+#iaw-state {
+    padding: 8px;
+    background: $paper;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+#iaw-clock {
+    padding: 0;
+    background: none;
+}
+
+// Numbered explicitly: BGA's reset strips list markers, which is why the turn
+// order rendered as an unnumbered list despite being an <ol>.
+.iaw-phases {
+    list-style: decimal;
+    margin: 6px 0 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: #666;
+
+    li {
+        margin-bottom: 1px;
+    }
+
+    li.current {
+        color: #000;
+        font-weight: bold;
+    }
+
+    li.current::marker {
+        color: $ui;
+    }
+}
+
+/********* the zoomed card *********/
+
+#iaw-zoom:not(:empty) {
+    margin-top: 10px;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.iaw-detail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.iaw-detail-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 62px;
+    border-radius: 4px;
+    border: 1px solid color.adjust($insurgency, $lightness: -20%);
+    background: color.mix($insurgency, #fff, 22%);
+    color: color.adjust($insurgency, $lightness: -30%);
+    font-size: 20px;
+    font-weight: bold;
+
+    &.unknown {
+        background: #888;
+        border-color: #555;
+        color: #fff;
+    }
+}
+
+.iaw-detail-art {
+    width: 46px;
+    height: 62px;
+    --art-fill: #{color.mix($empire, #fff, 32%)};
+    --art-stroke: #{$empire};
+
+    svg { width: 100%; height: 100%; }
+}
+
+.iaw-detail-name {
+    margin-top: 6px;
+    font-weight: bold;
+}
+
+.iaw-detail-text {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #444;
+}
+
+.iaw-zoom-hint {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+    color: $ui;
+    text-align: center;
+}
+
+// A card you have picked up, which used to have no visual state at all — the
+// reason players reported that click-then-click did not work.
+.iaw-card.hand.selected {
+    outline: 3px solid $ui;
+    outline-offset: 1px;
+    transform: translateY(-4px);
+}
+
+/********* what the opponent just did *********/
+
+#iaw-last-turn:not(:empty) {
+    margin-top: 10px;
+}
+
+.iaw-last-turn {
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px dashed #c4c4c4;
+    background: #fafafa;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #555;
+
+    .iaw-heading {
+        margin: 0 0 3px;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        color: #777;
+    }
+}
+
+// Last turn's marches, faded, so they can share the board with this turn's.
+#iaw-ghost-arrows {
+    .iaw-move-arrow {
+        stroke: #999;
+        stroke-width: 6;
+        stroke-linecap: round;
+        opacity: 0.5;
+    }
+
+    .iaw-move-count {
+        fill: #777;
+        font-size: 12px;
+        font-weight: bold;
+        text-anchor: middle;
+    }
+}
+
+// The most recent thing you did, which is a different signal from everything
+// you have staged.
+.iaw-flash {
+    animation: iaw-flash 1.1s ease-in-out infinite;
+}
+
+@keyframes iaw-flash {
+    50% { background: rgba(10, 132, 255, 0.18); }
+}
+
+// The staged-card marker pulses: it is small, and it was being missed.
+.iaw-card-delta {
+    animation: iaw-pulse 1.4s ease-in-out infinite;
+    transform-origin: left center;
+}
+
+@keyframes iaw-pulse {
+    50% { transform: scale(1.22); }
+}
+
+/********* the pile dialog *********/
+
+.iaw-pile-view {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.iaw-pile-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+
+    .iaw-detail {
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        text-align: left;
+    }
+
+    .iaw-detail-name { margin-top: 0; }
+}
+
+.iaw-pile-position {
+    min-width: 42px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
 }
 
 /********* the stacks on a town *********/

@@ -198,12 +198,35 @@ Done:
   legible only by comparing twelve supply badges. The name breaks ties by hashing the
   network's membership, so it is arbitrary rather than alphabetical, stable while the army
   is, and reshuffles when the army changes; randomising per render would make it unreadable.
-- **The side column reads top to bottom in the order you need it**: the clock
-  (turn / deck / hand), then the turn summary, then the armies, then a permanent
-  reminder of what your side does and in what order. The Insurgency's hand lives *inside*
-  the turn summary — the cards and the list of where they are going are one decision, and
-  they used to be two frames with the army list between them. The Empire has no hand frame
-  at all; it reads the rebels' card count off the clock.
+- **The side column reads top to bottom in the order you need it**: the game state
+  (turn / deck / hand, and the numbered turn order with the live step lit), the zoomed
+  card, the turn summary with the Insurgency's hand inside it, the armies, what the
+  opponent did last turn, and a permanent reminder of what your side does. The cards and
+  the list of where they are going are one decision, so they share a frame; the Empire has
+  no hand frame at all and reads the rebels' card count off the state box.
+- **The phase list is numbered explicitly** (`list-style: decimal`). It was already an
+  `<ol>` and rendered without numbers, because BGA's reset strips list markers. It is
+  separate from the prose primer so the two can be hidden independently — the phase list
+  changes constantly and belongs with the counters, the primer never changes.
+- **A card you pick up says so.** Clicking a hand card sets `selectedCard`, which was never
+  passed to `renderHand`, so selection changed nothing on screen and players reported that
+  click-then-click "did not work". It always worked; it just said nothing. Selection now
+  outlines the card and draws it large in `#iaw-zoom`, with Escape to drop it.
+- **Both stacks on a town are clickable** and open the pile in order, top first. The rebels
+  see the total of their own face-down pile and the Empire sees `?` — saying what is unknown
+  beats leaving a gap. This reversed a decision: memory was judged clerical rather than
+  strategic, since the player who keeps notes should not beat the player who does not. The
+  server always sent the Insurgency its own faces (`View::pileView`); only the client
+  declined to draw them, so nothing about hidden information changed.
+- **What the opponent just did persists rather than animating.** Ghost arrows on the roads
+  they marched, their agents greyed above the towns they landed in, and the same lines
+  their own staging panel showed them, in `#iaw-last-turn`. An animation plays once and is
+  gone, and in a turn-based game you often arrive after it played — the instinct to add a
+  "show again" button is the tell that the information should not have been ephemeral.
+  Animation is deferred to issue #4 as polish, not as a carrier of information.
+- **Staged agents are drawn face up over their target town**, on `#iaw-overlays` rather
+  than inside the town box: `.iaw-town` is a fixed 120x104 with `overflow: hidden`, so
+  anything above the roof is clipped. The same layer greys out for last turn's placements.
 - **A `?` at the right-hand end of the title bar opens the cheat sheet** (`src/ts/Help.ts`),
   four paragraphs and a legend of every icon. It is **not** a status bar action button:
   `removeActionButtons()` runs on every state change and would take it with it, so it lives
