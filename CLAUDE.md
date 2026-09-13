@@ -309,14 +309,20 @@ the reasoning behind them; the tracker holds what has not been done. An issue he
 the *why* — why it is parked, what it would cost, what it interacts with — in the same
 voice as the design doc, because that is what makes it worth reading a month later.
 
-**The Studio lobby shows the project name, not `game_name`** (issue #16, narrowed
-2026-09-13). `gameinfos.jsonc` is valid, says "Iron and Whispers", has `players: [1, 2]`,
-and is deployed; "Reload game informations" has been clicked repeatedly. The reload *is*
-working — solo games run, so `players: [1, 2]` was picked up from the same file — which
-leaves the project name, fixed at creation and changeable only by BGA admins, as the only
-explanation still standing. Unverified: the docs do not say either way. Ask Studio support,
-and bundle the question about whether the `displaycondition` block on game option 101 is
-accepted.
+**The Studio lobby shows the project name, and that is correct** (issue #16, closed
+2026-09-13). Studio lists games by folder name — `ironandwhisper` — and `game_name` does not
+drive that list. BGA staff on the question: *"When a game is first released to Alpha, the
+name will appear as `<gamename>_displayed` for the first 24 hours or so, but after that
+point it will be updated by the translation system"*
+([forum 21424](https://forum.boardgamearena.com/viewtopic.php?t=21424)); the same thread
+says not to worry about the Studio name, which is not public-facing. **The real name arrives
+via the translation system at alpha.** Do not ask support to rename anything. The `name`
+field in the metadata manager's Game infos tab is the internal identifier, not a display
+field.
+
+**Text metadata has moved out of `gameinfos.jsonc` and some fields there are now ignored.**
+The metadata manager owns it, and "Reload game informations" warns about deprecated fields.
+Ours has never been audited against that warning — see issue #15.
 
 ## Deploying
 
