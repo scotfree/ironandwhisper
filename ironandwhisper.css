@@ -206,6 +206,7 @@
   }
 }
 .iaw-chip {
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -264,19 +265,28 @@
 #iaw-zoom.open {
   display: block;
   position: absolute;
-  top: 0;
+  top: 50%;
   left: 0;
   right: 0;
+  transform: translateY(-50%);
   z-index: 20;
-  padding: 10px 10px 8px;
+  max-height: 90%;
+  overflow-y: auto;
+  padding: 12px 12px 10px;
   background: #fff;
-  border: 1px solid #bbb;
-  border-radius: 6px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  border: 2px solid #111;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 #iaw-side-area {
   position: relative;
+}
+#iaw-side-area.zoomed > *:not(#iaw-zoom) {
+  opacity: 0.3;
+  filter: saturate(0.4);
+  transition: opacity 0.12s ease-out;
+  pointer-events: none;
 }
 
 .iaw-zoom-close {

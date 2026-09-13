@@ -581,11 +581,16 @@ class BoardView {
             // box it reads as part of the town, and sitting on the boundary
             // says it is being *added* — while clearing the bottom row,
             // which is the face-up stack and the supply contribution.
+            // Two different things share this layer, so they say which they
+            // are: what you are placing now, and what landed last turn.
+            const hint = this.overlayGhost
+                ? _('Played here on the last turn')
+                : _('You are placing these here this turn');
             return `<div class="iaw-town-overlay${this.overlayGhost ? ' ghost' : ''}"
                              style="left:${this.px(town.x)}px;top:${this.px(town.y) + TOWN_HEIGHT / 2}px"
                         >${cards.map(card => card.presence === null
-                ? '<span class="iaw-chip face-down"></span>'
-                : `<span class="iaw-chip">+${card.presence}</span>`).join('')}</div>`;
+                ? `<span class="iaw-chip face-down" title="${hint}"></span>`
+                : `<span class="iaw-chip" title="${hint}">+${card.presence}</span>`).join('')}</div>`;
         }).join('');
     }
     /**
@@ -1695,6 +1700,7 @@ class Game {
         if (!html) {
             element.innerHTML = '';
             element.classList.remove('open');
+            document.getElementById('iaw-side-area')?.classList.remove('zoomed');
             return;
         }
         element.innerHTML = `
@@ -1704,6 +1710,7 @@ class Game {
             ${footer ? `<div class="iaw-zoom-hint">${footer}</div>` : ''}
         `;
         element.classList.add('open');
+        document.getElementById('iaw-side-area')?.classList.add('zoomed');
         element.querySelector('.iaw-zoom-close')
             ?.addEventListener('click', () => this.dismissZoom());
     }
@@ -1726,6 +1733,7 @@ class Game {
             element.innerHTML = '';
             element.classList.remove('open');
         }
+        document.getElementById('iaw-side-area')?.classList.remove('zoomed');
     }
     zoomCard(card, footer = '', onDismiss) {
         this.showZoom(this.help.cardDetailHtml(card), footer, onDismiss);

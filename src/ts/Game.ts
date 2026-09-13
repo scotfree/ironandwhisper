@@ -278,6 +278,7 @@ export class Game {
         if (!html) {
             element.innerHTML = '';
             element.classList.remove('open');
+            document.getElementById('iaw-side-area')?.classList.remove('zoomed');
             return;
         }
 
@@ -288,6 +289,7 @@ export class Game {
             ${footer ? `<div class="iaw-zoom-hint">${footer}</div>` : ''}
         `;
         element.classList.add('open');
+        document.getElementById('iaw-side-area')?.classList.add('zoomed');
         element.querySelector('.iaw-zoom-close')
             ?.addEventListener('click', () => this.dismissZoom());
     }
@@ -312,6 +314,7 @@ export class Game {
             element.innerHTML = '';
             element.classList.remove('open');
         }
+        document.getElementById('iaw-side-area')?.classList.remove('zoomed');
     }
 
     zoomCard(card: CardView, footer = '', onDismiss?: () => void): void {

@@ -229,14 +229,20 @@ Done:
   `overflow: hidden`, so anything drawn in the box is clipped. Half in and half out reads as
   *arriving* rather than as part of the town, and clears the bottom row, which carries the
   face-up stack and the supply contribution. Only live staging pulses; last turn's cards are
-  history and sit still on the same layer, greyed.
+  history and sit still on the same layer, greyed. Each chip carries a tooltip saying which
+  of the two it is, which needed `pointer-events: auto` on the chips — the layer itself
+  ignores the mouse. That costs a small dead spot on the town's bottom edge.
 - **The zoomed card floats over the side column rather than sitting in it.** As a frame it
   shoved the turn summary and the armies down the page every time a card was clicked. It is
   deliberately *not* a BGA popin: a popin dims and blocks the board, and selecting a card
   then clicking a town is the whole interaction — the popin would block the second half of
   it. Closing runs an `onDismiss` callback, so a card opened by selecting it is also put
   down, while a card opened to be looked at has nothing to undo. On a narrow screen it has
-  nowhere sensible to go; that is deferred with the rest of the mobile question.
+  nowhere sensible to go; that is deferred with the rest of the mobile question (issue #17).
+  It is vertically centred on the column, bordered in heavy black with rounded corners so it
+  reads as a *card* rather than another frame, and **only the side column dims behind it** —
+  the board stays bright and clickable, because select-a-card-then-click-a-town is the whole
+  interaction.
 - **Most specific target wins inside a town box**: stack, then garrison, then the town. The
   cost is that the garrison's pixels stop being a build or march target, and that is the
   right trade — opening a card you did not want costs a dismissal, taking an action you did
