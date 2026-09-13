@@ -53,9 +53,6 @@ export class EmpireTurn {
         }
 
         this.game.board.onTownClick(townId => this.onTownClick(townId));
-        // The troop is the Empire's only piece, so its card sits there for the
-        // whole turn rather than appearing on a selection.
-        this.game.showTroopZoom();
         this.refresh();
     }
 

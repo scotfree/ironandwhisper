@@ -21,6 +21,7 @@ class BoardView {
         this.frames = null;
         this.clickHandler = () => { };
         this.stackHandler = () => { };
+        this.troopHandler = () => { };
         this.dropHandler = null;
         /** Called after any redraw, so the panels beside the board can follow. */
         this.changeHandler = () => { };
@@ -52,11 +53,20 @@ class BoardView {
             }
             element.addEventListener('click', event => {
                 // A stack opens itself rather than selecting the town under it.
-                const stack = event.target
-                    ?.closest('.iaw-stack.clickable');
+                const target = event.target;
+                const stack = target?.closest('.iaw-stack.clickable');
                 if (stack) {
                     event.stopPropagation();
                     this.stackHandler(stack.dataset.stack, stack.dataset.face === 'up');
+                    return;
+                }
+                // Most specific target wins. Opening a card you did not want
+                // costs a dismissal; taking an action you did not want can cost
+                // the whole turn, so the cheap mistake is the one to prefer.
+                const troops = target?.closest('.iaw-troops.clickable');
+                if (troops) {
+                    event.stopPropagation();
+                    this.troopHandler(troops.dataset.troop);
                     return;
                 }
                 this.clickHandler(town.id);
@@ -385,7 +395,8 @@ class BoardView {
         const doomed = town.starving > 0
             ? `<span class="iaw-troops-doomed" title="${_('Starving: these troops are lost at the end of the Empire\'s next turn unless the supply line is repaired')}">&minus;${town.starving}</span>`
             : '';
-        return `<div class="iaw-troops${town.starving > 0 ? ' starving' : ''}"
+        return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
+                 data-troop="${townId}"
                  >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${doomed}</div>`;
     }
     /**
@@ -476,6 +487,10 @@ class BoardView {
     onStackClick(handler) {
         this.stackHandler = handler;
     }
+    /** A click on a garrison, which explains the troop rather than the town. */
+    onTroopClick(handler) {
+        this.troopHandler = handler;
+    }
     /**
      * Anything drawn from the board but living outside it — the army list —
      * redraws through here. Called once per town update, so it runs a dozen
@@ -562,8 +577,12 @@ class BoardView {
             .filter(([, cards]) => cards.length > 0)
             .map(([townId, cards]) => {
             const town = this.scenario.towns[townId];
+            // Straddling the bottom edge, half in and half out: inside the
+            // box it reads as part of the town, and sitting on the boundary
+            // says it is being *added* — while clearing the bottom row,
+            // which is the face-up stack and the supply contribution.
             return `<div class="iaw-town-overlay${this.overlayGhost ? ' ghost' : ''}"
-                             style="left:${this.px(town.x)}px;top:${this.px(town.y) - TOWN_HEIGHT / 2 - 4}px"
+                             style="left:${this.px(town.x)}px;top:${this.px(town.y) + TOWN_HEIGHT / 2}px"
                         >${cards.map(card => card.presence === null
                 ? '<span class="iaw-chip face-down"></span>'
                 : `<span class="iaw-chip">+${card.presence}</span>`).join('')}</div>`;
@@ -701,9 +720,6 @@ class EmpireTurn {
             return;
         }
         this.game.board.onTownClick(townId => this.onTownClick(townId));
-        // The troop is the Empire's only piece, so its card sits there for the
-        // whole turn rather than appearing on a selection.
-        this.game.showTroopZoom();
         this.refresh();
     }
     /**
@@ -988,13 +1004,6 @@ class InsurgencyTurn {
         this.selectedCard = null;
         /** Standing offer to end the game, sent with the turn. */
         this.offerEnd = false;
-        /** Escape drops the card you were holding, as it does everywhere else. */
-        this.onKey = (event) => {
-            if (event.key === 'Escape' && this.selectedCard !== null) {
-                this.selectedCard = null;
-                this.refresh();
-            }
-        };
     }
     onEnteringState(args, isCurrentPlayerActive) {
         this.args = {
@@ -1013,7 +1022,6 @@ class InsurgencyTurn {
         }
         this.game.setPhase(1); // placing the hand
         this.game.onHandClick(cardId => this.onCardClick(cardId));
-        document.addEventListener('keydown', this.onKey);
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
         this.refresh();
@@ -1026,7 +1034,6 @@ class InsurgencyTurn {
         this.game.setPhase(-1);
         this.game.renderHand();
         this.game.renderLastTurn();
-        document.removeEventListener('keydown', this.onKey);
     }
     reset() {
         this.assigned = {};
@@ -1054,7 +1061,10 @@ class InsurgencyTurn {
         }
         const card = this.game.cardById(this.selectedCard);
         if (card) {
-            this.game.zoomCard(card, _('Click a town to place it, or press Escape.'));
+            this.game.zoomCard(card, _('Click a town to place it.'), () => {
+                this.selectedCard = null;
+                this.refresh();
+            });
         }
     }
     onTownClick(townId) {
@@ -1289,12 +1299,13 @@ class Help {
             ?.addEventListener('click', () => this.show());
     }
     show() {
-        if (!this.dialog) {
-            this.dialog = new ebg.popindialog();
-            this.dialog.create('iaw-help-dialog');
-            this.dialog.setTitle(_('Iron and Whispers — how to play'));
-            this.dialog.setMaxWidth(760);
-        }
+        // Rebuilt every time: a popin's close button destroys its DOM, so a
+        // kept instance opens once and then does nothing at all.
+        this.dialog?.destroy();
+        this.dialog = new ebg.popindialog();
+        this.dialog.create('iaw-help-dialog');
+        this.dialog.setTitle(_('Iron and Whispers — how to play'));
+        this.dialog.setMaxWidth(760);
         // Set every time: the silhouettes arrive after the first paint, so a
         // dialog built at setup would have an empty legend for ever.
         this.dialog.setContent(this.sheetHtml());
@@ -1549,6 +1560,12 @@ class Game {
         this.renderPrimer();
         this.renderPhases();
         this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
+        this.board.onTroopClick(() => this.showTroopZoom());
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                this.dismissZoom();
+            }
+        });
         this.renderHand();
         this.updateClock(gamedatas.deckCount, gamedatas.handCount, gamedatas.round);
         this.setupNotifications();
@@ -1669,19 +1686,49 @@ class Game {
      * selection used to change nothing on screen at all, which is why players
      * reported that click-then-click did not work.
      */
-    showZoom(html, footer = '') {
+    showZoom(html, footer = '', onDismiss) {
         const element = document.getElementById('iaw-zoom');
-        if (element) {
-            element.innerHTML = html
-                ? html + (footer ? `<div class="iaw-zoom-hint">${footer}</div>` : '')
-                : '';
+        if (!element) {
+            return;
         }
+        this.onZoomDismiss = onDismiss;
+        if (!html) {
+            element.innerHTML = '';
+            element.classList.remove('open');
+            return;
+        }
+        element.innerHTML = `
+            <button type="button" class="iaw-zoom-close"
+                    title="${_('Close')}" aria-label="${_('Close')}">&times;</button>
+            ${html}
+            ${footer ? `<div class="iaw-zoom-hint">${footer}</div>` : ''}
+        `;
+        element.classList.add('open');
+        element.querySelector('.iaw-zoom-close')
+            ?.addEventListener('click', () => this.dismissZoom());
+    }
+    /**
+     * Close the panel, and tell whoever opened it.
+     *
+     * A card opened by selecting it has to put the card down as well as close
+     * the panel, which is what `onDismiss` is for; a card opened to be looked at
+     * has nothing to undo.
+     */
+    dismissZoom() {
+        const dismiss = this.onZoomDismiss;
+        this.clearZoom();
+        dismiss?.();
     }
     clearZoom() {
-        this.showZoom('');
+        this.onZoomDismiss = undefined;
+        const element = document.getElementById('iaw-zoom');
+        if (element) {
+            element.innerHTML = '';
+            element.classList.remove('open');
+        }
     }
-    zoomCard(card, footer = '') {
-        this.showZoom(this.help.cardDetailHtml(card), footer);
+    zoomCard(card, footer = '', onDismiss) {
+        this.showZoom(this.help.cardDetailHtml(card), footer, onDismiss);
     }
     showTroopZoom() {
         this.showZoom(this.help.troopDetailHtml());
@@ -1699,11 +1746,13 @@ class Game {
         const town = this.board.getTown(townId);
         const cards = faceUp ? town.revealed : town.pile;
         const label = this.gamedatas.scenario.towns[townId].label;
-        if (!this.pileDialog) {
-            this.pileDialog = new ebg.popindialog();
-            this.pileDialog.create('iaw-pile-dialog');
-            this.pileDialog.setMaxWidth(560);
-        }
+        // Rebuilt every time rather than reused. A BGA popin's close button
+        // destroys its DOM — that is what replaceCloseCallback exists for — so a
+        // kept instance opens exactly once and then silently does nothing.
+        this.pileDialog?.destroy();
+        this.pileDialog = new ebg.popindialog();
+        this.pileDialog.create('iaw-pile-dialog');
+        this.pileDialog.setMaxWidth(560);
         this.pileDialog.setTitle(`${label} — ${faceUp
             ? _('face up') : _('face down')}`);
         this.pileDialog.setContent(cards.length

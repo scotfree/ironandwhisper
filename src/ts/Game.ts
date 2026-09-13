@@ -31,6 +31,9 @@ export class Game {
     /** Which step of the current side's turn we are on; -1 for none. */
     private phase = -1;
 
+    /** What to undo when the zoom panel is closed, if anything. */
+    private onZoomDismiss?: () => void;
+
     /** Reused rather than rebuilt, so repeated opens do not leak dialogs. */
     private pileDialog: PopinDialog | null = null;
 
@@ -124,6 +127,12 @@ export class Game {
         this.renderPrimer();
         this.renderPhases();
         this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
+        this.board.onTroopClick(() => this.showTroopZoom());
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                this.dismissZoom();
+            }
+        });
 
         this.renderHand();
         this.updateClock(gamedatas.deckCount, gamedatas.handCount, gamedatas.round);
@@ -259,21 +268,54 @@ export class Game {
      * selection used to change nothing on screen at all, which is why players
      * reported that click-then-click did not work.
      */
-    showZoom(html: string, footer = ''): void {
+    showZoom(html: string, footer = '', onDismiss?: () => void): void {
         const element = document.getElementById('iaw-zoom');
-        if (element) {
-            element.innerHTML = html
-                ? html + (footer ? `<div class="iaw-zoom-hint">${footer}</div>` : '')
-                : '';
+        if (!element) {
+            return;
         }
+
+        this.onZoomDismiss = onDismiss;
+        if (!html) {
+            element.innerHTML = '';
+            element.classList.remove('open');
+            return;
+        }
+
+        element.innerHTML = `
+            <button type="button" class="iaw-zoom-close"
+                    title="${_('Close')}" aria-label="${_('Close')}">&times;</button>
+            ${html}
+            ${footer ? `<div class="iaw-zoom-hint">${footer}</div>` : ''}
+        `;
+        element.classList.add('open');
+        element.querySelector('.iaw-zoom-close')
+            ?.addEventListener('click', () => this.dismissZoom());
+    }
+
+    /**
+     * Close the panel, and tell whoever opened it.
+     *
+     * A card opened by selecting it has to put the card down as well as close
+     * the panel, which is what `onDismiss` is for; a card opened to be looked at
+     * has nothing to undo.
+     */
+    dismissZoom(): void {
+        const dismiss = this.onZoomDismiss;
+        this.clearZoom();
+        dismiss?.();
     }
 
     clearZoom(): void {
-        this.showZoom('');
+        this.onZoomDismiss = undefined;
+        const element = document.getElementById('iaw-zoom');
+        if (element) {
+            element.innerHTML = '';
+            element.classList.remove('open');
+        }
     }
 
-    zoomCard(card: CardView, footer = ''): void {
-        this.showZoom(this.help.cardDetailHtml(card), footer);
+    zoomCard(card: CardView, footer = '', onDismiss?: () => void): void {
+        this.showZoom(this.help.cardDetailHtml(card), footer, onDismiss);
     }
 
     showTroopZoom(): void {
@@ -294,11 +336,13 @@ export class Game {
         const cards = faceUp ? town.revealed : town.pile;
         const label = this.gamedatas.scenario.towns[townId].label;
 
-        if (!this.pileDialog) {
-            this.pileDialog = new ebg.popindialog();
-            this.pileDialog.create('iaw-pile-dialog');
-            this.pileDialog.setMaxWidth(560);
-        }
+        // Rebuilt every time rather than reused. A BGA popin's close button
+        // destroys its DOM — that is what replaceCloseCallback exists for — so a
+        // kept instance opens exactly once and then silently does nothing.
+        this.pileDialog?.destroy();
+        this.pileDialog = new ebg.popindialog();
+        this.pileDialog.create('iaw-pile-dialog');
+        this.pileDialog.setMaxWidth(560);
         this.pileDialog.setTitle(`${label} — ${faceUp
             ? _('face up') : _('face down')}`);
         this.pileDialog.setContent(cards.length

@@ -161,12 +161,15 @@
   gap: 3px;
 }
 
-.iaw-stack.clickable {
+.iaw-stack.clickable,
+.iaw-troops.clickable {
   cursor: pointer;
 }
-.iaw-stack.clickable:hover {
+.iaw-stack.clickable:hover,
+.iaw-troops.clickable:hover {
   outline: 2px solid #0a84ff;
   outline-offset: 1px;
+  border-radius: 3px;
 }
 
 .iaw-stack-sum.unknown {
@@ -182,19 +185,26 @@
 
 .iaw-town-overlay {
   position: absolute;
-  transform: translate(-50%, -100%);
+  transform: translate(-50%, -50%);
   display: flex;
   justify-content: center;
-  flex-wrap: wrap;
   gap: 2px;
-  width: 120px;
   pointer-events: none;
+  z-index: 2;
+}
+.iaw-town-overlay:not(.ghost) .iaw-chip {
+  animation: iaw-chip-pulse 1.5s ease-in-out infinite;
 }
 .iaw-town-overlay.ghost {
   opacity: 0.55;
   filter: grayscale(0.5);
 }
 
+@keyframes iaw-chip-pulse {
+  50% {
+    transform: translateY(-2px) scale(1.1);
+  }
+}
 .iaw-chip {
   display: inline-flex;
   align-items: center;
@@ -248,12 +258,43 @@
 }
 
 /********* the zoomed card *********/
-#iaw-zoom:not(:empty) {
-  margin-top: 10px;
-  padding: 8px;
+#iaw-zoom {
+  display: none;
+}
+#iaw-zoom.open {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 10px 10px 8px;
   background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+#iaw-side-area {
+  position: relative;
+}
+
+.iaw-zoom-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #888;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.iaw-zoom-close:hover {
+  color: #000;
 }
 
 .iaw-detail {

@@ -49,7 +49,6 @@ export class InsurgencyTurn {
 
         this.game.setPhase(1);  // placing the hand
         this.game.onHandClick(cardId => this.onCardClick(cardId));
-        document.addEventListener('keydown', this.onKey);
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
         this.refresh();
@@ -63,16 +62,7 @@ export class InsurgencyTurn {
         this.game.setPhase(-1);
         this.game.renderHand();
         this.game.renderLastTurn();
-        document.removeEventListener('keydown', this.onKey);
     }
-
-    /** Escape drops the card you were holding, as it does everywhere else. */
-    private onKey = (event: KeyboardEvent): void => {
-        if (event.key === 'Escape' && this.selectedCard !== null) {
-            this.selectedCard = null;
-            this.refresh();
-        }
-    };
 
     private reset(): void {
         this.assigned = {};
@@ -103,7 +93,10 @@ export class InsurgencyTurn {
         }
         const card = this.game.cardById(this.selectedCard);
         if (card) {
-            this.game.zoomCard(card, _('Click a town to place it, or press Escape.'));
+            this.game.zoomCard(card, _('Click a town to place it.'), () => {
+                this.selectedCard = null;
+                this.refresh();
+            });
         }
     }
 

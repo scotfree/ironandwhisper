@@ -256,12 +256,14 @@ $board: #e6e6e8;
 
 // A stack you can open. The pile's order is real information for both sides:
 // the top is what the Empire's next look reads.
-.iaw-stack.clickable {
+.iaw-stack.clickable,
+.iaw-troops.clickable {
     cursor: pointer;
 
     &:hover {
         outline: 2px solid $ui;
         outline-offset: 1px;
+        border-radius: 3px;
     }
 }
 
@@ -281,20 +283,32 @@ $board: #e6e6e8;
     pointer-events: none;
 }
 
+// Straddling the bottom edge of the town box: inside enough to belong to the
+// town, on the boundary enough to read as arriving. Clear of the bottom row,
+// which carries the face-up stack and the supply contribution.
 .iaw-town-overlay {
     position: absolute;
-    transform: translate(-50%, -100%);
+    transform: translate(-50%, -50%);
     display: flex;
     justify-content: center;
-    flex-wrap: wrap;
     gap: 2px;
-    width: 120px;
     pointer-events: none;
+    z-index: 2;
+
+    // Only what is being placed right now pulses. Last turn's cards are
+    // history and should sit still.
+    &:not(.ghost) .iaw-chip {
+        animation: iaw-chip-pulse 1.5s ease-in-out infinite;
+    }
 
     &.ghost {
         opacity: 0.55;
         filter: grayscale(0.5);
     }
+}
+
+@keyframes iaw-chip-pulse {
+    50% { transform: translateY(-2px) scale(1.1); }
 }
 
 .iaw-chip {
@@ -364,12 +378,49 @@ $board: #e6e6e8;
 
 /********* the zoomed card *********/
 
-#iaw-zoom:not(:empty) {
-    margin-top: 10px;
-    padding: 8px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+// Floats over the side column rather than sitting in it, so opening a card
+// does not shove the turn summary and the armies down the page. The board stays
+// live underneath: selecting a card and then clicking a town is the whole
+// interaction, and a BGA popin would block the second half of it.
+#iaw-zoom {
+    display: none;
+
+    &.open {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        padding: 10px 10px 8px;
+        background: #fff;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+    }
+}
+
+#iaw-side-area {
+    position: relative;
+}
+
+.iaw-zoom-close {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #888;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        color: #000;
+    }
 }
 
 .iaw-detail {

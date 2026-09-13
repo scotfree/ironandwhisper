@@ -22,6 +22,7 @@ export class BoardView {
     private frames: { town: string; city: string; pawn: string } | null = null;
     private clickHandler: (townId: string) => void = () => {};
     private stackHandler: (townId: string, faceUp: boolean) => void = () => {};
+    private troopHandler: (townId: string) => void = () => {};
     private dropHandler: ((townId: string, cardId: number) => void) | null = null;
 
     /** Called after any redraw, so the panels beside the board can follow. */
@@ -69,13 +70,25 @@ export class BoardView {
 
             element.addEventListener('click', event => {
                 // A stack opens itself rather than selecting the town under it.
-                const stack = (event.target as HTMLElement)
-                    ?.closest('.iaw-stack.clickable') as HTMLElement | null;
+                const target = event.target as HTMLElement;
+
+                const stack = target?.closest('.iaw-stack.clickable') as HTMLElement | null;
                 if (stack) {
                     event.stopPropagation();
                     this.stackHandler(stack.dataset.stack!, stack.dataset.face === 'up');
                     return;
                 }
+
+                // Most specific target wins. Opening a card you did not want
+                // costs a dismissal; taking an action you did not want can cost
+                // the whole turn, so the cheap mistake is the one to prefer.
+                const troops = target?.closest('.iaw-troops.clickable') as HTMLElement | null;
+                if (troops) {
+                    event.stopPropagation();
+                    this.troopHandler(troops.dataset.troop!);
+                    return;
+                }
+
                 this.clickHandler(town.id);
             });
 
@@ -455,7 +468,8 @@ export class BoardView {
             ? `<span class="iaw-troops-doomed" title="${_('Starving: these troops are lost at the end of the Empire\'s next turn unless the supply line is repaired')}">&minus;${town.starving}</span>`
             : '';
 
-        return `<div class="iaw-troops${town.starving > 0 ? ' starving' : ''}"
+        return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
+                 data-troop="${townId}"
                  >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${doomed}</div>`;
     }
 
@@ -560,6 +574,11 @@ export class BoardView {
         this.stackHandler = handler;
     }
 
+    /** A click on a garrison, which explains the troop rather than the town. */
+    onTroopClick(handler: (townId: string) => void): void {
+        this.troopHandler = handler;
+    }
+
     /**
      * Anything drawn from the board but living outside it — the army list —
      * redraws through here. Called once per town update, so it runs a dozen
@@ -656,9 +675,13 @@ export class BoardView {
             .filter(([, cards]) => cards.length > 0)
             .map(([townId, cards]) => {
                 const town = this.scenario.towns[townId];
+                // Straddling the bottom edge, half in and half out: inside the
+                // box it reads as part of the town, and sitting on the boundary
+                // says it is being *added* — while clearing the bottom row,
+                // which is the face-up stack and the supply contribution.
                 return `<div class="iaw-town-overlay${this.overlayGhost ? ' ghost' : ''}"
                              style="left:${this.px(town.x)}px;top:${
-                                 this.px(town.y) - TOWN_HEIGHT / 2 - 4}px"
+                                 this.px(town.y) + TOWN_HEIGHT / 2}px"
                         >${cards.map(card => card.presence === null
                             ? '<span class="iaw-chip face-down"></span>'
                             : `<span class="iaw-chip">+${card.presence}</span>`).join('')}</div>`;

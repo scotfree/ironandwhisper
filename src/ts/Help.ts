@@ -50,12 +50,13 @@ export class Help {
     }
 
     show(): void {
-        if (!this.dialog) {
-            this.dialog = new ebg.popindialog();
-            this.dialog.create('iaw-help-dialog');
-            this.dialog.setTitle(_('Iron and Whispers — how to play'));
-            this.dialog.setMaxWidth(760);
-        }
+        // Rebuilt every time: a popin's close button destroys its DOM, so a
+        // kept instance opens once and then does nothing at all.
+        this.dialog?.destroy();
+        this.dialog = new ebg.popindialog();
+        this.dialog.create('iaw-help-dialog');
+        this.dialog.setTitle(_('Iron and Whispers — how to play'));
+        this.dialog.setMaxWidth(760);
         // Set every time: the silhouettes arrive after the first paint, so a
         // dialog built at setup would have an empty legend for ever.
         this.dialog.setContent(this.sheetHtml());

@@ -224,9 +224,27 @@ Done:
   gone, and in a turn-based game you often arrive after it played — the instinct to add a
   "show again" button is the tell that the information should not have been ephemeral.
   Animation is deferred to issue #4 as polish, not as a carrier of information.
-- **Staged agents are drawn face up over their target town**, on `#iaw-overlays` rather
-  than inside the town box: `.iaw-town` is a fixed 120x104 with `overflow: hidden`, so
-  anything above the roof is clipped. The same layer greys out for last turn's placements.
+- **Staged agents are drawn face up straddling the bottom edge of their target town**, on
+  `#iaw-overlays` rather than inside the town box: `.iaw-town` is a fixed 120x104 with
+  `overflow: hidden`, so anything drawn in the box is clipped. Half in and half out reads as
+  *arriving* rather than as part of the town, and clears the bottom row, which carries the
+  face-up stack and the supply contribution. Only live staging pulses; last turn's cards are
+  history and sit still on the same layer, greyed.
+- **The zoomed card floats over the side column rather than sitting in it.** As a frame it
+  shoved the turn summary and the armies down the page every time a card was clicked. It is
+  deliberately *not* a BGA popin: a popin dims and blocks the board, and selecting a card
+  then clicking a town is the whole interaction — the popin would block the second half of
+  it. Closing runs an `onDismiss` callback, so a card opened by selecting it is also put
+  down, while a card opened to be looked at has nothing to undo. On a narrow screen it has
+  nowhere sensible to go; that is deferred with the rest of the mobile question.
+- **Most specific target wins inside a town box**: stack, then garrison, then the town. The
+  cost is that the garrison's pixels stop being a build or march target, and that is the
+  right trade — opening a card you did not want costs a dismissal, taking an action you did
+  not want can cost the whole turn.
+- **A BGA popin's close button destroys its DOM**, which is what `replaceCloseCallback`
+  exists for. Both dialogs kept one instance and so opened exactly once, then silently did
+  nothing. They are rebuilt on every open instead. Anything using `ebg.popindialog` needs
+  this.
 - **A `?` at the right-hand end of the title bar opens the cheat sheet** (`src/ts/Help.ts`),
   four paragraphs and a legend of every icon. It is **not** a status bar action button:
   `removeActionButtons()` runs on every state change and would take it with it, so it lives
