@@ -296,11 +296,21 @@ re-rendered the clock with `gamedatas.round` from setup. The round now rides alo
 deck count. Worth remembering as a shape: anything the client caches from `getAllDatas` and
 never hears about again will be wrong for the rest of the game.
 
-Unverified, and worth checking first thing on the Studio: **BGA caches game metadata
-separately from the files.** `gameinfos.jsonc` on the server is correct — one or two
-players, named "Iron and Whispers" — but neither the solo option nor the new name appeared
-in the lobby. The likely cause is that game information needs reloading from the Studio
-control panel. Nobody has confirmed it.
+**Deferred work lives in GitHub Issues**, not in this file:
+https://github.com/scotfree/ironandwhisper/issues, labelled `design`, `balance`, `ui`,
+`bots`, `playtest`, `deferred`. This document and `ironandwhisper.md` record decisions and
+the reasoning behind them; the tracker holds what has not been done. An issue here carries
+the *why* — why it is parked, what it would cost, what it interacts with — in the same
+voice as the design doc, because that is what makes it worth reading a month later.
+
+**The Studio lobby shows the project name, not `game_name`** (issue #16, narrowed
+2026-09-13). `gameinfos.jsonc` is valid, says "Iron and Whispers", has `players: [1, 2]`,
+and is deployed; "Reload game informations" has been clicked repeatedly. The reload *is*
+working — solo games run, so `players: [1, 2]` was picked up from the same file — which
+leaves the project name, fixed at creation and changeable only by BGA admins, as the only
+explanation still standing. Unverified: the docs do not say either way. Ask Studio support,
+and bundle the question about whether the `displaycondition` block on game option 101 is
+accepted.
 
 ## Deploying
 
