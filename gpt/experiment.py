@@ -185,6 +185,8 @@ def main() -> None:
     parser.add_argument("--eval-every", type=int, default=50)
     parser.add_argument("--eval-games", type=int, default=100)
     parser.add_argument("--skip-clone", action="store_true")
+    parser.add_argument("--init", default=None,
+                        help="start from weights saved by an earlier run, skipping the clone")
     args = parser.parse_args()
 
     args.model = dict(n_embd=args.n_embd, n_head=args.n_head, seed=0)
@@ -204,6 +206,10 @@ def main() -> None:
                  initargs=(args.scenario, args.model, EMPIRE_BOTS)) as pool:
 
         weights = get_weights(config)
+        if args.init:
+            weights = json.loads(Path(args.init).read_text())["weights"]
+            set_weights(config, weights)
+            args.skip_clone = True
         log.write(phase="start", params=len(weights), args={
             k: v for k, v in vars(args).items() if k != "model"})
 
