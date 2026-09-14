@@ -3,6 +3,7 @@ import { EmpireTurn } from "./States/EmpireTurn";
 import { InsurgencyTurn } from "./States/InsurgencyTurn";
 import { Resolve } from "./States/Resolve";
 import { Help } from "./Help";
+import { presenceHtml } from "./presence";
 
 /**
  * Iron and Whisper — client entry point.
@@ -30,6 +31,16 @@ export class Game {
 
     /** Which step of the current side's turn we are on; -1 for none. */
     private phase = -1;
+
+    /**
+     * The army list entry the pointer is over, by name, or null.
+     *
+     * Kept by name rather than by element because the list is rebuilt on every
+     * board change — a dozen times on a full refresh — and the highlight has to
+     * survive that. If the army it names has gone (a line was cut while the
+     * pointer sat there) the highlight goes with it.
+     */
+    private hoveredArmy: string | null = null;
 
     /** What to undo when the zoom panel is closed, if anything. */
     private onZoomDismiss?: () => void;
@@ -126,6 +137,7 @@ export class Game {
         this.help.install();
         this.renderPrimer();
         this.renderPhases();
+        this.wireArmyHover();
         this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
         this.board.onTroopClick(() => this.showTroopZoom());
         document.addEventListener('keydown', event => {
@@ -178,7 +190,9 @@ export class Game {
         }
 
         element.innerHTML = armies.map(army => `
-            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}">
+            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}"
+                 data-army="${army.name}"
+                 title="${_('Hover to find this army on the map')}">
                 <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
                 <div class="iaw-army-detail">
                     <div class="iaw-army-name">${army.name} ${_('Army')}</div>
@@ -186,6 +200,53 @@ export class Game {
                 </div>
             </div>
         `).join('');
+
+        // The list was just rebuilt under the pointer, so the highlight has to
+        // be put back — and dropped if that army no longer exists.
+        const hovered = armies.find(army => army.name === this.hoveredArmy);
+        if (this.hoveredArmy && !hovered) {
+            this.hoveredArmy = null;
+        }
+        this.board.setArmyHighlight(hovered ? hovered.towns : []);
+        if (hovered) {
+            element.querySelector(`[data-army="${hovered.name}"]`)?.classList.add('hovered');
+        }
+    }
+
+    /**
+     * Hovering an army lights its network on the map.
+     *
+     * Delegated from the container and bound once, because the entries
+     * themselves are thrown away and rebuilt on every board change — listeners
+     * attached to them would not survive a single notification.
+     */
+    private wireArmyHover(): void {
+        const element = document.getElementById('iaw-armies');
+        if (!element) {
+            return;
+        }
+
+        element.addEventListener('mouseover', event => {
+            const entry = (event.target as HTMLElement)?.closest('.iaw-army') as HTMLElement | null;
+            this.highlightArmy(entry?.dataset.army ?? null);
+        });
+        element.addEventListener('mouseleave', () => this.highlightArmy(null));
+    }
+
+    private highlightArmy(name: string | null): void {
+        if (name === this.hoveredArmy) {
+            return;
+        }
+        this.hoveredArmy = name;
+
+        document.querySelectorAll('.iaw-army.hovered')
+            .forEach(node => node.classList.remove('hovered'));
+
+        const army = this.board.armies().find(candidate => candidate.name === name);
+        this.board.setArmyHighlight(army ? army.towns : []);
+        if (army) {
+            document.querySelector(`.iaw-army[data-army="${name}"]`)?.classList.add('hovered');
+        }
     }
 
     /**
@@ -228,7 +289,7 @@ export class Game {
             const picked = card.id === selected ? ' selected' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
             return `<span class="iaw-card hand ${card.type}${staged}${picked}" draggable="true"
-                          data-card-id="${card.id}"${where}>${label}</span>`;
+                          data-card-id="${card.id}"${where}>${presenceHtml(label)}</span>`;
         }).join('');
 
         element.querySelectorAll<HTMLElement>('.iaw-card').forEach(node => {

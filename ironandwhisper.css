@@ -92,6 +92,11 @@
   --art-fill: rgb(73.7725490196%, 83.6862745098%, 77.9137254902%);
   --art-stroke: #2e7d4f;
 }
+.iaw-town.army-hover {
+  --art-fill: rgb(82.5882352941%, 77.4117647059%, 88.8235294118%);
+  --art-stroke: #6b3fa0;
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 9px rgba(107, 63, 160, 0.95)) drop-shadow(0 0 9px rgba(107, 63, 160, 0.8));
+}
 
 .iaw-town-frame {
   position: absolute;
@@ -172,10 +177,6 @@
   border-radius: 3px;
 }
 
-.iaw-stack-sum.unknown {
-  background: #777;
-}
-
 /********* cards drawn above a town *********/
 #iaw-overlays {
   position: absolute;
@@ -225,6 +226,14 @@
 .iaw-chip.face-down {
   background: repeating-linear-gradient(45deg, rgb(11.5830753354%, 31.475748194%, 19.8926728586%), rgb(11.5830753354%, 31.475748194%, 19.8926728586%) 3px, rgb(7.2789817681%, 19.7798417613%, 12.5008599931%) 3px, rgb(7.2789817681%, 19.7798417613%, 12.5008599931%) 6px);
   border-color: rgb(1.8988648091%, 5.1599587203%, 3.2610939112%);
+}
+.iaw-chip.iaw-presence {
+  min-width: 19px;
+  height: 19px;
+  border-radius: 10px;
+  background: #f2c230;
+  border-color: rgb(54.3144385027%, 41.7197860963%, 3.4110516934%);
+  color: #000;
 }
 
 /********* the game state frame *********/
@@ -491,21 +500,39 @@
   font-variant-numeric: tabular-nums;
 }
 
-.iaw-stack-sum {
-  padding: 1px 3px;
-  border-radius: 2px;
-  background: rgb(14.8111455108%, 40.2476780186%, 25.4365325077%);
-  color: #fff;
+.iaw-presence {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #f2c230;
+  border: 1px solid rgb(54.3144385027%, 41.7197860963%, 3.4110516934%);
+  color: #000;
   font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+.iaw-presence.large {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 15px;
+  font-size: 16px;
+  border-width: 2px;
 }
 
 /********* cards *********/
 .iaw-card {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 14px;
   height: 18px;
-  line-height: 18px;
   border-radius: 2px;
   border: 1px solid rgba(0, 0, 0, 0.4);
   font-size: 10px;
@@ -541,12 +568,16 @@
   box-shadow: 0 0 0 1px rgb(32.0605435157%, 74.9982800138%, 49.9965600275%) inset;
 }
 .iaw-card.hand {
-  width: 26px;
-  height: 34px;
-  line-height: 34px;
-  font-size: 14px;
+  width: 30px;
+  height: 40px;
   margin-right: 4px;
   cursor: pointer;
+}
+.iaw-card .iaw-presence {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  font-size: 12px;
 }
 .iaw-card.staged {
   opacity: 0.35;
@@ -587,6 +618,11 @@
   border: 1px solid rgb(79.6862745098%, 73.6470588235%, 86.9607843137%);
   border-left: 4px solid #6b3fa0;
   border-radius: 4px;
+  cursor: default;
+}
+.iaw-army.hovered {
+  background: rgb(90.7137254902%, 87.9529411765%, 94.0392156863%);
+  border-color: #6b3fa0;
 }
 .iaw-army.over {
   background: rgba(179, 38, 30, 0.08);
@@ -634,7 +670,7 @@
 }
 
 #iaw-hand {
-  min-height: 38px;
+  min-height: 44px;
 }
 
 #iaw-staging {
@@ -919,6 +955,11 @@
 #iaw-roads-edges line.supplied {
   stroke: #6b3fa0;
   stroke-width: 8;
+}
+
+#iaw-roads-edges line.army-hover {
+  stroke: rgb(56.0193440605%, 39.3370262903%, 76.1139541018%);
+  stroke-width: 11;
 }
 
 .iaw-contribution.denied {

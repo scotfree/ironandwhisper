@@ -380,6 +380,21 @@ function test_movement_is_simultaneous(): void
     assertSame(['b' => 2, 'a' => 3], $plan['arrivals']);
 }
 
+function test_a_troop_that_arrives_this_turn_cannot_march_on(): void
+{
+    // The other consequence of simultaneous movement: a garrison reinforced
+    // from next door is still its old size for this turn's departures. The
+    // client staged marches against the projected garrison instead and had
+    // them refused on commit.
+    $towns = rulesBoard(['a' => ['troops' => 1], 'b' => ['troops' => 1]]);
+
+    assertThrows(
+        IllegalMove::class,
+        fn() => Rules::planMoves($towns, [['a', 'b', 1], ['b', 'c', 2]]),
+        'a troop cannot arrive and march on in the same turn',
+    );
+}
+
 // -- looking ----------------------------------------------------------------
 
 function test_a_stationary_troop_reads_one_card_per_turn(): void

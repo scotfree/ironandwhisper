@@ -1,4 +1,5 @@
 import { BoardView } from "./BoardView";
+import { presenceHtml } from "./presence";
 
 /** Where the written rules live. The repo is the source of truth for them. */
 const RULES_URL =
@@ -97,17 +98,21 @@ export class Help {
         const art = (svg: string) => `<span class="iaw-legend-art">${svg}</span>`;
         const stack = (kind: string, count: number, sum?: number | string) =>
             `<span class="iaw-stack ${kind}"><span class="iaw-stack-count">${count}</span>${
-                sum === undefined ? '' : `<span class="iaw-stack-sum${
-                    sum === '?' ? ' unknown' : ''}">${sum}</span>`}</span>`;
+                sum === undefined ? '' : presenceHtml(sum)}</span>`;
 
         const rows: [string, string][] = [
+            // First, because it is the one quantity in the game and every row
+            // under it is either presence or a count of something else.
+            [presenceHtml(2),
+             _('Presence, wherever it is shown. Cards carry it and troops carry it; a town goes to whoever has more of it. A plain number — the height of a stack, the size of a garrison — is a count of pieces, not presence.')],
             [art(this.board.townSvg()),
              _('A town. Adds its supply to whatever Empire network holds it.')],
             [art(this.board.citySvg()) + ' <span class="iaw-produce">&#128296;</span>',
              _('A city, marked with a hammer. Also builds a troop a turn for whoever holds it.')],
             [`<span class="iaw-troops">${this.board.pawnSvg()
                 ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''
-             }<span class="iaw-troop-count">3</span></span>`,
+             }<span class="iaw-troop-count">3</span>${this.scenario.unit.presence === 1
+                ? '' : presenceHtml(3 * this.scenario.unit.presence)}</span>`,
              _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                 .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4, '?'),
@@ -123,7 +128,7 @@ export class Help {
             [`<span class="iaw-troop-delta">+1</span>
               <span class="iaw-card-delta">+2 ${_('cards')}</span>`,
              _('What you are staging this turn, shown beside what is already there.')],
-            [`<span class="iaw-chip">+2</span><span class="iaw-chip face-down"></span>`,
+            [presenceHtml('+2', 'iaw-chip') + `<span class="iaw-chip face-down"></span>`,
              _('Agents above a town: face up while you are placing them, and greyed afterwards to show what your opponent placed on their last turn.')],
         ];
 
@@ -207,7 +212,7 @@ export class Help {
         return `
             <div class="iaw-detail">
                 <div class="iaw-detail-card ${known ? card.type : 'unknown'}"
-                    >${known ? `+${value}` : '?'}</div>
+                    >${presenceHtml(known ? `+${value}` : '?', 'large')}</div>
                 <div class="iaw-detail-name">${known
                     ? (type?.label ?? `${_('Agent')} +${value}`)
                     : _('A face-down agent')}</div>
@@ -230,7 +235,7 @@ export class Help {
         return `
             <div class="iaw-detail">
                 <div class="iaw-detail-art">${this.board.pawnSvg()}</div>
-                <div class="iaw-detail-name">${unit.label}</div>
+                <div class="iaw-detail-name">${unit.label} ${presenceHtml(unit.presence)}</div>
                 <div class="iaw-detail-text">${
                     _('Presence +${presence}. Moves ${movement} town per turn. Costs ${supply} supply to keep standing, and reads ${peek} card per turn when it holds still.')
                         .replace('${presence}', String(unit.presence))

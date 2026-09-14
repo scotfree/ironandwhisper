@@ -6,6 +6,8 @@
  * server — the state classes do that and tell it what to highlight.
  */
 
+import { presenceHtml } from "./presence";
+
 const CELL = 150;
 const PADDING = 70;
 
@@ -503,7 +505,26 @@ export class BoardView {
 
         return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${raising}${doomed}</div>`;
+                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${
+                    this.troopPresenceHtml(town.troops)}${change}${raising}${doomed}</div>`;
+    }
+
+    /**
+     * What a garrison is worth at a resolution, as a presence pip — but only
+     * when that is a different number from the count of troops.
+     *
+     * At `unit.presence` 1 the count *is* the presence, and drawing both would
+     * put the same number on the board twice. The pip appears the moment a
+     * troop is worth more than one, which is the parameter change most likely
+     * to be made next; until then the plain count does both jobs, and the
+     * rebels' pips are the only discs on the board.
+     */
+    private troopPresenceHtml(troops: number): string {
+        const each = this.scenario.unit.presence;
+        if (each === 1 || troops === 0) {
+            return '';
+        }
+        return presenceHtml(troops * each, '', _('Presence this garrison carries'));
     }
 
     /**
@@ -562,7 +583,9 @@ export class BoardView {
                      data-face="down"
                      title="${town.pileSize} ${_('face down')} — ${_('click to see the pile in order')}"
                 ><span class="iaw-stack-count">${town.pileSize}</span
-                ><span class="iaw-stack-sum${mine ? '' : ' unknown'}">${total}</span></span>`
+                >${presenceHtml(total, '', mine
+                    ? _('Presence in this pile')
+                    : _('Presence in this pile: not yours to know'))}</span>`
             : '';
         const change = delta === 0 ? ''
             : `<span class="iaw-card-delta"
@@ -593,7 +616,7 @@ export class BoardView {
                       data-face="up"
                       title="${_('Face up')}: ${values.join(', ')} — ${_('click to see them in order')}"
                  ><span class="iaw-stack-count">${cards.length}</span
-                 ><span class="iaw-stack-sum">${total}</span></span>`;
+                 >${presenceHtml(total, '', _('Presence turned face up here'))}</span>`;
     }
 
     // -- interaction --------------------------------------------------------
@@ -655,6 +678,32 @@ export class BoardView {
                 supplyUsed: troops * this.scenario.supplyPerTroop,
                 supplyAvailable: supply,
             };
+        });
+    }
+
+    /**
+     * Light up one supply network on the map: its towns in the Empire's purple
+     * and the roads between them brightened.
+     *
+     * Hovering an entry in the army list is the only way to ask "which of the
+     * twelve towns is *this* army?", and a split line is exactly when that
+     * question is worth asking. Pass an empty list to clear it.
+     *
+     * The roads it lights are already the supplied ones — an edge is in a
+     * network when the Empire holds both ends — so this brightens rather than
+     * colours, and nothing else on the board is dimmed.
+     */
+    setArmyHighlight(townIds: string[]): void {
+        const inArmy = new Set(townIds);
+
+        Object.keys(this.scenario.towns).forEach(townId => {
+            document.getElementById(this.townElementId(townId))
+                ?.classList.toggle('army-hover', inArmy.has(townId));
+        });
+
+        this.scenario.edges.forEach(([a, b]) => {
+            document.getElementById(this.edgeElementId(a, b))
+                ?.classList.toggle('army-hover', inArmy.has(a) && inArmy.has(b));
         });
     }
 
@@ -727,7 +776,7 @@ export class BoardView {
                                  this.px(town.y) + TOWN_HEIGHT / 2}px"
                         >${cards.map(card => card.presence === null
                             ? `<span class="iaw-chip face-down" title="${hint}"></span>`
-                            : `<span class="iaw-chip" title="${hint}">+${card.presence}</span>`
+                            : presenceHtml(`+${card.presence}`, 'iaw-chip', hint)
                         ).join('')}</div>`;
             }).join('');
     }

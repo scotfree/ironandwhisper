@@ -25,6 +25,12 @@ $insurgency: #2e7d4f;
 // Purple and green mean *whose*. Interaction gets a colour of its own, so
 // "you can click this" is never confused with "this belongs to somebody".
 $ui: #0a84ff;
+
+// Gold means *presence*, and belongs to neither side: it is the one quantity
+// both of them accumulate, and the thing the whole game compares. It is
+// deliberately not purple or green, because a pile's presence and a garrison's
+// presence are the same number in the same units.
+$presence: #f2c230;
 $ink: #2b2b2b;
 
 // $paper is the panels either side of the board — the clock, the staging area.
@@ -162,6 +168,19 @@ $board: #e6e6e8;
         --art-fill: #{color.mix($insurgency, #fff, 32%)};
         --art-stroke: #{$insurgency};
     }
+
+    // Hovering an entry in the army list lights that network's towns. Last in
+    // the block on purpose: it outranks the blue of a selectable town for as
+    // long as the pointer is in the side column, which is exactly when nobody
+    // is clicking towns. It borrows the glow the blue states use rather than
+    // inventing a second visual language for "this one".
+    &.army-hover {
+        --art-fill: #{color.mix($empire, #fff, 30%)};
+        --art-stroke: #{$empire};
+        filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35))
+                drop-shadow(0 0 9px rgba(107, 63, 160, 0.95))
+                drop-shadow(0 0 9px rgba(107, 63, 160, 0.8));
+    }
 }
 
 // The silhouette, behind everything the town displays.
@@ -267,12 +286,6 @@ $board: #e6e6e8;
     }
 }
 
-// The Empire knows a pile is there and how deep; it does not know the total.
-// Saying so with a symbol beats leaving a gap it has to interpret.
-.iaw-stack-sum.unknown {
-    background: #777;
-}
-
 /********* cards drawn above a town *********/
 
 // Used twice: face up for what you are staging now, greyed for what the
@@ -341,6 +354,19 @@ $board: #e6e6e8;
             color.adjust($insurgency, $lightness: -20%) 6px
         );
         border-color: color.adjust($insurgency, $lightness: -30%);
+    }
+
+    // A chip that shows a face is showing presence arriving, so it takes the
+    // disc rather than a green tile with a number on it. Two classes beat one,
+    // so this wins over .iaw-presence wherever it is written in the file — and
+    // it keeps the chip's pulse and its tooltip.
+    &.iaw-presence {
+        min-width: 19px;
+        height: 19px;
+        border-radius: 10px;
+        background: $presence;
+        border-color: color.adjust($presence, $lightness: -28%);
+        color: #000;
     }
 }
 
@@ -650,24 +676,52 @@ $board: #e6e6e8;
     font-variant-numeric: tabular-nums;
 }
 
-// What the face-up ones are worth, which is the reason to have looked. Carries
-// the Insurgency's colour so it never reads as a second count.
-.iaw-stack-sum {
-    padding: 1px 3px;
-    border-radius: 2px;
-    background: color.adjust($insurgency, $lightness: -6%);
-    color: #fff;
+// Presence, wherever it appears: a gold disc with the number in it, black on
+// gold. It used to be a green box on a card stack and nothing at all on a
+// garrison, which said presence was a rebel quantity — it is not, it is the
+// quantity the two sides are compared in, and it now looks the same in both
+// hands. The disc also separates it from the count beside it: a stack of four
+// cards worth three between them shows two numbers, and only one is presence.
+.iaw-presence {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    // A circle at one digit, a stadium at two, rather than an oval.
+    border-radius: 9px;
+    background: $presence;
+    border: 1px solid color.adjust($presence, $lightness: -28%);
+    color: #000;
     font-size: 11px;
+    font-weight: bold;
+    line-height: 1;
     font-variant-numeric: tabular-nums;
+}
+
+// The Empire's own pile total is a question mark in the same disc, not a
+// greyed-out one: the shape is the promise that a number belongs here, and
+// what the Empire is missing is the number, not the presence.
+
+// On the zoomed card, where it is the card's whole face.
+.iaw-presence.large {
+    min-width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    font-size: 16px;
+    border-width: 2px;
 }
 
 /********* cards *********/
 
 .iaw-card {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 14px;
     height: 18px;
-    line-height: 18px;
     border-radius: 2px;
     border: 1px solid rgba(0, 0, 0, 0.4);
     font-size: 10px;
@@ -715,12 +769,19 @@ $board: #e6e6e8;
     }
 
     &.hand {
-        width: 26px;
-        height: 34px;
-        line-height: 34px;
-        font-size: 14px;
+        width: 30px;
+        height: 40px;
         margin-right: 4px;
         cursor: pointer;
+    }
+
+    // The card's colour ramp still says roughly what it is worth from across
+    // the table; the disc says exactly, in the same units as everything else.
+    .iaw-presence {
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        font-size: 12px;
     }
 
     &.staged {
@@ -769,6 +830,16 @@ $board: #e6e6e8;
     border: 1px solid color.mix($empire, #fff, 35%);
     border-left: 4px solid $empire;
     border-radius: 4px;
+
+    cursor: default;
+
+    // The entry under the pointer, and the towns it lit. Marked with a class
+    // rather than :hover so the highlight survives the list being rebuilt —
+    // which happens on every board change, a dozen times on a full refresh.
+    &.hovered {
+        background: color.mix($empire, #fff, 16%);
+        border-color: $empire;
+    }
 
     // Over its ceiling: these troops are starving or about to.
     &.over {
@@ -821,7 +892,7 @@ $board: #e6e6e8;
 }
 
 #iaw-hand {
-    min-height: 38px;
+    min-height: 44px;
 }
 
 // The turn summary, and — for the Insurgency — the hand it is placing from.
@@ -1154,6 +1225,15 @@ $board: #e6e6e8;
 #iaw-roads-edges line.supplied {
     stroke: $empire;
     stroke-width: 8;
+}
+
+// The roads inside a hovered army. They are already purple — a supplied road is
+// exactly a road inside some network — so this brightens and thickens rather
+// than recolouring, and says *which* network without dimming the rest of the
+// board.
+#iaw-roads-edges line.army-hover {
+    stroke: color.adjust($empire, $lightness: 14%);
+    stroke-width: 11;
 }
 
 // A town the rebels took: still ground, still passable, but it feeds nothing.

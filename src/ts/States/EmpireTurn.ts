@@ -128,7 +128,7 @@ export class EmpireTurn {
 
         // Clicking a neighbour marches one more troop into it, so a stack moves
         // by clicking the same town repeatedly.
-        if (this.game.board.neighborsOf(this.source).includes(townId) && this.projected(this.source) > 0) {
+        if (this.game.board.neighborsOf(this.source).includes(townId) && this.marchable(this.source) > 0) {
             this.addMove(this.source, townId);
         }
         this.refresh();
@@ -146,12 +146,39 @@ export class EmpireTurn {
     /** Towns troops may march out of. */
     private marchableFrom(): string[] {
         return Object.keys(this.game.board.allTowns()).filter(
-            townId => this.projected(townId) > 0,
+            townId => this.marchable(townId) > 0,
         );
     }
 
     /**
-     * Troops as they will stand once this turn is committed.
+     * Troops that may still march out of a town this turn.
+     *
+     * Not the same as what will be standing there afterwards: movement is
+     * simultaneous, so a troop that *arrives* this turn cannot march on, while
+     * a troop *built* here can — production is applied before movement, which
+     * is what lets the Empire raise troops and walk them out to the supply that
+     * will feed them in one motion.
+     *
+     * This used to be `projected`, which counts arrivals, so the client happily
+     * staged a march the server then refused on commit: a real game lost a turn
+     * to "fenn has 3 troops, tried to move 4" after a troop had been walked into
+     * Fenn on the same turn. The rule is `Rules::planMoves` / `engine.apply_
+     * empire_turn`: departures are checked against the garrison as the turn
+     * began, plus whatever was built.
+     */
+    private marchable(townId: string): number {
+        let troops = this.game.board.getTown(townId).troops + (this.produce[townId] ?? 0);
+        this.moves.forEach(move => {
+            if (move.from === townId) {
+                troops -= move.count;
+            }
+        });
+        return troops;
+    }
+
+    /**
+     * Troops as they will stand once this turn is committed. Used for what the
+     * board shows, never for what may march — see `marchable`.
      */
     private projected(townId: string): number {
         let troops = this.game.board.getTown(townId).troops + (this.produce[townId] ?? 0);
@@ -173,10 +200,10 @@ export class EmpireTurn {
             if (town.resolved || town.pileSize === 0) {
                 return false;
             }
-            const arriving = this.moves
-                .filter(move => move.to === townId)
-                .reduce((total, move) => total + move.count, 0);
-            return this.projected(townId) - arriving > 0;
+            // Whoever may still march is exactly whoever held still: the
+            // engine counts a troop as stationary when it did not depart, and
+            // one raised here this turn counts with them.
+            return this.marchable(townId) > 0;
         });
     }
 

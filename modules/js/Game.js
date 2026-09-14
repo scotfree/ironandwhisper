@@ -1,4 +1,22 @@
 /**
+ * Presence, drawn.
+ *
+ * Presence is the one quantity in the game — both sides accumulate it in a
+ * town and the higher total wins — so it is drawn the same way wherever it is
+ * read: a yellow disc with the number in it, black on gold, whether the
+ * presence came from cards or from troops.
+ *
+ * The point is the contrast with a *count*. A pile of four cards worth three
+ * between them shows two numbers side by side, and before this they looked
+ * alike; now only one of them is a disc. A count of troops is deliberately
+ * left plain for the same reason, even though at `unit.presence` 1 it happens
+ * to equal the presence those troops carry — see `BoardView.troopsHtml`.
+ */
+function presenceHtml(value, extraClass = '', title = '') {
+    return `<span class="iaw-presence${extraClass ? ` ${extraClass}` : ''}"${title ? ` title="${title}"` : ''}>${value}</span>`;
+}
+
+/**
  * The board: towns laid out from the map's coordinates, edges drawn between
  * them, and each town showing what the viewing player is entitled to see.
  *
@@ -427,7 +445,24 @@ class BoardView {
             : '';
         return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${raising}${doomed}</div>`;
+                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${this.troopPresenceHtml(town.troops)}${change}${raising}${doomed}</div>`;
+    }
+    /**
+     * What a garrison is worth at a resolution, as a presence pip — but only
+     * when that is a different number from the count of troops.
+     *
+     * At `unit.presence` 1 the count *is* the presence, and drawing both would
+     * put the same number on the board twice. The pip appears the moment a
+     * troop is worth more than one, which is the parameter change most likely
+     * to be made next; until then the plain count does both jobs, and the
+     * rebels' pips are the only discs on the board.
+     */
+    troopPresenceHtml(troops) {
+        const each = this.scenario.unit.presence;
+        if (each === 1 || troops === 0) {
+            return '';
+        }
+        return presenceHtml(troops * each, '', _('Presence this garrison carries'));
     }
     /**
      * Supply, as "troops standing / what this network holds" over "what this
@@ -480,7 +515,9 @@ class BoardView {
                      data-face="down"
                      title="${town.pileSize} ${_('face down')} — ${_('click to see the pile in order')}"
                 ><span class="iaw-stack-count">${town.pileSize}</span
-                ><span class="iaw-stack-sum${mine ? '' : ' unknown'}">${total}</span></span>`
+                >${presenceHtml(total, '', mine
+                ? _('Presence in this pile')
+                : _('Presence in this pile: not yours to know'))}</span>`
             : '';
         const change = delta === 0 ? ''
             : `<span class="iaw-card-delta"
@@ -506,7 +543,7 @@ class BoardView {
                       data-face="up"
                       title="${_('Face up')}: ${values.join(', ')} — ${_('click to see them in order')}"
                  ><span class="iaw-stack-count">${cards.length}</span
-                 ><span class="iaw-stack-sum">${total}</span></span>`;
+                 >${presenceHtml(total, '', _('Presence turned face up here'))}</span>`;
     }
     // -- interaction --------------------------------------------------------
     onTownClick(handler) {
@@ -560,6 +597,29 @@ class BoardView {
                 supplyUsed: troops * this.scenario.supplyPerTroop,
                 supplyAvailable: supply,
             };
+        });
+    }
+    /**
+     * Light up one supply network on the map: its towns in the Empire's purple
+     * and the roads between them brightened.
+     *
+     * Hovering an entry in the army list is the only way to ask "which of the
+     * twelve towns is *this* army?", and a split line is exactly when that
+     * question is worth asking. Pass an empty list to clear it.
+     *
+     * The roads it lights are already the supplied ones — an edge is in a
+     * network when the Empire holds both ends — so this brightens rather than
+     * colours, and nothing else on the board is dimmed.
+     */
+    setArmyHighlight(townIds) {
+        const inArmy = new Set(townIds);
+        Object.keys(this.scenario.towns).forEach(townId => {
+            document.getElementById(this.townElementId(townId))
+                ?.classList.toggle('army-hover', inArmy.has(townId));
+        });
+        this.scenario.edges.forEach(([a, b]) => {
+            document.getElementById(this.edgeElementId(a, b))
+                ?.classList.toggle('army-hover', inArmy.has(a) && inArmy.has(b));
         });
     }
     /** Accept cards dragged from the hand. Pass null to stop accepting them. */
@@ -623,7 +683,7 @@ class BoardView {
                              style="left:${this.px(town.x)}px;top:${this.px(town.y) + TOWN_HEIGHT / 2}px"
                         >${cards.map(card => card.presence === null
                 ? `<span class="iaw-chip face-down" title="${hint}"></span>`
-                : `<span class="iaw-chip" title="${hint}">+${card.presence}</span>`).join('')}</div>`;
+                : presenceHtml(`+${card.presence}`, 'iaw-chip', hint)).join('')}</div>`;
         }).join('');
     }
     /**
@@ -829,7 +889,7 @@ class EmpireTurn {
         }
         // Clicking a neighbour marches one more troop into it, so a stack moves
         // by clicking the same town repeatedly.
-        if (this.game.board.neighborsOf(this.source).includes(townId) && this.projected(this.source) > 0) {
+        if (this.game.board.neighborsOf(this.source).includes(townId) && this.marchable(this.source) > 0) {
             this.addMove(this.source, townId);
         }
         this.refresh();
@@ -845,10 +905,36 @@ class EmpireTurn {
     }
     /** Towns troops may march out of. */
     marchableFrom() {
-        return Object.keys(this.game.board.allTowns()).filter(townId => this.projected(townId) > 0);
+        return Object.keys(this.game.board.allTowns()).filter(townId => this.marchable(townId) > 0);
     }
     /**
-     * Troops as they will stand once this turn is committed.
+     * Troops that may still march out of a town this turn.
+     *
+     * Not the same as what will be standing there afterwards: movement is
+     * simultaneous, so a troop that *arrives* this turn cannot march on, while
+     * a troop *built* here can — production is applied before movement, which
+     * is what lets the Empire raise troops and walk them out to the supply that
+     * will feed them in one motion.
+     *
+     * This used to be `projected`, which counts arrivals, so the client happily
+     * staged a march the server then refused on commit: a real game lost a turn
+     * to "fenn has 3 troops, tried to move 4" after a troop had been walked into
+     * Fenn on the same turn. The rule is `Rules::planMoves` / `engine.apply_
+     * empire_turn`: departures are checked against the garrison as the turn
+     * began, plus whatever was built.
+     */
+    marchable(townId) {
+        let troops = this.game.board.getTown(townId).troops + (this.produce[townId] ?? 0);
+        this.moves.forEach(move => {
+            if (move.from === townId) {
+                troops -= move.count;
+            }
+        });
+        return troops;
+    }
+    /**
+     * Troops as they will stand once this turn is committed. Used for what the
+     * board shows, never for what may march — see `marchable`.
      */
     projected(townId) {
         let troops = this.game.board.getTown(townId).troops + (this.produce[townId] ?? 0);
@@ -869,10 +955,10 @@ class EmpireTurn {
             if (town.resolved || town.pileSize === 0) {
                 return false;
             }
-            const arriving = this.moves
-                .filter(move => move.to === townId)
-                .reduce((total, move) => total + move.count, 0);
-            return this.projected(townId) - arriving > 0;
+            // Whoever may still march is exactly whoever held still: the
+            // engine counts a troop as stationary when it did not depart, and
+            // one raised here this turn counts with them.
+            return this.marchable(townId) > 0;
         });
     }
     // -- display ------------------------------------------------------------
@@ -1185,7 +1271,9 @@ class InsurgencyTurn {
         return this.order.map(cardId => {
             const card = this.game.cardById(cardId);
             const value = card?.presence ?? 0;
-            return `<div>${_('Influence')} ${value} ${_('to')}
+            // "Agent", not "Influence": influence is dead vocabulary, and the
+            // value it carries is presence, so it is drawn as presence.
+            return `<div>${_('Agent')} ${presenceHtml(value)} ${_('to')}
                     <b>${this.townLabel(this.assigned[cardId])}</b></div>`;
         }).join('');
     }
@@ -1384,14 +1472,19 @@ class Help {
     }
     legendHtml() {
         const art = (svg) => `<span class="iaw-legend-art">${svg}</span>`;
-        const stack = (kind, count, sum) => `<span class="iaw-stack ${kind}"><span class="iaw-stack-count">${count}</span>${sum === undefined ? '' : `<span class="iaw-stack-sum${sum === '?' ? ' unknown' : ''}">${sum}</span>`}</span>`;
+        const stack = (kind, count, sum) => `<span class="iaw-stack ${kind}"><span class="iaw-stack-count">${count}</span>${sum === undefined ? '' : presenceHtml(sum)}</span>`;
         const rows = [
+            // First, because it is the one quantity in the game and every row
+            // under it is either presence or a count of something else.
+            [presenceHtml(2),
+                _('Presence, wherever it is shown. Cards carry it and troops carry it; a town goes to whoever has more of it. A plain number — the height of a stack, the size of a garrison — is a count of pieces, not presence.')],
             [art(this.board.townSvg()),
                 _('A town. Adds its supply to whatever Empire network holds it.')],
             [art(this.board.citySvg()) + ' <span class="iaw-produce">&#128296;</span>',
                 _('A city, marked with a hammer. Also builds a troop a turn for whoever holds it.')],
             [`<span class="iaw-troops">${this.board.pawnSvg()
-                    ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}<span class="iaw-troop-count">3</span></span>`,
+                    ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}<span class="iaw-troop-count">3</span>${this.scenario.unit.presence === 1
+                    ? '' : presenceHtml(3 * this.scenario.unit.presence)}</span>`,
                 _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                     .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4, '?'),
@@ -1407,7 +1500,7 @@ class Help {
             [`<span class="iaw-troop-delta">+1</span>
               <span class="iaw-card-delta">+2 ${_('cards')}</span>`,
                 _('What you are staging this turn, shown beside what is already there.')],
-            [`<span class="iaw-chip">+2</span><span class="iaw-chip face-down"></span>`,
+            [presenceHtml('+2', 'iaw-chip') + `<span class="iaw-chip face-down"></span>`,
                 _('Agents above a town: face up while you are placing them, and greyed afterwards to show what your opponent placed on their last turn.')],
         ];
         return `<table class="iaw-legend">${rows.map(([icon, text]) => `<tr><td class="iaw-legend-icon">${icon}</td><td>${text}</td></tr>`).join('')}</table>`;
@@ -1480,7 +1573,7 @@ class Help {
         return `
             <div class="iaw-detail">
                 <div class="iaw-detail-card ${known ? card.type : 'unknown'}"
-                    >${known ? `+${value}` : '?'}</div>
+                    >${presenceHtml(known ? `+${value}` : '?', 'large')}</div>
                 <div class="iaw-detail-name">${known
             ? (type?.label ?? `${_('Agent')} +${value}`)
             : _('A face-down agent')}</div>
@@ -1502,7 +1595,7 @@ class Help {
         return `
             <div class="iaw-detail">
                 <div class="iaw-detail-art">${this.board.pawnSvg()}</div>
-                <div class="iaw-detail-name">${unit.label}</div>
+                <div class="iaw-detail-name">${unit.label} ${presenceHtml(unit.presence)}</div>
                 <div class="iaw-detail-text">${_('Presence +${presence}. Moves ${movement} town per turn. Costs ${supply} supply to keep standing, and reads ${peek} card per turn when it holds still.')
             .replace('${presence}', String(unit.presence))
             .replace('${movement}', String(unit.movement))
@@ -1531,6 +1624,15 @@ class Game {
         this.bot = null;
         /** Which step of the current side's turn we are on; -1 for none. */
         this.phase = -1;
+        /**
+         * The army list entry the pointer is over, by name, or null.
+         *
+         * Kept by name rather than by element because the list is rebuilt on every
+         * board change — a dozen times on a full refresh — and the highlight has to
+         * survive that. If the army it names has gone (a line was cut while the
+         * pointer sat there) the highlight goes with it.
+         */
+        this.hoveredArmy = null;
         /** Reused rather than rebuilt, so repeated opens do not leak dialogs. */
         this.pileDialog = null;
         /**
@@ -1604,6 +1706,7 @@ class Game {
         this.help.install();
         this.renderPrimer();
         this.renderPhases();
+        this.wireArmyHover();
         this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
         this.board.onTroopClick(() => this.showTroopZoom());
         document.addEventListener('keydown', event => {
@@ -1650,7 +1753,9 @@ class Game {
             return;
         }
         element.innerHTML = armies.map(army => `
-            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}">
+            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}"
+                 data-army="${army.name}"
+                 title="${_('Hover to find this army on the map')}">
                 <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
                 <div class="iaw-army-detail">
                     <div class="iaw-army-name">${army.name} ${_('Army')}</div>
@@ -1658,6 +1763,47 @@ class Game {
                 </div>
             </div>
         `).join('');
+        // The list was just rebuilt under the pointer, so the highlight has to
+        // be put back — and dropped if that army no longer exists.
+        const hovered = armies.find(army => army.name === this.hoveredArmy);
+        if (this.hoveredArmy && !hovered) {
+            this.hoveredArmy = null;
+        }
+        this.board.setArmyHighlight(hovered ? hovered.towns : []);
+        if (hovered) {
+            element.querySelector(`[data-army="${hovered.name}"]`)?.classList.add('hovered');
+        }
+    }
+    /**
+     * Hovering an army lights its network on the map.
+     *
+     * Delegated from the container and bound once, because the entries
+     * themselves are thrown away and rebuilt on every board change — listeners
+     * attached to them would not survive a single notification.
+     */
+    wireArmyHover() {
+        const element = document.getElementById('iaw-armies');
+        if (!element) {
+            return;
+        }
+        element.addEventListener('mouseover', event => {
+            const entry = event.target?.closest('.iaw-army');
+            this.highlightArmy(entry?.dataset.army ?? null);
+        });
+        element.addEventListener('mouseleave', () => this.highlightArmy(null));
+    }
+    highlightArmy(name) {
+        if (name === this.hoveredArmy) {
+            return;
+        }
+        this.hoveredArmy = name;
+        document.querySelectorAll('.iaw-army.hovered')
+            .forEach(node => node.classList.remove('hovered'));
+        const army = this.board.armies().find(candidate => candidate.name === name);
+        this.board.setArmyHighlight(army ? army.towns : []);
+        if (army) {
+            document.querySelector(`.iaw-army[data-army="${name}"]`)?.classList.add('hovered');
+        }
     }
     /**
      * Kept as one translatable sentence with placeholders rather than
@@ -1695,7 +1841,7 @@ class Game {
             const picked = card.id === selected ? ' selected' : '';
             const where = assigned[card.id] ? ` title="${assigned[card.id]}"` : '';
             return `<span class="iaw-card hand ${card.type}${staged}${picked}" draggable="true"
-                          data-card-id="${card.id}"${where}>${label}</span>`;
+                          data-card-id="${card.id}"${where}>${presenceHtml(label)}</span>`;
         }).join('');
         element.querySelectorAll('.iaw-card').forEach(node => {
             const cardId = Number(node.dataset.cardId);

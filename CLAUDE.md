@@ -157,7 +157,7 @@ since the first port; several sessions of real play have driven that.
 
 Done:
 - BGA Studio project `ironandwhisper`, deploying cleanly over SFTP with a client build.
-- Full rules simulator, bots, 85 tests, an exploration notebook, and a batch runner.
+- Full rules simulator, bots, 87 tests, an exploration notebook, and a batch runner.
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Bots`, `Board`, `View`, `Game`,
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
@@ -196,6 +196,20 @@ Done:
   turn box now also lists one line per staged card, in placement order — "+2" says how many
   and not which, and which is the whole decision; the order matters too, since the last card
   onto a town is the top of its pile and the first thing a look reads.
+- **Presence is drawn as a gold disc wherever it is read** (2026-09-14), by
+  `presenceHtml` in `src/ts/presence.ts` — the rebels' pile and revealed totals, the
+  chips arriving above a town, the hand, the zoomed card, the placement list, the help
+  legend. It was a green box on a card stack and nothing at all on the Empire side, which
+  said presence was a rebel quantity; it is the quantity the two sides are *compared* in,
+  so it now looks the same in both hands and belongs to neither colour. The disc's other
+  job is to separate presence from a **count**: a stack shows how many cards and what they
+  are worth, and before this the two numbers looked alike. A count of pieces — pile height,
+  garrison size — stays plain. The Empire's unknown pile total is a `?` in the same disc,
+  not a greyed one: the shape promises a number belongs there, and what the Empire is
+  missing is the number rather than the presence. **The garrison shows no disc while
+  `unit.presence` is 1**, because the count would be the same number twice;
+  `BoardView.troopPresenceHtml` starts drawing it the moment a troop is worth more, which
+  is open question 2's lever.
 - **`MINIMAL_TOWNS` in `BoardView.ts` hides the Empire's supply arithmetic in the town
   boxes** (2026-09-14, currently on): the network badge and the town's own contribution,
   the two lines a real game found nobody was reading. A build-time constant rather than a
@@ -211,6 +225,13 @@ Done:
   legible only by comparing twelve supply badges. The name breaks ties by hashing the
   network's membership, so it is arbitrary rather than alphabetical, stable while the army
   is, and reshuffles when the army changes; randomising per render would make it unreadable.
+  **Hovering an entry lights that network on the map** — its towns in Empire purple with the
+  glow the blue selectable states use, and the roads between them brightened. It brightens
+  rather than recolours because a supplied road is already purple and already *is* the
+  network; the question a hover answers is only which of the two. The listeners are
+  delegated from `#iaw-armies` and the highlight is re-applied by name inside
+  `renderArmies`, because the list is rebuilt on every board change — a dozen times on a
+  full refresh — and anything bound to an entry would not survive one notification.
 - **The side column reads top to bottom in the order you need it**: the game state
   (turn / deck / hand, and the numbered turn order with the live step lit), the zoomed
   card, the turn summary with the Insurgency's hand inside it, the armies, what the
@@ -272,9 +293,19 @@ Done:
   uses — so it cannot drift from what is on screen, and every number in the text comes from
   the scenario. It links out to `ironandwhisper.md` on GitHub, since `*.md` is excluded from
   the deploy and the rules are not on the BGA server.
+- **The client caps a march at the troops that may actually leave.** `EmpireTurn.projected`
+  counts arrivals, and marching was staged against it, so the client offered marches the
+  server refused on commit — a real game lost a turn to "fenn has 3 troops, tried to move 4"
+  after a troop had been walked into Fenn on the same turn. `EmpireTurn.marchable` is the
+  right question: the garrison as the turn began, plus anything *built* there, less what is
+  already staged out. The asymmetry is the rule itself — movement is simultaneous, so an
+  arriving troop cannot march on, while production is applied before movement, so a new one
+  can. `willLook` uses the same function, because a troop that may still march is exactly
+  one that held still. Pinned by `test_a_troop_that_arrives_this_turn_cannot_march_on` in
+  both engines.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
-- **115 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+- **116 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 - **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,
   `Bots::globEmpireTurn`), and game option 101 to choose between it and the heuristic bot
@@ -443,7 +474,7 @@ duplicating the graph.
 ## The simulator
 
 ```bash
-sim/.venv/bin/python -m pytest sim -q            # 85 tests
+sim/.venv/bin/python -m pytest sim -q            # 87 tests
 sim/.venv/bin/python -m sim.run --games 500      # batch runner
 sim/.venv/bin/python -m sim.run --games 500 --bots glob   # the good Empire bot
 sim/.venv/bin/python -m sim.run --games 500 --bots glob --insurgency mist   # both good bots

@@ -1,4 +1,5 @@
 import { Game } from "../Game";
+import { presenceHtml } from "../presence";
 import { endOfferHtml, endOfferLabel } from "../EndOffer";
 
 /**
@@ -184,7 +185,9 @@ export class InsurgencyTurn {
         return this.order.map(cardId => {
             const card = this.game.cardById(cardId);
             const value = card?.presence ?? 0;
-            return `<div>${_('Influence')} ${value} ${_('to')}
+            // "Agent", not "Influence": influence is dead vocabulary, and the
+            // value it carries is presence, so it is drawn as presence.
+            return `<div>${_('Agent')} ${presenceHtml(value)} ${_('to')}
                     <b>${this.townLabel(this.assigned[cardId])}</b></div>`;
         }).join('');
     }

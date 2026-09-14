@@ -624,6 +624,35 @@ def test_cannot_move_more_troops_than_are_present():
         apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 2)]))
 
 
+def test_a_troop_that_arrives_this_turn_cannot_march_on():
+    """Movement is simultaneous: everyone leaves, then everyone arrives.
+
+    So a garrison of one reinforced from next door is still a garrison of one
+    as far as this turn's departures are concerned. The client got this wrong
+    and let a march be staged that the server then refused on commit.
+    """
+    st = state()
+    st.towns["a"].troops = 1
+    st.towns["b"].troops = 1
+    st.to_move = Side.EMPIRE
+    with pytest.raises(IllegalMove, match="tried to move"):
+        apply_empire_turn(st, EmpireTurn(moves=[("a", "b", 1), ("b", "c", 2)]))
+
+
+def test_a_troop_built_this_turn_may_march():
+    """The other half of the same rule, and the reason it is not symmetric.
+
+    Production is applied before movement, which is what lets the Empire raise
+    troops and walk them out to the supply that will feed them in one motion.
+    """
+    st = state()
+    st.towns["a"].troops = 1
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn(produce={"a": 1}, moves=[("a", "b", 2)]))
+    assert st.towns["a"].troops == 0
+    assert st.towns["b"].troops == 2
+
+
 def test_resolved_towns_are_passable_terrain():
     """Resolved towns are pacified, not walls: troops move in and out freely."""
     st = state()
