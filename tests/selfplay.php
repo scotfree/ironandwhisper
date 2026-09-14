@@ -3,7 +3,8 @@
  * Bot self-play, for checking the PHP against the simulator statistically.
  *
  *   php tests/selfplay.php 200
- *   php tests/selfplay.php 200 heuristic
+ *   php tests/selfplay.php 200 heuristic          # the old Empire bot
+ *   php tests/selfplay.php 200 glob heuristic     # the old rebel bot
  *
  * The unit tests prove the PHP does what it was written to do. This asks a
  * different question: does it do what the *specification* does? Run the same
@@ -12,6 +13,7 @@
  * test happens to cover, this is what notices.
  *
  * Compare against:  sim/.venv/bin/python -m sim.run --games 500 --bots glob
+ *                   sim/.venv/bin/python -m sim.run --games 500 --bots glob --insurgency mist
  *
  * Different random number generators mean comparing distributions rather than
  * games, and a few hundred games only pins a rate to a couple of points — so
@@ -28,6 +30,8 @@ use Bga\Games\IronAndWhisper\States\EndScore;
 $games = (int) ($argv[1] ?? 100);
 $botName = (string) ($argv[2] ?? 'glob');
 $bot = $botName === 'heuristic' ? Game::BOT_HEURISTIC : Game::BOT_GLOB;
+$rebelName = (string) ($argv[3] ?? 'mist');
+$rebel = $rebelName === 'heuristic' ? Game::REBEL_HEURISTIC : Game::REBEL_MIST;
 
 $wins = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0, 'draw' => 0];
 $towns = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
@@ -36,7 +40,7 @@ $scores = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
 $started = microtime(true);
 
 for ($seed = 1; $seed <= $games; $seed++) {
-    $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, botOption: $bot);
+    $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, botOption: $bot, rebelOption: $rebel);
 
     for ($guard = 0; $guard < 200; $guard++) {
         if (enterNextTurn($game) === EndScore::class) {
@@ -73,7 +77,7 @@ for ($seed = 1; $seed <= $games; $seed++) {
 
 fwrite(STDERR, "\n");
 
-printf("bots: Empire %s vs Insurgency heuristic (PHP)\n", $botName);
+printf("bots: Empire %s vs Insurgency %s (PHP)\n", $botName, $rebelName);
 printf("  games             %d\n", $games);
 printf("  Empire wins       %4d  (%.1f%%)\n", $wins[Rules::EMPIRE], 100 * $wins[Rules::EMPIRE] / $games);
 printf("  Insurgency wins   %4d  (%.1f%%)\n", $wins[Rules::INSURGENCY], 100 * $wins[Rules::INSURGENCY] / $games);

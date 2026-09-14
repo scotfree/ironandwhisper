@@ -187,6 +187,8 @@ The Empire commands about **0.88×** the Insurgency's total force. That is delib
 > The knob that actually moves the game is **presence density** — the share of the deck that is real. At the original 50:50 the Empire won about 73% of games; balance against the current bots lands near **36 presence : 24 dummy**, roughly 60% density, and the table above now carries that.
 >
 > **Nobody has played any of it.** These are simulator outputs adopted as starting points, measured against bots that are not good players.
+>
+> **And "not good players" turned out to be load-bearing.** Every Empire figure recorded here was measured against the heuristic Insurgency, which piles presence onto the richest garrison it can see and scatters the rest at random. `MistBot`, a rebel bot that plays the geography instead — cash every town already won, take a lead only where the Empire has no troops in reach of answering it, spend the bluffs on empty ground beside a garrison — beats `GlobEmpire` in **100% of 300 games** at baseline, mean score 5.8 to 0.2, where the heuristic rebels lose 63% of them. The Empire's balance problem is therefore worse than any number above says, and a win rate is only ever a statement about the opponent it was measured against.
 
 > **Graded cards, measured.** 1000 games per configuration, heuristic bots, current rules. `scenarios/` holds each of these so they can be re-run.
 >

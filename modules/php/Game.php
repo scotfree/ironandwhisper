@@ -49,6 +49,21 @@ class Game extends \Bga\GameFramework\Table
     public const BOT_GLOB = 0;
     public const BOT_HEURISTIC = 1;
 
+    /**
+     * Which Insurgency bot a solo game plays against.
+     *
+     * The same choice on the other side. Mist reads the geography — it cashes
+     * every town it has already won, takes leads where the Empire has no
+     * troops in reach, and spends its bluffs on empty ground beside a
+     * garrison. Heuristic piles presence onto the richest garrison it can see
+     * and scatters the rest at random. Mist takes every game off GlobEmpire in
+     * self-play, where Heuristic loses about 63% of them, so Mist is the
+     * default and the other is kept as the port's reference implementation.
+     */
+    public const OPT_REBEL_BOT = 102;
+    public const REBEL_MIST = 0;
+    public const REBEL_HEURISTIC = 1;
+
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
@@ -761,7 +776,12 @@ class Game extends \Bga\GameFramework\Table
         $botId = $this->playerIdForSide($side);
 
         if ($side === Rules::INSURGENCY) {
-            $turn = Bots::insurgencyTurn($this->scenario, $this->board->towns(), $this->board->hand());
+            $towns = $this->board->towns();
+            $hand = $this->board->hand();
+            $turn = $this->insurgencyBot() === self::REBEL_HEURISTIC
+                ? Bots::insurgencyTurn($this->scenario, $towns, $hand)
+                : Bots::mistInsurgencyTurn($this->scenario, $towns, $hand);
+
             $this->applyInsurgencyTurn($turn['placements'], $turn['resolve'], $botId);
             return;
         }
@@ -784,6 +804,12 @@ class Game extends \Bga\GameFramework\Table
     private function empireBot(): int
     {
         return (int) ($this->bga->tableOptions->get(self::OPT_BOT) ?? self::BOT_GLOB);
+    }
+
+    /** Which Insurgency bot this table chose, from game option 102. */
+    private function insurgencyBot(): int
+    {
+        return (int) ($this->bga->tableOptions->get(self::OPT_REBEL_BOT) ?? self::REBEL_MIST);
     }
 
     // -- data feed ----------------------------------------------------------

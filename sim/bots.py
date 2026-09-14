@@ -684,6 +684,221 @@ class GlobEmpire:
         return disband
 
 
+# ---------------------------------------------------------------------------
+# The Insurgency that plays the map
+# ---------------------------------------------------------------------------
+
+class MistBot:
+    """The Insurgency bot that reads the board rather than the arithmetic.
+
+    `HeuristicInsurgency` picks the richest garrison it can see and piles
+    presence onto it. This one asks three questions in order, and every answer
+    is a question about *geography* — where the troops are, not how many points
+    are on the table:
+
+    * **Resolve anything already won**, richest first. The rebels placed every
+      card and troops are public, so a win is certain by inspection — there is
+      no `worst_case` here and nothing to gamble on. Ties inside a score go to
+      the town touching the most occupied towns, because that is the one the
+      Empire is likeliest to reinforce before it can be cashed again.
+    * **Get ahead where the Empire is thin on support.** Spend the fewest cards
+      that clear the garrison by one, and prefer the town with the fewest
+      troops *around* it: a lead only survives if the Empire cannot walk a
+      relief column into it before the next turn.
+    * **Spend the bluffs where a pile will be believed**, one at a time,
+      re-reading the board between each. An empty town beside a lot of troops
+      first — that is where the Empire is about to arrive and where a pile
+      costs it a look or a detour — and never an empty town with no troops near
+      it, which nobody will ever walk into and which therefore says nothing.
+
+    The whole hand goes out every turn (Decision 6), so the last rule is a
+    fallback chain rather than a preference: something has to take the card.
+
+    `rng` is accepted for interface compatibility and deliberately unused.
+    Every tie here breaks on the board — adjacency, then town id — so the bot
+    is a pure function of the position and a disagreement with the PHP port is
+    a real disagreement rather than a different random seed.
+    """
+
+    def __init__(self, rng: random.Random | None = None):
+        self.rng = rng or random.Random()
+
+    def choose(self, state: GameState) -> InsurgencyTurn:
+        # Planned against a copy with the resolution already applied, in the
+        # engine's own order (Decision 4): a town resolved now is closed to
+        # placement, and a garrison the rebels just took is off the board and
+        # out of every adjacency count below.
+        board = state.clone()
+
+        resolve = self._resolution(board)
+        if resolve is not None:
+            resolve_town(board, resolve, Side.INSURGENCY)
+
+        return InsurgencyTurn(placements=self._placements(board), resolve=resolve)
+
+    # -- phase 1: resolve ----------------------------------------------------
+
+    def _resolution(self, board: GameState) -> str | None:
+        """Cash every town already won, richest first; a 0-point win counts.
+
+        Beating an empty garrison scores nothing, but it still takes the town
+        out of the game, and a town the Empire can never stand in is a town it
+        can never draw supply from. The mirror of GlobEmpire taking an empty
+        town for the same reason.
+        """
+        best, best_key = None, None
+        for town in board.unresolved:
+            if town.card_count == 0:
+                continue
+            troop_presence = board.troop_presence_in(town.id)
+            if board.card_presence_in(town.id) <= troop_presence:
+                continue  # the Empire wins ties, so a draw is not a win
+            key = (troop_presence, _adjacent_occupied(board, town), town.id)
+            if best_key is None or key > best_key:
+                best, best_key = town.id, key
+        return best
+
+    # -- phase 2: placement --------------------------------------------------
+
+    def _placements(self, board: GameState) -> dict[str, list[int]]:
+        """Where the whole hand goes, deciding one commitment at a time.
+
+        `board` is mutated as cards are committed, so every choice after the
+        first sees the pile the last one built. That is what makes the bluff
+        rule spread: a town stops being empty the moment it is seeded.
+        """
+        if not board.unresolved:
+            return {}  # the resolution closed the last town; nothing may be placed
+
+        placements: dict[str, list[int]] = {}
+
+        def place(town_id: str, index: int) -> None:
+            placements.setdefault(town_id, []).append(index)
+            board.towns[town_id].pile.insert(0, board.hand[index])
+
+        # Biggest first: it reaches a threshold with the fewest cards, which
+        # leaves the rest of the hand free to threaten somewhere else.
+        real = sorted(
+            (i for i, c in enumerate(board.hand) if c.presence > 0),
+            key=lambda i: (-board.hand[i].presence, i),
+        )
+        bluffs = [i for i, c in enumerate(board.hand) if c.presence == 0]
+
+        # 2a. Take the lead in every town the hand can still afford to lead in.
+        best_target = None
+        while real:
+            target = self._lead_target(board, real)
+            if target is None:
+                break
+            if best_target is None:
+                best_target = target
+            needed = (board.troop_presence_in(target)
+                      - board.card_presence_in(target) + 1)
+            while real and needed > 0:
+                index = real.pop(0)
+                needed -= board.hand[index].presence
+                place(target, index)
+
+        # 2b. Nothing left to flip: seed where the Empire has enough troops
+        #     next door to come and make a fight of it. One card each — a
+        #     second card on the same town says nothing new.
+        while real:
+            target = self._arrival_target(board)
+            if target is None:
+                break
+            place(target, real.pop(0))
+
+        # 2c. Anything still in hand deepens the town we led in first.
+        if best_target is not None:
+            while real:
+                place(best_target, real.pop(0))
+
+        # 3. Bluffs, and any real card with nowhere better, one at a time.
+        for index in real + bluffs:
+            place(self._bluff_target(board), index)
+
+        return placements
+
+    def _lead_target(self, board: GameState, real: list[int]) -> str | None:
+        """The garrisoned town to take the lead in next, or None.
+
+        Affordable means the presence still in hand covers the whole deficit:
+        half a lead is a donation, since the Empire scores every card in a town
+        it wins.
+        """
+        budget = sum(board.hand[i].presence for i in real)
+        best, best_key = None, None
+        for town in board.unresolved:
+            if town.troops <= 0:
+                continue
+            deficit = (board.troop_presence_in(town.id)
+                       - board.card_presence_in(town.id) + 1)
+            if deficit <= 0 or deficit > budget:
+                continue
+            # Fewest troops in reach first — a lead the Empire cannot answer
+            # next turn. Then the richest garrison, since that is the score.
+            key = (_adjacent_troops(board, town),
+                   -board.troop_presence_in(town.id),
+                   town.id)
+            if best_key is None or key < best_key:
+                best, best_key = town.id, key
+        return best
+
+    def _arrival_target(self, board: GameState) -> str | None:
+        """An empty town next to a garrison big enough to spare a troop.
+
+        One troop marching out of a town of one abandons it, so a lone troop
+        is not really a neighbour. Two is the smallest garrison that can visit.
+        """
+        best, best_key = None, None
+        for town in board.unresolved:
+            if town.troops > 0 or town.card_count > 0:
+                continue
+            if not any(board.towns[n].troops > 1 for n in town.neighbors):
+                continue
+            key = (-_adjacent_troops(board, town), town.id)
+            if best_key is None or key < best_key:
+                best, best_key = town.id, key
+        return best
+
+    def _bluff_target(self, board: GameState) -> str:
+        """Where the next single card goes, re-read from the board each time.
+
+        Empty towns beside troops first, tallest concentration first; then the
+        closest thing to a tied town, where one more card in the pile changes
+        what the Empire believes it is looking at. An empty town with no troops
+        anywhere near it is never chosen — nobody will walk into it, so the
+        bluff is spent on an audience of nobody — unless it is all that is
+        left, in which case the nearest one to a troop takes it.
+        """
+        empty_beside_troops = [
+            t for t in board.unresolved
+            if t.troops == 0 and t.card_count == 0 and _adjacent_troops(board, t) > 0
+        ]
+        if empty_beside_troops:
+            return min(empty_beside_troops,
+                       key=lambda t: (-_adjacent_troops(board, t), t.id)).id
+
+        # Towns where the two sides are closest: a pile that already looks like
+        # a fight is the one an extra card can tip in the Empire's reading.
+        speaks = [
+            t for t in board.unresolved
+            if t.troops > 0 or t.card_count > 0 or _adjacent_troops(board, t) > 0
+        ]
+        if speaks:
+            return min(speaks, key=lambda t: (
+                abs(board.card_presence_in(t.id) - board.troop_presence_in(t.id)),
+                -_adjacent_troops(board, t),
+                t.id,
+            )).id
+
+        # Every open town is empty and out of reach of any troop. Forced, so
+        # take the one the Empire would reach first.
+        hops = _hops_to_troops(board)
+        return min(board.unresolved,
+                   key=lambda t: (hops.get(t.id, len(board.towns)), t.id)).id
+
+
 def _overage(state: GameState) -> int:
     """Troops across the whole board that their networks cannot feed."""
     return sum(
@@ -730,10 +945,43 @@ def _production_distance(state: GameState) -> dict[str, int]:
     return distance
 
 
+def _adjacent_troops(state: GameState, town) -> int:
+    """Troops standing in the towns next door, added up.
+
+    Resolved towns count: an Empire garrison survives a town it won
+    (Decision 3) and can march out of it like any other.
+    """
+    return sum(state.towns[n].troops for n in town.neighbors)
+
+
+def _adjacent_occupied(state: GameState, town) -> int:
+    """How many towns next door hold any troops at all.
+
+    Deliberately a count of towns where `_adjacent_troops` is a sum of troops:
+    one asks how many directions a threat can come from, the other how heavy
+    it would be.
+    """
+    return sum(1 for n in town.neighbors if state.towns[n].troops > 0)
+
+
+def _hops_to_troops(state: GameState) -> dict[str, int]:
+    """Distance from every town to the nearest troops, by road."""
+    distance = {tid: 0 for tid, t in state.towns.items() if t.troops > 0}
+    frontier = list(distance)
+    while frontier:
+        current = frontier.pop(0)
+        for neighbor in state.towns[current].neighbors:
+            if neighbor not in distance:
+                distance[neighbor] = distance[current] + 1
+                frontier.append(neighbor)
+    return distance
+
+
 BOTS = {
     "random": (RandomEmpire, RandomInsurgency),
     "heuristic": (HeuristicEmpire, HeuristicInsurgency),
     "glob": (GlobEmpire, HeuristicInsurgency),
+    "mist": (GlobEmpire, MistBot),
 }
 
 EMPIRE_BOTS = {
@@ -745,4 +993,5 @@ EMPIRE_BOTS = {
 INSURGENCY_BOTS = {
     "random": RandomInsurgency,
     "heuristic": HeuristicInsurgency,
+    "mist": MistBot,
 }

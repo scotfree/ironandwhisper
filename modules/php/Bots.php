@@ -228,6 +228,431 @@ final class Bots
         return $resolve;
     }
 
+    // -- the Insurgency that plays the map ---------------------------------
+
+    /**
+     * MistBot: read the board rather than the arithmetic.
+     *
+     * `insurgencyTurn` above picks the richest garrison it can see and piles
+     * presence onto it. This one asks three questions in order, and every
+     * answer is about *geography* — where the troops are, not how many points
+     * are on the table:
+     *
+     * - Resolve anything already won, richest first. The rebels placed every
+     *   card and troops are public, so a win is certain by inspection: there
+     *   is no worst case here and nothing to gamble on. Ties inside a score go
+     *   to the town touching the most occupied towns, because that is the one
+     *   the Empire is likeliest to reinforce before it can be cashed again.
+     * - Get ahead where the Empire is thin on support. Spend the fewest cards
+     *   that clear the garrison by one, and prefer the town with the fewest
+     *   troops *around* it: a lead only survives if the Empire cannot walk a
+     *   relief column into it before the next turn.
+     * - Spend the bluffs where a pile will be believed, one at a time,
+     *   re-reading the board between each. An empty town beside a lot of
+     *   troops first, and never an empty town with no troops near it, which
+     *   nobody will ever walk into and which therefore says nothing.
+     *
+     * A direct port of MistBot in sim/bots.py. If the two disagree, this one
+     * is wrong. It takes no randomness at all: every tie breaks on the board,
+     * so a disagreement with the simulator is a real one rather than a seed.
+     *
+     * @param array<string, array> $towns
+     * @param array<int, array{id: int, presence: int}> $hand
+     * @return array{placements: array<string, int[]>, resolve: ?string}
+     */
+    public static function mistInsurgencyTurn(Scenario $scenario, array $towns, array $hand): array
+    {
+        // Planned against a copy with the resolution already applied, in the
+        // engine's own order (Decision 4): a town resolved now is closed to
+        // placement, and a garrison the rebels just took is off the board and
+        // out of every adjacency count below.
+        $board = $towns;
+
+        $resolve = self::mistResolution($scenario, $board);
+        if ($resolve !== null) {
+            $board = self::mistApplyResolution($board, $resolve);
+        }
+
+        return [
+            'placements' => self::mistPlacements($scenario, $board, $hand),
+            'resolve' => $resolve,
+        ];
+    }
+
+    /**
+     * Cash every town already won, richest first; a 0-point win counts.
+     *
+     * Beating an empty garrison scores nothing, but it still takes the town
+     * out of the game, and a town the Empire can never stand in is a town it
+     * can never draw supply from. The mirror of globResolution taking an empty
+     * town for the same reason.
+     *
+     * @param array<string, array> $towns
+     */
+    private static function mistResolution(Scenario $scenario, array $towns): ?string
+    {
+        $best = null;
+        $bestKey = null;
+
+        foreach ($towns as $townId => $town) {
+            if ($town['resolved'] || Rules::townCardCount($town) === 0) {
+                continue;
+            }
+            $troopPresence = Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
+            if (Rules::cardPresence($town) <= $troopPresence) {
+                continue; // the Empire wins ties, so a draw is not a win
+            }
+            $key = [$troopPresence, self::mistAdjacentOccupied($towns, $town), $townId];
+            if ($bestKey === null || $key > $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * The board once the rebels have taken a town: it freezes, the pile turns
+     * face up, and the garrison is captured (Decision 3).
+     *
+     * @param array<string, array> $towns
+     * @return array<string, array>
+     */
+    private static function mistApplyResolution(array $towns, string $townId): array
+    {
+        $towns[$townId]['resolved'] = true;
+        $towns[$townId]['winner'] = Rules::INSURGENCY;
+        $towns[$townId]['revealed'] = array_merge(
+            $towns[$townId]['revealed'],
+            $towns[$townId]['pile'],
+        );
+        $towns[$townId]['pile'] = [];
+        $towns[$townId]['troops'] = 0;
+        return $towns;
+    }
+
+    /**
+     * Where the whole hand goes, deciding one commitment at a time.
+     *
+     * `$board` is mutated as cards are committed, so every choice after the
+     * first sees the pile the last one built. That is what makes the bluff
+     * rule spread: a town stops being empty the moment it is seeded.
+     *
+     * @param array<string, array> $board
+     * @param array<int, array{id: int, presence: int}> $hand
+     * @return array<string, int[]>
+     */
+    private static function mistPlacements(Scenario $scenario, array $board, array $hand): array
+    {
+        $anyOpen = false;
+        foreach ($board as $town) {
+            if (!$town['resolved']) {
+                $anyOpen = true;
+                break;
+            }
+        }
+        if (!$anyOpen) {
+            return []; // the resolution closed the last town; nothing may be placed
+        }
+
+        $placements = [];
+        $place = static function (string $townId, int $cardId, int $presence) use (&$placements, &$board): void {
+            $placements[$townId][] = $cardId;
+            array_unshift($board[$townId]['pile'], [
+                'id' => $cardId,
+                'type' => "presence{$presence}",
+                'presence' => $presence,
+                'seen' => false,
+            ]);
+        };
+
+        // Biggest first: it reaches a threshold with the fewest cards, which
+        // leaves the rest of the hand free to threaten somewhere else.
+        $valueOf = [];
+        $ordered = [];
+        $bluffs = [];
+        foreach (array_values($hand) as $position => $card) {
+            $cardId = (int) $card['id'];
+            $valueOf[$cardId] = (int) $card['presence'];
+            if ($valueOf[$cardId] > 0) {
+                $ordered[] = [$position, $cardId];
+            } else {
+                $bluffs[] = $cardId;
+            }
+        }
+        usort(
+            $ordered,
+            static fn(array $a, array $b): int
+                => [$valueOf[$b[1]], $a[0]] <=> [$valueOf[$a[1]], $b[0]],
+        );
+        $real = array_map(static fn(array $entry): int => $entry[1], $ordered);
+
+        // 1. Take the lead in every town the hand can still afford to lead in.
+        $bestTarget = null;
+        while ($real) {
+            $budget = 0;
+            foreach ($real as $cardId) {
+                $budget += $valueOf[$cardId];
+            }
+            $target = self::mistLeadTarget($scenario, $board, $budget);
+            if ($target === null) {
+                break;
+            }
+            if ($bestTarget === null) {
+                $bestTarget = $target;
+            }
+            $needed = Rules::troopPresence((int) $board[$target]['troops'], $scenario->unitPresence())
+                - Rules::cardPresence($board[$target]) + 1;
+            while ($real && $needed > 0) {
+                $cardId = array_shift($real);
+                $needed -= $valueOf[$cardId];
+                $place($target, $cardId, $valueOf[$cardId]);
+            }
+        }
+
+        // 2. Nothing left to flip: seed where the Empire has enough troops
+        //    next door to come and make a fight of it. One card each — a
+        //    second card on the same town says nothing new.
+        while ($real) {
+            $target = self::mistArrivalTarget($board);
+            if ($target === null) {
+                break;
+            }
+            $cardId = array_shift($real);
+            $place($target, $cardId, $valueOf[$cardId]);
+        }
+
+        // 3. Anything still in hand deepens the town we led in first.
+        if ($bestTarget !== null) {
+            while ($real) {
+                $cardId = array_shift($real);
+                $place($bestTarget, $cardId, $valueOf[$cardId]);
+            }
+        }
+
+        // 4. Bluffs, and any real card with nowhere better, one at a time.
+        foreach (array_merge($real, $bluffs) as $cardId) {
+            $place(self::mistBluffTarget($scenario, $board), $cardId, $valueOf[$cardId]);
+        }
+
+        return $placements;
+    }
+
+    /**
+     * The garrisoned town to take the lead in next, or null.
+     *
+     * Affordable means the presence still in hand covers the whole deficit:
+     * half a lead is a donation, since the Empire scores every card in a town
+     * it wins.
+     *
+     * @param array<string, array> $board
+     */
+    private static function mistLeadTarget(Scenario $scenario, array $board, int $budget): ?string
+    {
+        $best = null;
+        $bestKey = null;
+
+        foreach ($board as $townId => $town) {
+            if ($town['resolved'] || $town['troops'] <= 0) {
+                continue;
+            }
+            $troopPresence = Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
+            $deficit = $troopPresence - Rules::cardPresence($town) + 1;
+            if ($deficit <= 0 || $deficit > $budget) {
+                continue;
+            }
+            // Fewest troops in reach first — a lead the Empire cannot answer
+            // next turn. Then the richest garrison, since that is the score.
+            $key = [self::mistAdjacentTroops($board, $town), -$troopPresence, $townId];
+            if ($bestKey === null || $key < $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * An empty town next to a garrison big enough to spare a troop.
+     *
+     * One troop marching out of a town of one abandons it, so a lone troop is
+     * not really a neighbour. Two is the smallest garrison that can visit.
+     *
+     * @param array<string, array> $board
+     */
+    private static function mistArrivalTarget(array $board): ?string
+    {
+        $best = null;
+        $bestKey = null;
+
+        foreach ($board as $townId => $town) {
+            if ($town['resolved'] || $town['troops'] > 0 || Rules::townCardCount($town) > 0) {
+                continue;
+            }
+            $canVisit = false;
+            foreach ($town['neighbors'] as $neighbor) {
+                if ($board[$neighbor]['troops'] > 1) {
+                    $canVisit = true;
+                    break;
+                }
+            }
+            if (!$canVisit) {
+                continue;
+            }
+            $key = [-self::mistAdjacentTroops($board, $town), $townId];
+            if ($bestKey === null || $key < $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Where the next single card goes, re-read from the board each time.
+     *
+     * Empty towns beside troops first, tallest concentration first; then the
+     * closest thing to a tied town, where one more card in the pile changes
+     * what the Empire believes it is looking at. An empty town with no troops
+     * anywhere near it is never chosen — nobody will walk into it, so the
+     * bluff is spent on an audience of nobody — unless it is all that is left,
+     * in which case the nearest one to a troop takes it.
+     *
+     * @param array<string, array> $board
+     */
+    private static function mistBluffTarget(Scenario $scenario, array $board): string
+    {
+        $best = null;
+        $bestKey = null;
+
+        foreach ($board as $townId => $town) {
+            if ($town['resolved'] || $town['troops'] > 0 || Rules::townCardCount($town) > 0) {
+                continue;
+            }
+            $adjacent = self::mistAdjacentTroops($board, $town);
+            if ($adjacent === 0) {
+                continue;
+            }
+            $key = [-$adjacent, $townId];
+            if ($bestKey === null || $key < $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+        if ($best !== null) {
+            return $best;
+        }
+
+        // Towns where the two sides are closest: a pile that already looks
+        // like a fight is the one an extra card can tip in the Empire's
+        // reading.
+        foreach ($board as $townId => $town) {
+            if ($town['resolved']) {
+                continue;
+            }
+            $adjacent = self::mistAdjacentTroops($board, $town);
+            if ($town['troops'] <= 0 && Rules::townCardCount($town) === 0 && $adjacent === 0) {
+                continue;
+            }
+            $gap = abs(
+                Rules::cardPresence($town)
+                - Rules::troopPresence((int) $town['troops'], $scenario->unitPresence())
+            );
+            $key = [$gap, -$adjacent, $townId];
+            if ($bestKey === null || $key < $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+        if ($best !== null) {
+            return $best;
+        }
+
+        // Every open town is empty and out of reach of any troop. Forced, so
+        // take the one the Empire would reach first.
+        $hops = self::mistHopsToTroops($board);
+        foreach ($board as $townId => $town) {
+            if ($town['resolved']) {
+                continue;
+            }
+            $key = [$hops[$townId] ?? count($board), $townId];
+            if ($bestKey === null || $key < $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+
+        return (string) $best;
+    }
+
+    /**
+     * Troops standing in the towns next door, added up.
+     *
+     * Resolved towns count: an Empire garrison survives a town it won
+     * (Decision 3) and can march out of it like any other.
+     *
+     * @param array<string, array> $towns
+     */
+    private static function mistAdjacentTroops(array $towns, array $town): int
+    {
+        $total = 0;
+        foreach ($town['neighbors'] as $neighbor) {
+            $total += (int) $towns[$neighbor]['troops'];
+        }
+        return $total;
+    }
+
+    /**
+     * How many towns next door hold any troops at all.
+     *
+     * Deliberately a count of towns where mistAdjacentTroops is a sum of
+     * troops: one asks how many directions a threat can come from, the other
+     * how heavy it would be.
+     *
+     * @param array<string, array> $towns
+     */
+    private static function mistAdjacentOccupied(array $towns, array $town): int
+    {
+        $count = 0;
+        foreach ($town['neighbors'] as $neighbor) {
+            if ($towns[$neighbor]['troops'] > 0) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Distance from every town to the nearest troops, by road.
+     *
+     * @param array<string, array> $towns
+     * @return array<string, int>
+     */
+    private static function mistHopsToTroops(array $towns): array
+    {
+        $distance = [];
+        $frontier = [];
+        foreach ($towns as $townId => $town) {
+            if ($town['troops'] > 0) {
+                $distance[$townId] = 0;
+                $frontier[] = $townId;
+            }
+        }
+        while ($frontier) {
+            $current = array_shift($frontier);
+            foreach ($towns[$current]['neighbors'] as $neighbor) {
+                if (!isset($distance[$neighbor])) {
+                    $distance[$neighbor] = $distance[$current] + 1;
+                    $frontier[] = $neighbor;
+                }
+            }
+        }
+        return $distance;
+    }
+
     // -- the Empire --------------------------------------------------------
 
     /**

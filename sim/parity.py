@@ -1,6 +1,7 @@
 """Record GlobEmpire's decision on a set of random boards, for the PHP to match.
 
-    sim/.venv/bin/python -m sim.parity            # rewrite the fixture
+    sim/.venv/bin/python -m sim.parity            # rewrite GlobEmpire's fixture
+    sim/.venv/bin/python -m sim.parity --bot mist # and MistBot's
     sim/.venv/bin/python -m sim.parity --count 300
 
 `tests/selfplay.php` compares the two engines statistically, which catches drift
@@ -14,8 +15,12 @@ Boards are generated rather than played, so they include positions a game would
 rarely reach: networks already over their ceiling, towns the rebels have taken,
 garrisons stranded beside them. Those are where a port drifts.
 
-Regenerate after any deliberate change to GlobEmpire, and expect the PHP to be
+Regenerate after any deliberate change to either bot, and expect the PHP to be
 what moves — `sim/bots.py` is the specification.
+
+MistBot's positions carry a hand as well as a board, since a rebel decision is
+a function of both. Hand cards are numbered from `HAND_UID` so the PHP can map
+a card id back to the index the simulator recorded.
 """
 
 from __future__ import annotations
@@ -25,11 +30,17 @@ import json
 import random
 from pathlib import Path
 
-from .bots import GlobEmpire
+from .bots import GlobEmpire, MistBot
 from .config import load_scenario
 from .engine import Card, Side, new_game
 
-FIXTURE = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "glob_parity.jsonl"
+FIXTURES = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
+FIXTURE = FIXTURES / "glob_parity.jsonl"
+MIST_FIXTURE = FIXTURES / "mist_parity.jsonl"
+
+# Hand card ids the PHP fixture reader mirrors: card `HAND_UID + i` is hand
+# index i, which is how a placement of ids becomes a placement of indices.
+HAND_UID = 500
 
 
 def positions(scenario, count: int, seed: int = 7):
@@ -62,27 +73,64 @@ def positions(scenario, count: int, seed: int = 7):
         yield state, position
 
 
+def deal(scenario, rng: random.Random) -> list[Card]:
+    """A hand of the scenario's size, drawn from the values its deck holds."""
+    values = sorted({t.presence for t in scenario.card_types.values()})
+    return [
+        Card(uid=HAND_UID + i, type_id=f"presence{v}", presence=v)
+        for i, v in enumerate(rng.choice(values) for _ in range(scenario.hand_size))
+    ]
+
+
+def glob_decision(state, _rng) -> dict:
+    plan = GlobEmpire(random.Random(0)).choose(state)
+    return {
+        "resolve": plan.resolve,
+        "produce": dict(sorted(plan.produce.items())),
+        "moves": [list(move) for move in plan.moves],
+        "disband": dict(sorted(plan.disband.items())),
+    }
+
+
+def mist_decision(state, rng) -> dict:
+    """The rebels see everything they placed, so the hand is part of the board."""
+    state.hand = deal(state.scenario, rng)
+    state.to_move = Side.INSURGENCY
+    plan = MistBot(random.Random(0)).choose(state)
+    return {
+        "hand": [c.presence for c in state.hand],
+        "resolve": plan.resolve,
+        "placements": {tid: list(ix) for tid, ix in sorted(plan.placements.items())},
+    }
+
+
+BOTS = {
+    "glob": (glob_decision, FIXTURE),
+    "mist": (mist_decision, MIST_FIXTURE),
+}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenario", default="baseline")
+    parser.add_argument("--bot", choices=sorted(BOTS), default="glob")
     parser.add_argument("--count", type=int, default=150)
-    parser.add_argument("--out", type=Path, default=FIXTURE)
+    parser.add_argument("--out", type=Path, default=None)
     args = parser.parse_args()
 
+    decide, default_out = BOTS[args.bot]
+    args.out = args.out or default_out
+
     scenario = load_scenario(args.scenario)
+    rng = random.Random(11)
     lines = []
     for state, position in positions(scenario, args.count):
-        plan = GlobEmpire(random.Random(0)).choose(state)
-        lines.append(json.dumps({
-            "scenario": args.scenario,
-            "position": position,
-            "decision": {
-                "resolve": plan.resolve,
-                "produce": dict(sorted(plan.produce.items())),
-                "moves": [list(move) for move in plan.moves],
-                "disband": dict(sorted(plan.disband.items())),
-            },
-        }, separators=(",", ":")))
+        decision = decide(state, rng)
+        record = {"scenario": args.scenario, "position": position}
+        if "hand" in decision:
+            record["hand"] = decision.pop("hand")
+        record["decision"] = decision
+        lines.append(json.dumps(record, separators=(",", ":")))
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     # One board per line: the diff of a regenerated fixture is then readable.

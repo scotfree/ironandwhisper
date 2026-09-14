@@ -51,5 +51,34 @@
         "value": 1
       }
     ]
+  },
+
+  // The same choice on the other side, for a solo game as the Empire. Mist
+  // reads the geography rather than the arithmetic: it cashes every town it
+  // has already won, takes a lead only where the Empire has no troops in
+  // reach of answering it, and spends its bluffs on empty ground beside a
+  // garrison. It takes every game off the Glob bot in self-play, where the
+  // Heuristic rebels lose about 63% of them.
+  "102": {
+    "name": "Rebel bot",
+    "values": {
+      "0": {
+        "name": "Mist",
+        "description": "Cashes every town it has already won, takes leads the Empire cannot answer next turn, and seeds its bluffs where troops are about to arrive.",
+        "tmdisplay": "Mist bot"
+      },
+      "1": {
+        "name": "Heuristic",
+        "description": "Piles presence onto the richest garrison it can see and scatters the rest at random. The weaker opponent.",
+        "tmdisplay": "Heuristic rebels"
+      }
+    },
+    "default": 0,
+    "displaycondition": [
+      {
+        "type": "maxplayers",
+        "value": 1
+      }
+    ]
   }
 }

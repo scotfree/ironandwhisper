@@ -114,6 +114,35 @@ function test_the_bot_takes_its_turn_before_the_human_is_asked(): void
     assertSame($game->scenario->handSize, $placed, 'the bot placed its whole hand first');
 }
 
+function test_game_option_102_chooses_which_rebel_bot_plays(): void
+{
+    // A routing test, not a behaviour one: the two bots play the same opening
+    // board differently, so if the option were ignored every seed would come
+    // out identical. Mist is deterministic; the heuristic scatters at random.
+    $opening = static function (int $rebelOption, int $seed): array {
+        $game = newSoloGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, rebelOption: $rebelOption);
+        enterNextTurn($game);
+
+        $placed = [];
+        foreach ($game->board->towns() as $townId => $town) {
+            $count = Rules::townCardCount($town);
+            if ($count > 0) {
+                $placed[$townId] = $count;
+            }
+        }
+        return $placed;
+    };
+
+    $differs = false;
+    for ($seed = 1; $seed <= 5; $seed++) {
+        if ($opening(Game::REBEL_MIST, $seed) !== $opening(Game::REBEL_HEURISTIC, $seed)) {
+            $differs = true;
+        }
+    }
+
+    assertTrue($differs, 'option 102 made no difference — both sides played the same bot');
+}
+
 function test_the_bot_scores_without_a_player_row(): void
 {
     // The bot has no row in `player`, so its points go to a global. If that

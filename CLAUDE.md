@@ -157,7 +157,7 @@ since the first port; several sessions of real play have driven that.
 
 Done:
 - BGA Studio project `ironandwhisper`, deploying cleanly over SFTP with a client build.
-- Full rules simulator, bots, 67 tests, an exploration notebook, and a batch runner.
+- Full rules simulator, bots, 85 tests, an exploration notebook, and a batch runner.
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Bots`, `Board`, `View`, `Game`,
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
@@ -261,12 +261,17 @@ Done:
   the deploy and the rules are not on the BGA server.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
-- **97 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+- **115 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 - **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,
   `Bots::globEmpireTurn`), and game option 101 to choose between it and the heuristic bot
   in a solo game. It beats the heuristic Insurgency **64%** of the time where the old
   Empire bot managed 0.5%. See *The Empire bot that works* below.
+- **`MistBot`, the same treatment for the rebels** (`sim/bots.py`, `Bots::mistInsurgencyTurn`),
+  and game option 102 to choose between it and the heuristic rebels in a solo game. It
+  takes **100% of 300 games** off `GlobEmpire` at baseline, mean score 5.8 to 0.2. See
+  *The rebel bot that works* below — and read every Empire number above it as a statement
+  about the opponent it was measured against.
 
 Not done, in rough order of how much it hurts:
 
@@ -281,14 +286,17 @@ Not done, in rough order of how much it hurts:
   ceiling, so it routinely walks itself into starvation and donates the points. `GlobEmpire`
   was written because of this and does not share the fault; the heuristic bot is kept as the
   port's reference implementation and as the weaker opponent.
-- **The Insurgency bot has not had the same treatment.** It still spreads by expected value
-  and scatters bluffs at random, and it is now much the weaker of the two. Every number
-  below is measured against it, so read them as "how well does the Empire do against a
-  mediocre rebel", not as balance.
-- **The Empire is losing badly at the table, and that has not changed.** What changed is
-  that the *bot* now wins, which mostly says the old bot was bad. Hand size and the starting
-  garrison are both spent as levers (see the notes above each). The next moves are still
-  **graded cards** and **troop presence above 1** — open question 2.
+- **The Insurgency bot has now had the same treatment, and it reversed the scoreboard.**
+  `GlobEmpire`'s 64% was against the heuristic rebels; against `MistBot` it wins nothing.
+  The old bot is kept as the weaker opponent and as the port's reference implementation,
+  but every figure in this file measured against it is "how well does the Empire do
+  against a mediocre rebel", not balance.
+- **The Empire is losing badly at the table, and the bots now agree.** `GlobEmpire`
+  winning 64% said more about the heuristic rebels than about the Empire: against
+  `MistBot` it takes 0%, which is what real play has been saying all along. Hand size and
+  the starting garrison are both spent as levers (see the notes above each). The next
+  moves are still **graded cards** and **troop presence above 1** — open question 2, and
+  there is now a rebel bot good enough to measure them against.
 - **`GlobEmpire`'s certainty test does not survive graded cards.** It resolves when troops
   beat `revealed + pile height x the best card in the deck`, which is exact at baseline
   where cards are 0 or 1 and useless at `graded36`, where every face-down card is assumed to
@@ -412,9 +420,10 @@ duplicating the graph.
 ## The simulator
 
 ```bash
-sim/.venv/bin/python -m pytest sim -q            # 67 tests
+sim/.venv/bin/python -m pytest sim -q            # 85 tests
 sim/.venv/bin/python -m sim.run --games 500      # batch runner
 sim/.venv/bin/python -m sim.run --games 500 --bots glob   # the good Empire bot
+sim/.venv/bin/python -m sim.run --games 500 --bots glob --insurgency mist   # both good bots
 sim/.venv/bin/jupyter notebook notebooks/exploration.ipynb
 ```
 
@@ -554,13 +563,68 @@ statistic and the score means settle an argument faster.
 `sim/parity.py` regenerates `tests/fixtures/glob_parity.jsonl` when the bot changes
 deliberately — the simulator is the specification, so it is the PHP that moves.
 
+## The rebel bot that works
+
+`MistBot` in `sim/bots.py`, ported to `Bots::mistInsurgencyTurn`, chosen in a solo game by
+game option 102. Where `GlobEmpire` plays for **ceiling**, this one plays for
+**geography**: every rule in it is a question about where the troops are rather than how
+many points are on the table. It takes **every game** off `GlobEmpire` at baseline, where
+the heuristic rebels lose 63% of them.
+
+The rules, in the order the turn applies them:
+
+1. **Cash everything already won, richest first.** The rebels placed every card and troops
+   are public, so a win is certain *by inspection* — there is no `worst_case` here and
+   nothing to gamble on, which is the one real asymmetry between the two bots. Score is
+   the garrison overcome. Ties inside a score go to the town touching the most occupied
+   towns, because that is the one that will not still be winnable next turn.
+2. **A 0-point win counts.** Beating an empty garrison scores nothing and still takes the
+   town out of the game, and a town the Empire can never stand in is a town it can never
+   draw supply from. The mirror of `GlobEmpire` taking an empty town for the same reason —
+   and the reason games against Mist end around round 9 rather than 21.
+3. **Take the lead where the Empire cannot answer it.** Spend the fewest cards that clear
+   the garrison by exactly one, biggest card first, and prefer the town with the fewest
+   troops *adjacent* — a lead only survives if no relief column can walk into it before
+   the next resolution. Then repeat, re-deriving the board, while the hand can still
+   afford another whole lead.
+4. **Never half-commit.** A lead the remaining hand cannot complete is not attempted at
+   all: the Empire scores every card in a town it wins, so half a lead is a donation.
+5. **Seed empty ground beside a garrison that can spare a troop** (two or more — one troop
+   marching out abandons its own town), one card each, biggest adjacent force first.
+6. **Spend the bluffs where a pile will be believed**, one at a time, re-reading the board
+   between each: empty towns beside troops first, then the town closest to level, where
+   one more card changes what the Empire thinks it is looking at. **Never** an empty town
+   no troops can reach — the bluff is spent on an audience of nobody — unless the hand has
+   nowhere else legal, since the whole hand must go out (Decision 6), in which case the
+   nearest town to any troops takes it.
+
+Two things about it worth keeping:
+
+**It uses no randomness at all.** Every tie breaks on the board — adjacency, then town id —
+so the bot is a pure function of the position. That is what makes the parity fixture sharp:
+a disagreement with the PHP is a real disagreement rather than a different seed, and both
+engines can be compared on placements card for card and in order, not just on a win rate.
+
+**Beware what it says about the Empire.** `GlobEmpire` at 64% and at 0% is the same bot;
+only the opponent changed. Anything measured against the heuristic rebels — the hand-size
+sweep, the starting-garrison sweep, the retreat-margin plateau — is a statement about that
+opponent, and worth re-running against Mist before it is trusted. PHP self-play agrees with
+the simulator: 300 games at 0.3%/99.0%/0.7% and mean scores 0.26/5.66, against the
+simulator's 0%/100% and 0.2/5.8.
+
+`tests/test_mist.php` and `sim/test_bots.py` pin each rule above to a named test, and
+`sim/parity.py --bot mist` regenerates `tests/fixtures/mist_parity.jsonl` — 200 random
+boards, each with a hand, on which both engines must produce the same resolution and the
+same placements exactly.
+
 ## Testing the PHP
 
 ```bash
 php tests/run.php              # all of it
 php tests/run.php rules        # only files matching "rules"
-php tests/selfplay.php 1000              # bots against each other, for the win rate
-php tests/selfplay.php 1000 heuristic    # the old Empire bot, for comparison
+php tests/selfplay.php 1000                   # bots against each other, for the win rate
+php tests/selfplay.php 1000 heuristic         # the old Empire bot, for comparison
+php tests/selfplay.php 1000 glob heuristic    # the old rebel bot, for comparison
 ```
 
 `tests/selfplay.php` is the check the unit tests cannot give. They prove the PHP does what

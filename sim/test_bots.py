@@ -1,4 +1,7 @@
-"""Tests for GlobEmpire, the bot that plays the way the game is played well.
+"""Tests for the two bots that play their side the way it is played well.
+
+GlobEmpire plays for its supply network; MistBot plays the geography of the
+map. Both are pinned case by case below.
 
 Each test names the rule it pins down. The rules themselves are in the class
 docstring in `bots.py` and in the project notes; if one of these fails after a
@@ -11,12 +14,13 @@ from __future__ import annotations
 
 import random
 
-from .bots import GlobEmpire, HeuristicInsurgency
+from .bots import GlobEmpire, HeuristicInsurgency, MistBot
 from .config import CardType, GameMap, Scenario, TownDef, Unit
 from .engine import (
     Card,
     Side,
     apply_empire_turn,
+    apply_insurgency_turn,
     ceiling,
     component_of,
     empire_components,
@@ -268,3 +272,241 @@ def test_it_beats_the_heuristic_insurgency_more_often_than_not():
         st = play_game(real, GlobEmpire(rng), HeuristicInsurgency(rng), rng)
         wins += st.scores[Side.EMPIRE] > st.scores[Side.INSURGENCY]
     assert wins > 50
+
+
+# ---------------------------------------------------------------------------
+# MistBot: the Insurgency that plays the map
+#
+# Each test names one rule from the class docstring in bots.py. The bot takes
+# an rng and never uses it, so every case below is exact rather than
+# statistical — a different answer here is a different bot, not a seed.
+# ---------------------------------------------------------------------------
+
+def line_map(supply: int = 10, producers: tuple[str, ...] = ()) -> GameMap:
+    """Four towns in a row: a—b—c—d.
+
+    The fan asks which neighbour; a line asks how far, which is the question
+    the rebel bot is built around — how much of the Empire can reach a town in
+    one move, and how much of it can reach the town next door.
+    """
+    names = ("a", "b", "c", "d")
+    towns = tuple(
+        TownDef(id=n, label=n.upper(), x=i, y=0, supply=supply,
+                production=1 if n in producers else 0)
+        for i, n in enumerate(names)
+    )
+    return GameMap(id="line", label="Line", towns=towns,
+                   edges=(("a", "b"), ("b", "c"), ("c", "d")))
+
+
+def rebel_board(hand: tuple[int, ...] = (1, 1, 1), **overrides):
+    """An empty board with the Insurgency to move and a hand of given values."""
+    st = new_game(scenario(**overrides), random.Random(0))
+    for town in st.towns.values():
+        town.troops = 0
+    st.to_move = Side.INSURGENCY
+    st.hand = [
+        Card(uid=500 + i, type_id=f"presence{v}", presence=v)
+        for i, v in enumerate(hand)
+    ]
+    return st
+
+
+def mist(st):
+    return MistBot(random.Random(0)).choose(st)
+
+
+def placed_in(plan, town_id: str) -> list[int]:
+    return plan.placements.get(town_id, [])
+
+
+# -- resolution: everything already won -------------------------------------
+
+def test_mist_cashes_a_town_it_has_already_beaten():
+    st = rebel_board()
+    st.towns["a"].troops = 1
+    seed(st, "a", 2)
+    assert mist(st).resolve == "a"
+
+
+def test_mist_leaves_a_tie_alone_because_the_empire_wins_ties():
+    """Two cards against two troops is a loss, not a win, so it is not cashed."""
+    st = rebel_board()
+    st.towns["a"].troops = 2
+    seed(st, "a", 2)
+    assert mist(st).resolve is None
+
+
+def test_mist_takes_the_richest_win_first():
+    """Only one resolution a turn, and the score is the garrison overcome."""
+    st = rebel_board()
+    for town_id, troops in (("b", 1), ("c", 3), ("d", 2)):
+        st.towns[town_id].troops = troops
+        seed(st, town_id, troops + 1)
+    assert mist(st).resolve == "c"
+
+
+def test_mist_breaks_a_score_tie_toward_the_busiest_neighbourhood():
+    """Equal prizes, so take the one the Empire is likeliest to reinforce.
+
+    B touches two occupied towns and C touches one, so B is the one that will
+    not still be winnable next turn.
+    """
+    st = rebel_board(map=line_map())
+    st.towns["a"].troops = 1
+    for town_id in ("b", "c"):
+        st.towns[town_id].troops = 1
+        seed(st, town_id, 2)
+    assert mist(st).resolve == "b"
+
+
+def test_mist_cashes_an_empty_town_for_nothing():
+    """Worth no points and worth taking: the Empire can never supply it again."""
+    st = rebel_board()
+    seed(st, "b", 1)
+    assert mist(st).resolve == "b"
+
+
+def test_mist_does_not_place_into_the_town_it_just_resolved():
+    st = rebel_board()
+    st.towns["a"].troops = 1
+    seed(st, "a", 2)
+    plan = mist(st)
+    assert plan.resolve == "a"
+    assert placed_in(plan, "a") == []
+
+
+# -- taking the lead --------------------------------------------------------
+
+def test_mist_clears_the_garrison_by_exactly_one_with_the_fewest_cards():
+    """Two troops need three presence; a single 3 does it and two 1s are saved."""
+    st = rebel_board(hand=(3, 1, 1))
+    st.towns["a"].troops = 2
+    plan = mist(st)
+    assert placed_in(plan, "a") == [0]
+
+
+def test_mist_prefers_the_garrison_with_the_fewest_troops_in_reach():
+    """Equal garrisons; C has one troop next door and B has four."""
+    st = rebel_board(hand=(1, 1), map=line_map())
+    st.towns["a"].troops = 3
+    st.towns["b"].troops = 1
+    st.towns["c"].troops = 1
+    plan = mist(st)
+    assert placed_in(plan, "c") == [0, 1]
+    assert placed_in(plan, "b") == []
+
+
+def test_mist_leads_in_a_second_town_when_the_hand_stretches():
+    st = rebel_board(hand=(1, 1, 1, 1), map=line_map())
+    st.towns["b"].troops = 1
+    st.towns["c"].troops = 1
+    plan = mist(st)
+    assert len(placed_in(plan, "b")) == 2
+    assert len(placed_in(plan, "c")) == 2
+
+
+def test_mist_does_not_half_commit_to_a_lead_it_cannot_afford():
+    """Half a lead is a donation: the Empire scores every card in a town it wins."""
+    st = rebel_board(hand=(1, 1))
+    st.towns["a"].troops = 5
+    plan = mist(st)
+    assert placed_in(plan, "a") == []
+    assert sum(len(ix) for ix in plan.placements.values()) == 2
+
+
+# -- real cards with nothing to flip ----------------------------------------
+
+def test_mist_seeds_an_empty_town_beside_a_garrison_that_can_spare_a_troop():
+    """A lone troop marching out abandons its town, so it is not really a
+    neighbour; two is the smallest garrison that can come and make a fight."""
+    st = rebel_board(hand=(1,), map=line_map())
+    st.towns["a"].troops = 3
+    st.towns["c"].troops = 1
+    plan = mist(st)
+    assert placed_in(plan, "b") == [0]
+    assert placed_in(plan, "d") == []
+
+
+# -- bluffs -----------------------------------------------------------------
+
+def test_mist_spreads_bluffs_one_empty_town_at_a_time():
+    """A second bluff on the same town says nothing the first did not."""
+    st = rebel_board(hand=(0, 0, 0))
+    st.towns["a"].troops = 2
+    plan = mist(st)
+    assert placed_in(plan, "b") == [0]
+    assert placed_in(plan, "c") == [1]
+    assert placed_in(plan, "d") == [2]
+
+
+def test_mist_never_bluffs_an_empty_town_no_troops_can_reach():
+    """Nobody will ever walk into it, so the bluff has no audience."""
+    st = rebel_board(hand=(0, 0), map=line_map())
+    st.towns["a"].troops = 2
+    plan = mist(st)
+    assert placed_in(plan, "c") == []
+    assert placed_in(plan, "d") == []
+
+
+def test_mist_bluffs_the_closest_thing_to_a_tie_once_the_empty_towns_are_gone():
+    """Every town is garrisoned, so there is no empty ground to seed.
+
+    B is level with its garrison and the others are one or two clear, so B is
+    the only pile a card can change the Empire's reading of.
+    """
+    st = rebel_board(hand=(0,), map=line_map())
+    for town_id, troops in (("a", 2), ("b", 1), ("c", 2), ("d", 1)):
+        st.towns[town_id].troops = troops
+    seed(st, "b", 1)
+    plan = mist(st)
+    assert placed_in(plan, "b") == [0]
+
+
+def test_mist_falls_back_to_the_nearest_town_when_nothing_is_in_reach():
+    """Forced: the whole hand must go out (Decision 6) even with no audience."""
+    st = rebel_board(hand=(0,), map=line_map())
+    st.towns["a"].troops = 2
+    st.towns["a"].resolved = True
+    st.towns["b"].resolved = True
+    plan = mist(st)
+    assert placed_in(plan, "c") == [0]
+
+
+# -- whole games ------------------------------------------------------------
+
+def test_mist_places_its_entire_hand_every_turn():
+    real = load_scenario("baseline")
+    rng = random.Random(3)
+    st = new_game(real, rng)
+    bot = MistBot(rng)
+    for _ in range(6):
+        st.to_move = Side.INSURGENCY
+        plan = bot.choose(st)
+        placed = sorted(i for ix in plan.placements.values() for i in ix)
+        assert placed == list(range(len(st.hand)))
+        apply_insurgency_turn(st, plan)
+        st.hand = [Card(uid=900, type_id="influence1", presence=1)
+                   for _ in range(real.hand_size)]
+
+
+def test_mist_plays_legal_games_on_the_real_scenario():
+    real = load_scenario("baseline")
+    for s in range(20):
+        rng = random.Random(s)
+        st = play_game(real, GlobEmpire(rng), MistBot(rng), rng)
+        assert st.game_over
+        for town in st.towns.values():
+            assert town.resolved or town_is_uncontested(town)
+
+
+def test_mist_beats_the_empire_bot_that_beats_the_heuristic_rebels():
+    """The reason it exists. GlobEmpire takes about 64% against the heuristic
+    Insurgency and should not manage that here."""
+    real = load_scenario("baseline")
+    wins = 0
+    for s in range(50):
+        rng = random.Random(s)
+        st = play_game(real, GlobEmpire(rng), MistBot(rng), rng)
+        wins += st.scores[Side.INSURGENCY] > st.scores[Side.EMPIRE]
+    assert wins > 25

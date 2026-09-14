@@ -39,7 +39,8 @@ const P_TWO = 2345002;
  * same way twice.
  */
 function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
-                 int $botOption = Game::BOT_GLOB): Game
+                 int $botOption = Game::BOT_GLOB,
+                 int $rebelOption = Game::REBEL_MIST): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -48,6 +49,7 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
     $game = new Game();
     $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
     $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
+    $game->bga->tableOptions->values[Game::OPT_REBEL_BOT] = $rebelOption;
 
     $players = [
         P_ONE => ['player_name' => 'One'],
@@ -65,7 +67,8 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
  * A solo game: one human, and the bot on the other side.
  */
 function newSoloGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
-                     int $botOption = Game::BOT_GLOB): Game
+                     int $botOption = Game::BOT_GLOB,
+                     int $rebelOption = Game::REBEL_MIST): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -74,6 +77,7 @@ function newSoloGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 
     $game = new Game();
     $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
     $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
+    $game->bga->tableOptions->values[Game::OPT_REBEL_BOT] = $rebelOption;
 
     $setup = new ReflectionMethod($game, 'setupNewGame');
     $setup->setAccessible(true);
