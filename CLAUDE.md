@@ -323,6 +323,16 @@ re-rendered the clock with `gamedatas.round` from setup. The round now rides alo
 deck count. Worth remembering as a shape: anything the client caches from `getAllDatas` and
 never hears about again will be wrong for the rest of the game.
 
+**A GPT that plays the Insurgency lives on the `gpt-experiment` branch**, in `gpt/`, parked
+2026-09-14. Not part of the game — nothing in `sim/` or `modules/` imports it and
+`tools/deploy.json` excludes it on both branches. Karpathy's ~1,500-parameter
+dependency-free GPT, cloned from MistBot and then improved with policy gradient, reaches
++5.33 margin against `GlobEmpire` where MistBot gets +5.57; the same reinforcement budget
+from random init reaches −0.12, worse than a random rebel. The finding worth carrying
+back to any future bot work is that reward alone farmed the *weakest* opponent in the
+pool. `gpt/RESULTS.md` has the tables. The trained weights are gitignored and exist only
+on the machine that made them.
+
 **Deferred work lives in GitHub Issues**, not in this file:
 https://github.com/scotfree/ironandwhisper/issues, labelled `design`, `balance`, `ui`,
 `bots`, `playtest`, `deferred`. This document and `ironandwhisper.md` record decisions and
