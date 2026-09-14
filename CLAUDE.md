@@ -185,12 +185,25 @@ Done:
   production mark beside the name. Which side a number belongs to is legible from where it
   sits before the number is read. **A staged change reads the same on both sides** —
   `.iaw-troop-delta` and `.iaw-card-delta` share one rule and differ only in colour, each
-  sitting beside the number it changes. The rebel marker used to be `.iaw-town-pending`, a
+  sitting beside the number it changes. **With one deliberate exception**
+  (2026-09-14): `.iaw-build-delta`, the troops about to be raised, is pulsing Empire
+  purple at 14px. A build is the only change the Empire *creates* rather than moves, and
+  it is the step being decided while it is on screen. It is also tracked apart from
+  `troopDelta` because the two used to be summed — a town raising one troop while three
+  marched out read "-2", and the choice just made vanished into the arithmetic. The rebel marker used to be `.iaw-town-pending`, a
   grey strip across the bottom of the box with no styling attached to its `pending` class;
   a real game found that nobody could see where their cards were going. The Insurgency's
   turn box now also lists one line per staged card, in placement order — "+2" says how many
   and not which, and which is the whole decision; the order matters too, since the last card
   onto a town is the top of its pile and the first thing a look reads.
+- **`MINIMAL_TOWNS` in `BoardView.ts` hides the Empire's supply arithmetic in the town
+  boxes** (2026-09-14, currently on): the network badge and the town's own contribution,
+  the two lines a real game found nobody was reading. A build-time constant rather than a
+  game preference — it exists so the fuller version comes back in one line, not because it
+  is a choice to make often. Nothing it hides is unavailable: the army list carries each
+  network's numbers and still turns red over the ceiling, and troops under notice still
+  pulse with what they are about to lose. Revisit if a second display option ever makes
+  simple-versus-full a real choice for players.
 - **An army list beside the board**, one entry per Empire supply network: a large pawn, the
   network named for the town holding most of it, and "N troops use N supply of M
   available." It turns red when the army is over its ceiling. The point is the *split* — a
