@@ -198,6 +198,7 @@ export class EmpireTurn {
             }
         });
         this.game.board.setTroopDelta(delta);
+        this.game.board.setBuildDelta({ ...this.produce });
         this.game.board.setMoveArrows(this.moves);
 
         this.game.board.setSelectable(this.selectableTowns());

@@ -107,7 +107,7 @@ $board: #e6e6e8;
 
     // Everything sits below the shoulder of the silhouette — the line the roof
     // stands on, at y = 26 of 104 in both files. Move it there and here.
-    padding: 28px 5px 4px;
+    padding: 28px 8px 4px;
     overflow: hidden;
 
     // Black, matching the stroke in the SVG files themselves, so editing the
@@ -1072,6 +1072,25 @@ $board: #e6e6e8;
     color: $insurgency;
     font-weight: bold;
     opacity: 1;
+}
+
+// The exception to that rule, and a deliberate one. A build is the only change
+// on the board the Empire *creates* rather than moves, and it is what the step
+// being played is about — so it is louder than the marching delta beside it
+// rather than the same weight. It also used to be invisible: builds and
+// arrivals were summed into one number, and a town raising a troop while three
+// marched out simply read "-2".
+.iaw-build-delta {
+    margin-left: 3px;
+    color: $empire;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+    animation: iaw-build-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes iaw-build-pulse {
+    50% { transform: scale(1.3); opacity: 0.65; }
 }
 
 // Marches being staged, drawn along the roads they follow.

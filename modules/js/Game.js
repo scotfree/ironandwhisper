@@ -12,6 +12,18 @@ const PADDING = 70;
 // went on and no two towns were the same shape.
 const TOWN_WIDTH = 120;
 const TOWN_HEIGHT = 104;
+/**
+ * Hide the Empire's supply arithmetic inside the town boxes.
+ *
+ * A build-time switch rather than a preference: it is here so the fuller
+ * version can be brought back in a line, not because it is a choice anybody
+ * makes often. What goes is the network badge (troops/ceiling) and the town's
+ * own contribution — the two lines nobody was reading. Nothing is lost that is
+ * not said elsewhere: the army list beside the board carries each network's
+ * numbers and turns red over the ceiling, and troops under notice still pulse
+ * with what they are about to lose.
+ */
+const MINIMAL_TOWNS = true;
 class BoardView {
     constructor(container, scenario, towns, viewerSide) {
         this.container = container;
@@ -29,6 +41,15 @@ class BoardView {
         this.cardDelta = {};
         /** Signed troop changes being staged, shown on the troop badge as 2+1. */
         this.troopDelta = {};
+        /**
+         * Town id => troops about to be built there.
+         *
+         * Kept apart from `troopDelta` because a build and a march are different
+         * events that used to add up to one number: Everlan raising a troop while
+         * three marched out read as "-2", and the build — the thing you had just
+         * chosen — vanished into the arithmetic.
+         */
+        this.buildDelta = {};
         /** Cards drawn above a town: staged this turn, or placed on the last one. */
         this.overlay = {};
         this.overlayGhost = false;
@@ -382,14 +403,23 @@ class BoardView {
      */
     troopsHtml(townId, town) {
         const delta = this.troopDelta[townId] ?? 0;
-        if (town.troops === 0 && delta === 0) {
+        const built = this.buildDelta[townId] ?? 0;
+        if (town.troops === 0 && delta === 0 && built === 0) {
             return '';
         }
         const pawn = this.frames
             ? `<span class="iaw-pawn">${this.frames.pawn}</span>`
             : '';
-        const change = delta === 0 ? ''
-            : `<span class="iaw-troop-delta">${delta > 0 ? '+' : '-'}${Math.abs(delta)}</span>`;
+        // The build is called out on its own, loudly: it is the one change on
+        // the board the Empire *creates* rather than moves, and it is the step
+        // being decided when it is shown. What is left of the delta is the
+        // marching — arrivals less departures — and stays quiet.
+        const raising = built === 0 ? ''
+            : `<span class="iaw-build-delta" title="${_('Building here this turn')}"
+                >+${built}</span>`;
+        const marching = delta - built;
+        const change = marching === 0 ? ''
+            : `<span class="iaw-troop-delta">${marching > 0 ? '+' : '-'}${Math.abs(marching)}</span>`;
         // A garrison under notice pulses and says how many of it are going,
         // because the loss used to land between turns where nobody saw it.
         const doomed = town.starving > 0
@@ -397,7 +427,7 @@ class BoardView {
             : '';
         return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${doomed}</div>`;
+                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${change}${raising}${doomed}</div>`;
     }
     /**
      * Supply, as "troops standing / what this network holds" over "what this
@@ -405,6 +435,9 @@ class BoardView {
      * is what makes a network visible.
      */
     supplyHtml(townId, town, denied) {
+        if (MINIMAL_TOWNS) {
+            return '';
+        }
         const network = this.networkOf(townId);
         if (!network) {
             return '';
@@ -607,6 +640,11 @@ class BoardView {
         this.troopDelta = delta;
         this.updateAll();
     }
+    /** @param build town id => troops being raised there this turn */
+    setBuildDelta(build) {
+        this.buildDelta = build;
+        this.updateAll();
+    }
     /**
      * Draw the marches being staged as arrows along the roads they follow, so
      * the plan is visible on the map rather than only in a list.
@@ -637,6 +675,7 @@ class BoardView {
         this.dropHandler = null;
         this.cardDelta = {};
         this.troopDelta = {};
+        this.buildDelta = {};
         this.setOverlay({});
         this.setMoveArrows([]);
         this.setSelectable([]);
@@ -852,6 +891,7 @@ class EmpireTurn {
             }
         });
         this.game.board.setTroopDelta(delta);
+        this.game.board.setBuildDelta({ ...this.produce });
         this.game.board.setMoveArrows(this.moves);
         this.game.board.setSelectable(this.selectableTowns());
         this.game.board.setSelected(this.source ? [this.source] : []);
