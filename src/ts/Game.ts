@@ -82,15 +82,20 @@ export class Game {
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
                     <div id="iaw-state">
+                        <div class="iaw-frame-title">${_('Game Status')}</div>
                         <div id="iaw-clock"></div>
                         <div id="iaw-phases"></div>
                     </div>
                     <div id="iaw-zoom"></div>
                     <div id="iaw-staging">
+                        <div class="iaw-frame-title">${_('Turn Status')}</div>
                         <div id="iaw-staging-text"></div>
                         <div id="iaw-hand"></div>
                     </div>
-                    <div id="iaw-armies"></div>
+                    <div id="iaw-armies-frame" hidden>
+                        <div class="iaw-frame-title">${_('Armies')}</div>
+                        <div id="iaw-armies"></div>
+                    </div>
                     <div id="iaw-last-turn"></div>
                     <div id="iaw-primer"></div>
                 </div>
@@ -183,7 +188,14 @@ export class Game {
             return;
         }
 
+        // The frame's title has nothing to say about an Empire with no troops
+        // left standing, so the whole thing goes rather than leaving a heading
+        // over an empty box.
+        const frame = document.getElementById('iaw-armies-frame');
         const armies = this.board.armies();
+        if (frame) {
+            frame.hidden = armies.length === 0;
+        }
         if (!armies.length) {
             element.innerHTML = '';
             return;
@@ -195,7 +207,10 @@ export class Game {
                  title="${_('Hover to find this army on the map')}">
                 <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
                 <div class="iaw-army-detail">
-                    <div class="iaw-army-name">${army.name} ${_('Army')}</div>
+                    <div class="iaw-army-name">${army.name} ${_('Army')}
+                        <span class="iaw-army-load"
+                              title="${_('Supply used, of supply available')}"
+                            >(${army.supplyUsed}/${army.supplyAvailable})</span></div>
                     <div class="iaw-army-supply">${this.supplySentence(army)}</div>
                 </div>
             </div>
@@ -254,10 +269,20 @@ export class Game {
      * concatenated fragments, which no translator can reorder.
      */
     private supplySentence(army: ArmyView): string {
-        return _('${troops} troops use ${used} supply of ${available} available.')
-            .replace('${troops}', String(army.troops))
+        // Where the supply comes from is the other half of a cut line: an army
+        // of four drawing on three towns loses a third of its ceiling with the
+        // first town it gives up. Only towns that actually contribute are
+        // counted — a town the rebels have won stays in the network, and feeds
+        // nothing, for ever.
+        const sentence = army.supplyTowns === 1
+            ? _('${troops} troops using ${used} supply of ${available} available from one town.')
+            : _('${troops} troops using ${used} supply of ${available} available from ${towns} towns.');
+
+        return sentence
+            .replace('${troops}', presenceHtml(army.troops, '', _('Presence this army carries')))
             .replace('${used}', String(army.supplyUsed))
-            .replace('${available}', String(army.supplyAvailable));
+            .replace('${available}', String(army.supplyAvailable))
+            .replace('${towns}', String(army.supplyTowns));
     }
 
     onHandClick(handler: (cardId: number) => void): void {
@@ -580,8 +605,7 @@ export class Game {
 
         element.innerHTML = `
             <div class="iaw-last-turn">
-                <div class="iaw-heading">${turn.side === 'empire'
-                    ? _('The Empire\'s last turn') : _('The rebels\' last turn')}</div>
+                <div class="iaw-frame-title">${_('Last Turn')}</div>
                 ${lines.length
                     ? lines.map(line => `<div>${line}</div>`).join('')
                     : `<div class="iaw-hint">${_('Nothing moved.')}</div>`}

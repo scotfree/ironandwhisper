@@ -445,24 +445,23 @@ class BoardView {
             : '';
         return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${this.troopPresenceHtml(town.troops)}${change}${raising}${doomed}</div>`;
+                 >${pawn}${this.garrisonHtml(town.troops)}${change}${raising}${doomed}</div>`;
     }
     /**
-     * What a garrison is worth at a resolution, as a presence pip — but only
-     * when that is a different number from the count of troops.
+     * The garrison, as the number that decides the town.
      *
-     * At `unit.presence` 1 the count *is* the presence, and drawing both would
-     * put the same number on the board twice. The pip appears the moment a
-     * troop is worth more than one, which is the parameter change most likely
-     * to be made next; until then the plain count does both jobs, and the
-     * rebels' pips are the only discs on the board.
+     * While a troop is worth 1 presence the count *is* the presence, so it is
+     * drawn as a pip and there is only one number: the pawn already says these
+     * are troops. The moment a troop is worth more the two part company and
+     * both are wanted — how many pieces are standing there, and what they are
+     * worth — so the plain count comes back with the pip beside it.
      */
-    troopPresenceHtml(troops) {
+    garrisonHtml(troops) {
         const each = this.scenario.unit.presence;
-        if (each === 1 || troops === 0) {
-            return '';
+        if (each === 1) {
+            return presenceHtml(troops, '', _('Presence this garrison carries'));
         }
-        return presenceHtml(troops * each, '', _('Presence this garrison carries'));
+        return `<span class="iaw-troop-count">${troops}</span>${presenceHtml(troops * each, '', _('Presence this garrison carries'))}`;
     }
     /**
      * Supply, as "troops standing / what this network holds" over "what this
@@ -596,6 +595,7 @@ class BoardView {
                 troops,
                 supplyUsed: troops * this.scenario.supplyPerTroop,
                 supplyAvailable: supply,
+                supplyTowns: towns.filter(id => this.supplyOf(id) > 0).length,
             };
         });
     }
@@ -1483,8 +1483,9 @@ class Help {
             [art(this.board.citySvg()) + ' <span class="iaw-produce">&#128296;</span>',
                 _('A city, marked with a hammer. Also builds a troop a turn for whoever holds it.')],
             [`<span class="iaw-troops">${this.board.pawnSvg()
-                    ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}<span class="iaw-troop-count">3</span>${this.scenario.unit.presence === 1
-                    ? '' : presenceHtml(3 * this.scenario.unit.presence)}</span>`,
+                    ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}${this.scenario.unit.presence === 1
+                    ? presenceHtml(3)
+                    : `<span class="iaw-troop-count">3</span>${presenceHtml(3 * this.scenario.unit.presence)}`}</span>`,
                 _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                     .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4, '?'),
@@ -1551,9 +1552,7 @@ class Help {
             : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
-                <div class="iaw-heading">${rebel
-            ? _('You play the Rebels')
-            : _('You play the Empire')}</div>
+                <div class="iaw-frame-title">${_('Rules Summary')}</div>
                 <p>${summary}</p>
                 <button type="button" class="iaw-primer-more">${_('How to play')}</button>
             </div>
@@ -1662,15 +1661,20 @@ class Game {
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
                     <div id="iaw-state">
+                        <div class="iaw-frame-title">${_('Game Status')}</div>
                         <div id="iaw-clock"></div>
                         <div id="iaw-phases"></div>
                     </div>
                     <div id="iaw-zoom"></div>
                     <div id="iaw-staging">
+                        <div class="iaw-frame-title">${_('Turn Status')}</div>
                         <div id="iaw-staging-text"></div>
                         <div id="iaw-hand"></div>
                     </div>
-                    <div id="iaw-armies"></div>
+                    <div id="iaw-armies-frame" hidden>
+                        <div class="iaw-frame-title">${_('Armies')}</div>
+                        <div id="iaw-armies"></div>
+                    </div>
                     <div id="iaw-last-turn"></div>
                     <div id="iaw-primer"></div>
                 </div>
@@ -1747,7 +1751,14 @@ class Game {
         if (!element) {
             return;
         }
+        // The frame's title has nothing to say about an Empire with no troops
+        // left standing, so the whole thing goes rather than leaving a heading
+        // over an empty box.
+        const frame = document.getElementById('iaw-armies-frame');
         const armies = this.board.armies();
+        if (frame) {
+            frame.hidden = armies.length === 0;
+        }
         if (!armies.length) {
             element.innerHTML = '';
             return;
@@ -1758,7 +1769,10 @@ class Game {
                  title="${_('Hover to find this army on the map')}">
                 <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
                 <div class="iaw-army-detail">
-                    <div class="iaw-army-name">${army.name} ${_('Army')}</div>
+                    <div class="iaw-army-name">${army.name} ${_('Army')}
+                        <span class="iaw-army-load"
+                              title="${_('Supply used, of supply available')}"
+                            >(${army.supplyUsed}/${army.supplyAvailable})</span></div>
                     <div class="iaw-army-supply">${this.supplySentence(army)}</div>
                 </div>
             </div>
@@ -1810,10 +1824,19 @@ class Game {
      * concatenated fragments, which no translator can reorder.
      */
     supplySentence(army) {
-        return _('${troops} troops use ${used} supply of ${available} available.')
-            .replace('${troops}', String(army.troops))
+        // Where the supply comes from is the other half of a cut line: an army
+        // of four drawing on three towns loses a third of its ceiling with the
+        // first town it gives up. Only towns that actually contribute are
+        // counted — a town the rebels have won stays in the network, and feeds
+        // nothing, for ever.
+        const sentence = army.supplyTowns === 1
+            ? _('${troops} troops using ${used} supply of ${available} available from one town.')
+            : _('${troops} troops using ${used} supply of ${available} available from ${towns} towns.');
+        return sentence
+            .replace('${troops}', presenceHtml(army.troops, '', _('Presence this army carries')))
             .replace('${used}', String(army.supplyUsed))
-            .replace('${available}', String(army.supplyAvailable));
+            .replace('${available}', String(army.supplyAvailable))
+            .replace('${towns}', String(army.supplyTowns));
     }
     onHandClick(handler) {
         this.handClickHandler = handler;
@@ -2094,8 +2117,7 @@ class Game {
         });
         element.innerHTML = `
             <div class="iaw-last-turn">
-                <div class="iaw-heading">${turn.side === 'empire'
-            ? _('The Empire\'s last turn') : _('The rebels\' last turn')}</div>
+                <div class="iaw-frame-title">${_('Last Turn')}</div>
                 ${lines.length
             ? lines.map(line => `<div>${line}</div>`).join('')
             : `<div class="iaw-hint">${_('Nothing moved.')}</div>`}

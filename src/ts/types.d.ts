@@ -128,6 +128,8 @@ interface ArmyView {
     troops: number;
     supplyUsed: number;
     supplyAvailable: number;
+    /** How many of its towns actually feed it: a rebel-won town feeds nothing. */
+    supplyTowns: number;
 }
 
 /** A move staged in the client, before it is sent. */

@@ -111,8 +111,10 @@ export class Help {
              _('A city, marked with a hammer. Also builds a troop a turn for whoever holds it.')],
             [`<span class="iaw-troops">${this.board.pawnSvg()
                 ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''
-             }<span class="iaw-troop-count">3</span>${this.scenario.unit.presence === 1
-                ? '' : presenceHtml(3 * this.scenario.unit.presence)}</span>`,
+             }${this.scenario.unit.presence === 1
+                ? presenceHtml(3)
+                : `<span class="iaw-troop-count">3</span>${
+                    presenceHtml(3 * this.scenario.unit.presence)}`}</span>`,
              _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                 .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4, '?'),
@@ -188,9 +190,7 @@ export class Help {
 
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
-                <div class="iaw-heading">${rebel
-                    ? _('You play the Rebels')
-                    : _('You play the Empire')}</div>
+                <div class="iaw-frame-title">${_('Rules Summary')}</div>
                 <p>${summary}</p>
                 <button type="button" class="iaw-primer-more">${_('How to play')}</button>
             </div>

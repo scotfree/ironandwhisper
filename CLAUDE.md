@@ -206,10 +206,12 @@ Done:
   are worth, and before this the two numbers looked alike. A count of pieces — pile height,
   garrison size — stays plain. The Empire's unknown pile total is a `?` in the same disc,
   not a greyed one: the shape promises a number belongs there, and what the Empire is
-  missing is the number rather than the presence. **The garrison shows no disc while
-  `unit.presence` is 1**, because the count would be the same number twice;
-  `BoardView.troopPresenceHtml` starts drawing it the moment a troop is worth more, which
-  is open question 2's lever.
+  missing is the number rather than the presence. **The garrison is a disc too**: while a
+  troop is worth 1 presence the count *is* the presence, so there is one number and the
+  pawn beside it says they are troops. `BoardView.garrisonHtml` puts the plain count back
+  alongside the disc the moment `unit.presence` is more than 1, when the two part company
+  and both are wanted — how many pieces are standing, and what they are worth. That is open
+  question 2's lever, and the display is already waiting for it.
 - **`MINIMAL_TOWNS` in `BoardView.ts` hides the Empire's supply arithmetic in the town
   boxes** (2026-09-14, currently on): the network badge and the town's own contribution,
   the two lines a real game found nobody was reading. A build-time constant rather than a
@@ -219,8 +221,14 @@ Done:
   pulse with what they are about to lose. Revisit if a second display option ever makes
   simple-versus-full a real choice for players.
 - **An army list beside the board**, one entry per Empire supply network: a large pawn, the
-  network named for the town holding most of it, and "N troops use N supply of M
-  available." It turns red when the army is over its ceiling. The point is the *split* — a
+  network named for the town holding most of it with its load in the title line —
+  "Gallow Army (4/6)" — and under it "4 troops using 4 supply of 6 available from 3 towns."
+  It turns red when the army is over its ceiling, title line included, so the list answers
+  "is anybody over their ceiling" without reading a sentence per army. **The town count is
+  of towns that actually contribute**, not of the network: a town the rebels have won stays
+  in the network and feeds nothing, for ever, so counting it would make the sentence lie.
+  Where the supply comes from is the other half of a cut line — an army of four drawing on
+  three towns loses a third of its ceiling with the first town it gives up. The point is the *split* — a
   cut line is the most consequential thing that happens to the Empire and was otherwise
   legible only by comparing twelve supply badges. The name breaks ties by hashing the
   network's membership, so it is arbitrary rather than alphabetical, stable while the army
@@ -232,6 +240,18 @@ Done:
   delegated from `#iaw-armies` and the highlight is re-applied by name inside
   `renderArmies`, because the list is rebuilt on every board change — a dozen times on a
   full refresh — and anything bound to an entry would not survive one notification.
+- **Every frame in the side column opens with its name in blackletter**
+  (`.iaw-frame-title`): Game Status, Turn Status, Armies, Last Turn, Rules Summary. Five
+  boxes of small type ran together, and the titles are what make the column a list of
+  things rather than a wall. Blackletter is not a reading face, which is the point — a
+  title in it is scanned for *which box this is* and never mistaken for the contents, and
+  it is why `.iaw-army-load` breaks back out to a sans face for its digits. The titles
+  replaced the small uppercase headings on Last Turn ("The Empire's last turn") and Rules
+  Summary ("You play the Empire"): whose turn it was is legible from the lines under it,
+  and which side you are is the first word of the primer's own sentence. `Armies` is a
+  transparent grouping frame around the existing panels rather than a box of its own, and
+  it is hidden outright when the Empire has no troops left standing — a heading over an
+  empty box says less than nothing.
 - **The side column reads top to bottom in the order you need it**: the game state
   (turn / deck / hand, and the numbered turn order with the live step lit), the zoomed
   card, the turn summary with the Insurgency's hand inside it, the armies, what the

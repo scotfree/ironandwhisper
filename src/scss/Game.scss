@@ -549,14 +549,6 @@ $board: #e6e6e8;
     font-size: 12px;
     line-height: 1.5;
     color: #555;
-
-    .iaw-heading {
-        margin: 0 0 3px;
-        text-transform: uppercase;
-        font-size: 11px;
-        letter-spacing: 0.5px;
-        color: #777;
-    }
 }
 
 // Last turn's marches, faded, so they can share the board with this turn's.
@@ -798,9 +790,27 @@ $board: #e6e6e8;
     font-size: 13px;
 }
 
-.iaw-heading {
+// Every frame in the side column opens with its name, in the blackletter the
+// town names use. The column is five boxes of small type and they ran
+// together; the titles are what make it a list of things rather than a wall.
+// Blackletter is not a reading face, which is the point — a title in it is
+// scanned for *which box this is* and never mistaken for the contents.
+.iaw-frame-title {
+    margin: 0 0 5px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-size: 16px;
+    line-height: 1.1;
     font-weight: bold;
-    margin: 12px 0 4px;
+    color: $ink;
+}
+
+// The armies are already boxes of their own, so their container is a grouping
+// and nothing else: it exists to hang one title over however many armies the
+// Empire has. Hidden outright when it has none — see Game.renderArmies.
+#iaw-armies-frame {
+    margin-top: 10px;
 }
 
 #iaw-clock {
@@ -817,7 +827,7 @@ $board: #e6e6e8;
 // consequential thing that can happen to the Empire and it is otherwise only
 // legible by comparing twelve supply badges.
 #iaw-armies {
-    margin-top: 10px;
+    margin-top: 0;
 }
 
 .iaw-army {
@@ -880,8 +890,26 @@ $board: #e6e6e8;
     color: $ink;
 }
 
+// The same pair of numbers the sentence below spells out, in the title line
+// where the army is named: a glance at the list should answer "is anybody over
+// their ceiling" without reading a sentence per army.
+.iaw-army-load {
+    // Out of the blackletter deliberately: it is a reading face for names and
+    // nothing else, and its digits are close to unreadable at this size.
+    font-family: sans-serif;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: #555;
+}
+
+.iaw-army.over .iaw-army-load {
+    color: #7a1a14;
+}
+
 .iaw-army-supply {
     font-size: 12px;
+    // Room for the presence pip sitting in the middle of the sentence.
+    line-height: 1.7;
     font-variant-numeric: tabular-nums;
     color: #555;
 }
@@ -941,12 +969,6 @@ $board: #e6e6e8;
         background: color.mix($insurgency, #fff, 6%);
     }
 
-    .iaw-heading {
-        margin-top: 0;
-        text-transform: uppercase;
-        font-size: 11px;
-        letter-spacing: 0.5px;
-    }
 }
 
 .iaw-primer-steps {

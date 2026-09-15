@@ -505,26 +505,25 @@ export class BoardView {
 
         return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}<span class="iaw-troop-count">${town.troops}</span>${
-                    this.troopPresenceHtml(town.troops)}${change}${raising}${doomed}</div>`;
+                 >${pawn}${this.garrisonHtml(town.troops)}${change}${raising}${doomed}</div>`;
     }
 
     /**
-     * What a garrison is worth at a resolution, as a presence pip — but only
-     * when that is a different number from the count of troops.
+     * The garrison, as the number that decides the town.
      *
-     * At `unit.presence` 1 the count *is* the presence, and drawing both would
-     * put the same number on the board twice. The pip appears the moment a
-     * troop is worth more than one, which is the parameter change most likely
-     * to be made next; until then the plain count does both jobs, and the
-     * rebels' pips are the only discs on the board.
+     * While a troop is worth 1 presence the count *is* the presence, so it is
+     * drawn as a pip and there is only one number: the pawn already says these
+     * are troops. The moment a troop is worth more the two part company and
+     * both are wanted — how many pieces are standing there, and what they are
+     * worth — so the plain count comes back with the pip beside it.
      */
-    private troopPresenceHtml(troops: number): string {
+    private garrisonHtml(troops: number): string {
         const each = this.scenario.unit.presence;
-        if (each === 1 || troops === 0) {
-            return '';
+        if (each === 1) {
+            return presenceHtml(troops, '', _('Presence this garrison carries'));
         }
-        return presenceHtml(troops * each, '', _('Presence this garrison carries'));
+        return `<span class="iaw-troop-count">${troops}</span>${
+            presenceHtml(troops * each, '', _('Presence this garrison carries'))}`;
     }
 
     /**
@@ -677,6 +676,7 @@ export class BoardView {
                 troops,
                 supplyUsed: troops * this.scenario.supplyPerTroop,
                 supplyAvailable: supply,
+                supplyTowns: towns.filter(id => this.supplyOf(id) > 0).length,
             };
         });
     }
