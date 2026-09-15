@@ -29,9 +29,17 @@ use Bga\Games\IronAndWhisper\States\EndScore;
 
 $games = (int) ($argv[1] ?? 100);
 $botName = (string) ($argv[2] ?? 'glob');
-$bot = $botName === 'heuristic' ? Game::BOT_HEURISTIC : Game::BOT_GLOB;
+$bot = match ($botName) {
+    'heuristic' => Game::BOT_HEURISTIC,
+    'glob2' => Game::BOT_GLOB2,
+    default => Game::BOT_GLOB,
+};
 $rebelName = (string) ($argv[3] ?? 'mist');
-$rebel = $rebelName === 'heuristic' ? Game::REBEL_HEURISTIC : Game::REBEL_MIST;
+$rebel = match ($rebelName) {
+    'heuristic' => Game::REBEL_HEURISTIC,
+    'mist2' => Game::REBEL_MIST2,
+    default => Game::REBEL_MIST,
+};
 
 $wins = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0, 'draw' => 0];
 $towns = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];

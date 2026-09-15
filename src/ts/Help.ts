@@ -50,6 +50,28 @@ export class Help {
             ?.addEventListener('click', () => this.show());
     }
 
+    /**
+     * "You are playing the Empire" (or the Insurgency), pinned above the state
+     * description at the top of the page.
+     *
+     * The state description alone never says which side it is talking about —
+     * "${you} must place your entire hand" reads the same for either — and the
+     * asymmetry is the one thing worth never losing track of. A spectator gets
+     * nothing: they are not playing a side.
+     */
+    installSideBanner(side: Side | null): void {
+        const bar = document.getElementById('page-title');
+        if (!bar || document.getElementById('iaw-side-banner') || side === null) {
+            return;
+        }
+
+        bar.insertAdjacentHTML('afterbegin', `
+            <div id="iaw-side-banner" class="${side}">${side === 'insurgency'
+                ? _('You are playing the Insurgency')
+                : _('You are playing the Empire')}</div>
+        `);
+    }
+
     show(): void {
         // Rebuilt every time: a popin's close button destroys its DOM, so a
         // kept instance opens once and then does nothing at all.
@@ -62,6 +84,37 @@ export class Help {
         // dialog built at setup would have an empty legend for ever.
         this.dialog.setContent(this.sheetHtml());
         this.dialog.show();
+    }
+
+    /**
+     * The side reminder, blown up and shown full-screen at the start of the
+     * game — the same frame `primerHtml` renders beside the board, not the
+     * cheat sheet, so a player learns which side they are and what it does
+     * without being handed the whole rulebook. Not a BGA popin: this needs to
+     * disappear at the first click or keypress *anywhere*, and a popin only
+     * closes from its own chrome.
+     */
+    showStartOverlay(side: Side | null): void {
+        if (document.getElementById('iaw-start-overlay')) {
+            return;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'iaw-start-overlay';
+        overlay.innerHTML = `
+            <div id="iaw-start-card">
+                ${this.primerHtml(side)}
+                <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const dismiss = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', dismiss);
+        };
+        overlay.addEventListener('click', dismiss);
+        document.addEventListener('keydown', dismiss);
     }
 
     // -- the cheat sheet ----------------------------------------------------

@@ -1431,6 +1431,26 @@ class Help {
         document.getElementById('iaw-help-button')
             ?.addEventListener('click', () => this.show());
     }
+    /**
+     * "You are playing the Empire" (or the Insurgency), pinned above the state
+     * description at the top of the page.
+     *
+     * The state description alone never says which side it is talking about —
+     * "${you} must place your entire hand" reads the same for either — and the
+     * asymmetry is the one thing worth never losing track of. A spectator gets
+     * nothing: they are not playing a side.
+     */
+    installSideBanner(side) {
+        const bar = document.getElementById('page-title');
+        if (!bar || document.getElementById('iaw-side-banner') || side === null) {
+            return;
+        }
+        bar.insertAdjacentHTML('afterbegin', `
+            <div id="iaw-side-banner" class="${side}">${side === 'insurgency'
+            ? _('You are playing the Insurgency')
+            : _('You are playing the Empire')}</div>
+        `);
+    }
     show() {
         // Rebuilt every time: a popin's close button destroys its DOM, so a
         // kept instance opens once and then does nothing at all.
@@ -1443,6 +1463,34 @@ class Help {
         // dialog built at setup would have an empty legend for ever.
         this.dialog.setContent(this.sheetHtml());
         this.dialog.show();
+    }
+    /**
+     * The side reminder, blown up and shown full-screen at the start of the
+     * game — the same frame `primerHtml` renders beside the board, not the
+     * cheat sheet, so a player learns which side they are and what it does
+     * without being handed the whole rulebook. Not a BGA popin: this needs to
+     * disappear at the first click or keypress *anywhere*, and a popin only
+     * closes from its own chrome.
+     */
+    showStartOverlay(side) {
+        if (document.getElementById('iaw-start-overlay')) {
+            return;
+        }
+        const overlay = document.createElement('div');
+        overlay.id = 'iaw-start-overlay';
+        overlay.innerHTML = `
+            <div id="iaw-start-card">
+                ${this.primerHtml(side)}
+                <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const dismiss = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', dismiss);
+        };
+        overlay.addEventListener('click', dismiss);
+        document.addEventListener('keydown', dismiss);
     }
     // -- the cheat sheet ----------------------------------------------------
     sheetHtml() {
@@ -1708,7 +1756,14 @@ class Game {
         }
         this.help = new Help(gamedatas.scenario, this.board);
         this.help.install();
+        this.help.installSideBanner(this.side);
         this.renderPrimer();
+        // The same reminder, blown up and shown once at the start of the game:
+        // round 1 is the closest thing to "just sat down" that a page load can
+        // tell, since every reload re-runs setup() with no other signal for it.
+        if (gamedatas.round <= 1) {
+            this.help.showStartOverlay(this.side);
+        }
         this.renderPhases();
         this.wireArmyHover();
         this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));

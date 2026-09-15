@@ -759,6 +759,61 @@
   transform: translateY(-50%);
 }
 
+#iaw-side-banner {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 0;
+}
+#iaw-side-banner.empire {
+  color: #6b3fa0;
+}
+#iaw-side-banner.insurgency {
+  color: #2e7d4f;
+}
+
+/********* the start-of-game overlay *********/
+#iaw-start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.65);
+  cursor: pointer;
+}
+
+#iaw-start-card {
+  width: 100%;
+  max-width: 640px;
+  cursor: default;
+}
+#iaw-start-card .iaw-primer {
+  font-size: 16px;
+  line-height: 1.55;
+  padding: 28px 32px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+#iaw-start-card .iaw-heading {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+#iaw-start-card .iaw-primer-more {
+  font-size: 14px;
+  padding: 6px 14px;
+}
+
+#iaw-start-hint {
+  margin-top: 14px;
+  text-align: center;
+  color: #fff;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
 #iaw-help-button {
   width: 26px;
   height: 26px;

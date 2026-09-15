@@ -684,6 +684,142 @@ class GlobEmpire:
         return disband
 
 
+class Glob2Empire(GlobEmpire):
+    """GlobEmpire, tightened by three games of real play against MistBot.
+
+    GlobEmpire's retreat margin is tuned not to flinch at a bluff — right for
+    a garrison the main army can reach and reinforce in one motion, wrong for
+    a garrison standing alone with nobody next door to send. MistBot's
+    cheapest attack is "clear the garrison by exactly one", and a margin of 5
+    will not react to that until the town is already lost — worse, a lone
+    garrison usually *cannot* be rescued at all, since rescue needs a
+    neighbour with spare troops and an outpost by definition has none. Two
+    human games where the Empire held everything in one blob scored 5-0 and
+    6-0 against MistBot; the one where it scattered into five separate
+    garrisons lost 7-2, one captured garrison at a time (issue #18).
+
+    The fix is not a lower margin everywhere — GlobEmpire's own sweep found a
+    broad plateau there, and reacting to every bluff against the main army
+    would hand it towns for nothing. It is a *second*, much tighter margin
+    for troops that are not part of the main army, on the same logic as the
+    human game's "march everyone out of Belmar while it was still just
+    accumulating": leaving an exposed outpost early is cheap, and one left
+    standing is an offer MistBot's own re-bidding will eventually take.
+
+    isolated_margin  deficit that triggers rescue-or-withdraw for a garrison
+                      outside the main component. Default 1: react to any
+                      real threat at all, since there is no safety in numbers
+                      to wait for out there.
+    """
+
+    def __init__(self, rng: random.Random | None = None, retreat_margin: int = 5,
+                 isolated_margin: int = 1):
+        super().__init__(rng, retreat_margin=retreat_margin)
+        self.isolated_margin = isolated_margin
+
+    @staticmethod
+    def _home_component(board: GameState) -> frozenset[str]:
+        """The Empire's main body: the network holding the most troops.
+
+        Ties broken by town count and then by which set of ids sorts lowest,
+        purely so the choice is deterministic — neither tie-break means
+        anything on its own, and real ties are rare enough not to matter.
+        """
+        components = empire_components(board)
+        if not components:
+            return frozenset()
+        best = max(
+            components,
+            key=lambda c: (troops_in(board, c), len(c), tuple(sorted(c, reverse=True))),
+        )
+        return frozenset(best)
+
+    def _moves(self, board: GameState) -> list[tuple[str, str, int]]:
+        # Identical to GlobEmpire._moves except it derives `home` once, up
+        # front, and hands it to `_rescue` so trouble can be judged by a
+        # different standard depending on whether help is reachable.
+        origin = {tid: t.troops for tid, t in board.towns.items()}
+        departed: dict[str, int] = {}
+        moves: list[tuple[str, str, int]] = []
+        tolerated = _overage(board)
+        home = self._home_component(board)
+
+        def available(town_id: str) -> int:
+            return origin[town_id] - departed.get(town_id, 0)
+
+        def spare(town_id: str) -> int:
+            town = board.towns[town_id]
+            keep = self._garrison_needed(board, town)
+            return max(0, min(available(town_id), town.troops - keep))
+
+        def commit(src: str, dst: str, quantity: int) -> bool:
+            board.towns[src].troops -= quantity
+            board.towns[dst].troops += quantity
+            if _overage(board) > tolerated:
+                board.towns[src].troops += quantity
+                board.towns[dst].troops -= quantity
+                return False
+            departed[src] = departed.get(src, 0) + quantity
+            moves.append((src, dst, quantity))
+            return True
+
+        self._rescue(board, available, spare, commit, home)
+        self._expand(board, commit, spare)
+        return moves
+
+    def _rescue(self, board, available, spare, commit, home=frozenset()) -> None:
+        """As GlobEmpire, but a garrison outside `home` uses `isolated_margin`.
+
+        Everything past the threshold — all-or-nothing reinforcement,
+        withdrawing rather than standing half-fed — is unchanged; only the
+        deficit that counts as "trouble" differs by whether the rest of the
+        army is in reach.
+        """
+        troop_presence = board.scenario.unit.presence
+
+        def deficit(town) -> int:
+            return self.worst_case(board, town) - town.troops * troop_presence
+
+        def margin_for(town_id: str) -> int:
+            return (self.retreat_margin if component_of(board, town_id) == home
+                    else self.isolated_margin)
+
+        troubled = sorted(
+            (t for t in board.unresolved
+             if t.troops > 0 and deficit(t) >= margin_for(t.id)),
+            key=deficit,
+            reverse=True,
+        )
+
+        for town in troubled:
+            wanted = self._garrison_needed(board, town) - town.troops
+            helpers = sorted(
+                (n for n in town.neighbors if spare(n) > 0),
+                key=spare,
+                reverse=True,
+            )
+            if sum(spare(n) for n in helpers) >= wanted:
+                for helper in helpers:
+                    if wanted <= 0:
+                        break
+                    sending = min(spare(helper), wanted)
+                    if commit(helper, town.id, sending):
+                        wanted -= sending
+                if wanted <= 0:
+                    continue
+                # The supply check refused part of the relief; fall through and
+                # treat the town as unsavable rather than leave it half-fed.
+
+            retreat = self._retreat_to(board, town)
+            if retreat is not None:
+                commit(town.id, retreat, available(town.id))
+            else:
+                # Nowhere safe to go: mass here instead and come back at it
+                # later as one stack rather than a trickle.
+                for helper in helpers:
+                    commit(helper, town.id, spare(helper))
+
+
 # ---------------------------------------------------------------------------
 # The Insurgency that plays the map
 # ---------------------------------------------------------------------------
@@ -899,6 +1035,49 @@ class MistBot:
                    key=lambda t: (hops.get(t.id, len(board.towns)), t.id)).id
 
 
+class Mist2Insurgency(MistBot):
+    """MistBot, aimed at the garrison rather than away from it (issue #18).
+
+    MistBot's lead target picks the town with the *fewest* troops nearby
+    first, on the theory that a lead only survives if the Empire cannot walk
+    a relief column into it. Against a human Empire that never breaks up its
+    army, that rule always points at the far edge of the map — the only
+    place with few adjacent troops is wherever the Empire is not — so the
+    "wins" it found there were all against towns worth nothing: three human
+    games saw six, four and one uncontested empty towns resolve for zero
+    while the Empire's actual garrison went untouched (issue #18, games 1
+    and 2).
+
+    The third game showed the alternative works. The Empire reinforced Kirn
+    from one troop to three, and MistBot's own rule cleared it a second time
+    anyway, for a bigger prize at no extra cost: "a bigger garrison is a
+    bigger prize, and clearing it by one costs the rebels no more than
+    clearing a small one by one." So this bot leads with the richest
+    garrison it can afford and uses fewest-troops-in-reach only to break a
+    tie between equally rich targets, rather than as the deciding question.
+    It does not stop attacking defended ground; it stops avoiding it.
+    """
+
+    def _lead_target(self, board: GameState, real: list[int]) -> str | None:
+        budget = sum(board.hand[i].presence for i in real)
+        best, best_key = None, None
+        for town in board.unresolved:
+            if town.troops <= 0:
+                continue
+            deficit = (board.troop_presence_in(town.id)
+                       - board.card_presence_in(town.id) + 1)
+            if deficit <= 0 or deficit > budget:
+                continue
+            # Richest garrison first — that is the score. Fewest troops in
+            # reach only breaks a tie between two equally valuable targets.
+            key = (-board.troop_presence_in(town.id),
+                   _adjacent_troops(board, town),
+                   town.id)
+            if best_key is None or key < best_key:
+                best, best_key = town.id, key
+        return best
+
+
 def _overage(state: GameState) -> int:
     """Troops across the whole board that their networks cannot feed."""
     return sum(
@@ -982,16 +1161,20 @@ BOTS = {
     "heuristic": (HeuristicEmpire, HeuristicInsurgency),
     "glob": (GlobEmpire, HeuristicInsurgency),
     "mist": (GlobEmpire, MistBot),
+    "glob2": (Glob2Empire, HeuristicInsurgency),
+    "mist2": (GlobEmpire, Mist2Insurgency),
 }
 
 EMPIRE_BOTS = {
     "random": RandomEmpire,
     "heuristic": HeuristicEmpire,
     "glob": GlobEmpire,
+    "glob2": Glob2Empire,
 }
 
 INSURGENCY_BOTS = {
     "random": RandomInsurgency,
     "heuristic": HeuristicInsurgency,
     "mist": MistBot,
+    "mist2": Mist2Insurgency,
 }

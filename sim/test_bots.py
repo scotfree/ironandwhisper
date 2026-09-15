@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import random
 
-from .bots import GlobEmpire, HeuristicInsurgency, MistBot
+from .bots import Glob2Empire, GlobEmpire, HeuristicInsurgency, Mist2Insurgency, MistBot
 from .config import CardType, GameMap, Scenario, TownDef, Unit
 from .engine import (
     Card,
@@ -275,6 +275,59 @@ def test_it_beats_the_heuristic_insurgency_more_often_than_not():
 
 
 # ---------------------------------------------------------------------------
+# Glob2Empire: isolated garrisons get a much tighter leash (issue #18)
+#
+# These use a line (a-b-c-d) rather than the fan: the fan's hub touches every
+# leaf, so an occupied leaf is never disconnected from an occupied hub. A
+# line lets a garrison at "d" be a genuinely separate component from one at
+# "a" whenever "b" and "c" stand empty between them.
+# ---------------------------------------------------------------------------
+
+def glob2_turn(st, **kwargs):
+    return Glob2Empire(random.Random(0), **kwargs).choose(st)
+
+
+def test_glob2_withdraws_an_isolated_garrison_the_base_bot_leaves_standing():
+    """A deficit of 1 is well inside GlobEmpire's margin of 5, but there is
+    nobody next to an outpost to send it help — so Glob2 reacts at once."""
+    st = board(map=line_map())
+    st.towns["a"].troops = 6  # the main army: the home component
+    st.towns["d"].troops = 1  # a lone outpost, unreachable from "a" in one hop
+    seed(st, "d", 2)  # worst_case 2, deficit 1
+
+    base_plan = turn(st, retreat_margin=5)
+    assert all(src != "d" for src, _, _ in base_plan.moves)
+
+    plan = glob2_turn(st, retreat_margin=5)
+    assert ("d", "c", 1) in plan.moves
+
+
+def test_glob2_reinforces_an_isolated_garrison_the_base_bot_ignores():
+    """The outpost has a small ally next door that can save it — Glob2 sends
+    the help; GlobEmpire never notices the trouble at deficit 1."""
+    st = board(map=line_map())
+    st.towns["a"].troops = 6  # home
+    st.towns["c"].troops = 3  # a small, separate garrison next to "d"
+    st.towns["d"].troops = 1
+    seed(st, "d", 2)  # worst_case 2, deficit 1
+
+    base_plan = turn(st, retreat_margin=5)
+    assert all(dst != "d" or src != "c" for src, dst, _ in base_plan.moves)
+
+    plan = glob2_turn(st, retreat_margin=5)
+    assert ("c", "d", 1) in plan.moves
+
+
+def test_glob2_still_tolerates_a_bluff_sized_threat_inside_the_main_army():
+    """One component, one army: the isolated margin never applies, and Glob2
+    matches the base bot exactly."""
+    st = board()
+    st.towns["b"].troops = 3
+    seed(st, "b", 5)  # deficit 2, well under either margin
+    assert all(src != "b" for src, _, _ in glob2_turn(st).moves)
+
+
+# ---------------------------------------------------------------------------
 # MistBot: the Insurgency that plays the map
 #
 # Each test names one rule from the class docstring in bots.py. The bot takes
@@ -510,3 +563,65 @@ def test_mist_beats_the_empire_bot_that_beats_the_heuristic_rebels():
         st = play_game(real, GlobEmpire(rng), MistBot(rng), rng)
         wins += st.scores[Side.INSURGENCY] > st.scores[Side.EMPIRE]
     assert wins > 25
+
+
+# ---------------------------------------------------------------------------
+# Mist2Insurgency: lead with the richest garrison, not the safest one
+# (issue #18)
+# ---------------------------------------------------------------------------
+
+def mist2(st):
+    return Mist2Insurgency(random.Random(0)).choose(st)
+
+
+def test_mist2_leads_the_richer_garrison_even_though_it_is_better_defended():
+    """B is the bigger prize but sits next to a 5-troop garrison at A; D is
+    poorer but has nothing next door. Neither hand affords A at all.
+
+    MistBot picks D — fewer troops in reach. Mist2 picks B — the richer
+    target — because clearing it by one costs the rebels no more than
+    clearing D by one."""
+    st = rebel_board(hand=(2, 2), map=line_map())
+    st.towns["a"].troops = 5   # too expensive for either bot to consider
+    st.towns["b"].troops = 3   # richer, and defended by A next door
+    st.towns["d"].troops = 1   # poorer, and undefended
+
+    base_plan = mist(st)
+    assert placed_in(base_plan, "d") == [0]
+    assert placed_in(base_plan, "b") == []
+
+    plan = mist2(st)
+    assert placed_in(plan, "b") == [0, 1]
+    assert placed_in(plan, "d") == []
+
+
+def test_mist2_still_breaks_a_tie_between_equally_rich_targets_by_safety():
+    """Equal garrisons: the fewest-troops-in-reach tie-break survives,
+    unchanged from MistBot, when richness alone cannot decide."""
+    st = rebel_board(hand=(1, 1), map=line_map())
+    st.towns["a"].troops = 3
+    st.towns["b"].troops = 1
+    st.towns["c"].troops = 1
+    plan = mist2(st)
+    assert placed_in(plan, "c") == [0, 1]
+    assert placed_in(plan, "b") == []
+
+
+def test_mist2_plays_legal_games_on_the_real_scenario():
+    real = load_scenario("baseline")
+    for s in range(20):
+        rng = random.Random(s)
+        st = play_game(real, GlobEmpire(rng), Mist2Insurgency(rng), rng)
+        assert st.game_over
+        for town in st.towns.values():
+            assert town.resolved or town_is_uncontested(town)
+
+
+def test_glob2_and_mist2_play_legal_games_together():
+    real = load_scenario("baseline")
+    for s in range(20):
+        rng = random.Random(s)
+        st = play_game(real, Glob2Empire(rng), Mist2Insurgency(rng), rng)
+        assert st.game_over
+        for town in st.towns.values():
+            assert town.resolved or town_is_uncontested(town)
