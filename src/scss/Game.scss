@@ -893,12 +893,9 @@ $board: #e6e6e8;
 // The same pair of numbers the sentence below spells out, in the title line
 // where the army is named: a glance at the list should answer "is anybody over
 // their ceiling" without reading a sentence per army.
+// In the army name's blackletter, inherited rather than restated: it is part
+// of the same title line and reads as one thing.
 .iaw-army-load {
-    // Out of the blackletter deliberately: it is a reading face for names and
-    // nothing else, and its digits are close to unreadable at this size.
-    font-family: sans-serif;
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
     color: #555;
 }
 
@@ -1014,22 +1011,6 @@ $board: #e6e6e8;
 // "You are playing the Empire" / "...the Insurgency", pinned above the state
 // description. A block, not another absolutely-positioned corner: it is meant
 // to push the title bar down and read as the first line in it.
-#iaw-side-banner {
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 0;
-
-    &.empire {
-        color: $empire;
-    }
-
-    &.insurgency {
-        color: $insurgency;
-    }
-}
-
 /********* the start-of-game overlay *********/
 
 // The side reminder, blown up and shown once at the start of the game. Not a

@@ -662,9 +662,6 @@
 }
 
 .iaw-army-load {
-  font-family: sans-serif;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
   color: #555;
 }
 
@@ -757,20 +754,6 @@
   top: 50%;
   right: 8px;
   transform: translateY(-50%);
-}
-
-#iaw-side-banner {
-  font-weight: 600;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 0;
-}
-#iaw-side-banner.empire {
-  color: #6b3fa0;
-}
-#iaw-side-banner.insurgency {
-  color: #2e7d4f;
 }
 
 /********* the start-of-game overlay *********/

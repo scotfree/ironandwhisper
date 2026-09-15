@@ -140,7 +140,6 @@ export class Game {
 
         this.help = new Help(gamedatas.scenario, this.board);
         this.help.install();
-        this.help.installSideBanner(this.side);
         this.renderPrimer();
 
         // The same reminder, blown up and shown once at the start of the game:

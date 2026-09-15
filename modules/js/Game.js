@@ -1431,30 +1431,6 @@ class Help {
         document.getElementById('iaw-help-button')
             ?.addEventListener('click', () => this.show());
     }
-    /**
-     * "You are playing the Empire" (or the Insurgency), pinned above the state
-     * description at the top of the page.
-     *
-     * The state description alone never says which side it is talking about —
-     * "${you} must place your entire hand" reads the same for either — and the
-     * asymmetry is the one thing worth never losing track of. A spectator gets
-     * nothing: they are not playing a side.
-     */
-    installSideBanner(side) {
-        const bar = document.getElementById('page-title');
-        if (!bar || document.getElementById('iaw-side-banner') || side === null) {
-            return;
-        }
-        bar.insertAdjacentHTML('afterbegin', `
-            <div id="iaw-side-banner" class="${side}">${this.sideSentence(side)}</div>
-        `);
-    }
-    /** Said in one place, because the banner and the start card both say it. */
-    sideSentence(side) {
-        return side === 'insurgency'
-            ? _('You are playing the Insurgency')
-            : _('You are playing the Empire');
-    }
     show() {
         // Rebuilt every time: a popin's close button destroys its DOM, so a
         // kept instance opens once and then does nothing at all.
@@ -1484,7 +1460,7 @@ class Help {
         overlay.id = 'iaw-start-overlay';
         overlay.innerHTML = `
             <div id="iaw-start-card">
-                ${this.primerHtml(side, side === null ? undefined : this.sideSentence(side))}
+                ${this.primerHtml(side)}
                 <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
             </div>
         `;
@@ -1596,14 +1572,20 @@ class Help {
      * empty box. No turn order here any more — that is `phaseListHtml`, which
      * lives with the rest of the game state.
      *
-     * `title` exists because this frame is drawn in two places that want
-     * different headings. Beside the board it is one of five frames and is
-     * titled for what it *is*, so the column reads as a list; blown up
-     * full-screen at the start of the game it is the only thing on screen and
-     * its whole job is to say which side you are, so it is titled for that.
+     * Its title names the side rather than the frame. Every other frame in the
+     * column is titled for what it is, and this one is the exception on
+     * purpose: the asymmetry is the thing worth never losing track of, and this
+     * is the only box on screen that is about *you*. It reads the same blown up
+     * full-screen at the start of the game, which is the other place it is
+     * drawn and the one place a player is certain to look.
      */
-    primerHtml(side, title = _('Rules Summary')) {
+    primerHtml(side) {
         const rebel = side === 'insurgency';
+        // A spectator is playing no side, so the frame goes back to being
+        // named for what it is.
+        const title = side === null
+            ? _('Rules Summary')
+            : (rebel ? _('You Are Playing the Insurgency') : _('You Are Playing the Empire'));
         const summary = rebel
             ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
                 .replace('${hand}', String(this.scenario.handSize))
@@ -1766,7 +1748,6 @@ class Game {
         }
         this.help = new Help(gamedatas.scenario, this.board);
         this.help.install();
-        this.help.installSideBanner(this.side);
         this.renderPrimer();
         // The same reminder, blown up and shown once at the start of the game:
         // round 1 is the closest thing to "just sat down" that a page load can

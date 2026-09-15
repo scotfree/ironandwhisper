@@ -247,8 +247,12 @@ Done:
   title in it is scanned for *which box this is* and never mistaken for the contents, and
   it is why `.iaw-army-load` breaks back out to a sans face for its digits. The titles
   replaced the small uppercase headings on Last Turn ("The Empire's last turn") and Rules
-  Summary ("You play the Empire"): whose turn it was is legible from the lines under it,
-  and which side you are is the first word of the primer's own sentence. `Armies` is a
+  Summary: whose turn it was is legible from the lines under it. **Rules Summary is titled
+  for the side instead** — "You Are Playing the Empire" — the one frame named for you
+  rather than for what it is, because the asymmetry is the thing worth never losing track
+  of. The same title serves the full-screen start card, which is the other place
+  `primerHtml` is drawn. A title-bar banner saying the same thing was tried and taken out:
+  it was a third place to say one sentence, and the frame was already saying it. `Armies` is a
   transparent grouping frame around the existing panels rather than a box of its own, and
   it is hidden outright when the Empire has no troops left standing — a heading over an
   empty box says less than nothing.
