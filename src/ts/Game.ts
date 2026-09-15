@@ -124,7 +124,15 @@ export class Game {
 
         this.help = new Help(gamedatas.scenario, this.board);
         this.help.install();
+        this.help.installSideBanner(this.side);
         this.renderPrimer();
+
+        // The same reminder, blown up and shown once at the start of the game:
+        // round 1 is the closest thing to "just sat down" that a page load can
+        // tell, since every reload re-runs setup() with no other signal for it.
+        if (gamedatas.round <= 1) {
+            this.help.showStartOverlay(this.side);
+        }
         this.renderPhases();
         this.board.onStackClick((townId, faceUp) => this.showPile(townId, faceUp));
         this.board.onTroopClick(() => this.showTroopZoom());
