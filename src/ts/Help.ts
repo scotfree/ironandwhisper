@@ -66,10 +66,15 @@ export class Help {
         }
 
         bar.insertAdjacentHTML('afterbegin', `
-            <div id="iaw-side-banner" class="${side}">${side === 'insurgency'
-                ? _('You are playing the Insurgency')
-                : _('You are playing the Empire')}</div>
+            <div id="iaw-side-banner" class="${side}">${this.sideSentence(side)}</div>
         `);
+    }
+
+    /** Said in one place, because the banner and the start card both say it. */
+    private sideSentence(side: Side): string {
+        return side === 'insurgency'
+            ? _('You are playing the Insurgency')
+            : _('You are playing the Empire');
     }
 
     show(): void {
@@ -103,7 +108,7 @@ export class Help {
         overlay.id = 'iaw-start-overlay';
         overlay.innerHTML = `
             <div id="iaw-start-card">
-                ${this.primerHtml(side)}
+                ${this.primerHtml(side, side === null ? undefined : this.sideSentence(side))}
                 <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
             </div>
         `;
@@ -232,8 +237,14 @@ export class Help {
      * Spectators get the Empire's, arbitrarily: something is more use than an
      * empty box. No turn order here any more — that is `phaseListHtml`, which
      * lives with the rest of the game state.
+     *
+     * `title` exists because this frame is drawn in two places that want
+     * different headings. Beside the board it is one of five frames and is
+     * titled for what it *is*, so the column reads as a list; blown up
+     * full-screen at the start of the game it is the only thing on screen and
+     * its whole job is to say which side you are, so it is titled for that.
      */
-    primerHtml(side: Side | null): string {
+    primerHtml(side: Side | null, title = _('Rules Summary')): string {
         const rebel = side === 'insurgency';
 
         const summary = rebel
@@ -243,7 +254,7 @@ export class Help {
 
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
-                <div class="iaw-frame-title">${_('Rules Summary')}</div>
+                <div class="iaw-frame-title">${title}</div>
                 <p>${summary}</p>
                 <button type="button" class="iaw-primer-more">${_('How to play')}</button>
             </div>

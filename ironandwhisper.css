@@ -797,9 +797,10 @@
   padding: 28px 32px;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
-#iaw-start-card .iaw-heading {
-  font-size: 22px;
-  margin-bottom: 8px;
+#iaw-start-card .iaw-frame-title {
+  font-size: 24px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
 }
 #iaw-start-card .iaw-primer-more {
   font-size: 14px;

@@ -1059,9 +1059,12 @@ $board: #e6e6e8;
         box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
     }
 
-    .iaw-heading {
-        font-size: 22px;
-        margin-bottom: 8px;
+    // The frame's title, which full-screen is the side you are playing rather
+    // than the name of a box in the column — see Help.primerHtml.
+    .iaw-frame-title {
+        font-size: 24px;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
     }
 
     .iaw-primer-more {

@@ -1446,10 +1446,14 @@ class Help {
             return;
         }
         bar.insertAdjacentHTML('afterbegin', `
-            <div id="iaw-side-banner" class="${side}">${side === 'insurgency'
-            ? _('You are playing the Insurgency')
-            : _('You are playing the Empire')}</div>
+            <div id="iaw-side-banner" class="${side}">${this.sideSentence(side)}</div>
         `);
+    }
+    /** Said in one place, because the banner and the start card both say it. */
+    sideSentence(side) {
+        return side === 'insurgency'
+            ? _('You are playing the Insurgency')
+            : _('You are playing the Empire');
     }
     show() {
         // Rebuilt every time: a popin's close button destroys its DOM, so a
@@ -1480,7 +1484,7 @@ class Help {
         overlay.id = 'iaw-start-overlay';
         overlay.innerHTML = `
             <div id="iaw-start-card">
-                ${this.primerHtml(side)}
+                ${this.primerHtml(side, side === null ? undefined : this.sideSentence(side))}
                 <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
             </div>
         `;
@@ -1591,8 +1595,14 @@ class Help {
      * Spectators get the Empire's, arbitrarily: something is more use than an
      * empty box. No turn order here any more — that is `phaseListHtml`, which
      * lives with the rest of the game state.
+     *
+     * `title` exists because this frame is drawn in two places that want
+     * different headings. Beside the board it is one of five frames and is
+     * titled for what it *is*, so the column reads as a list; blown up
+     * full-screen at the start of the game it is the only thing on screen and
+     * its whole job is to say which side you are, so it is titled for that.
      */
-    primerHtml(side) {
+    primerHtml(side, title = _('Rules Summary')) {
         const rebel = side === 'insurgency';
         const summary = rebel
             ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
@@ -1600,7 +1610,7 @@ class Help {
             : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
-                <div class="iaw-frame-title">${_('Rules Summary')}</div>
+                <div class="iaw-frame-title">${title}</div>
                 <p>${summary}</p>
                 <button type="button" class="iaw-primer-more">${_('How to play')}</button>
             </div>
