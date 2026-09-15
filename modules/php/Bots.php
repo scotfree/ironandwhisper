@@ -47,6 +47,15 @@ final class Bots
      */
     private const GLOB_RETREAT_MARGIN = 5;
 
+    /**
+     * Deficit that triggers rescue-or-withdraw for a Glob2 garrison outside
+     * the Empire's main component. See Glob2Empire in sim/bots.py: a lone
+     * outpost has nobody to send it help, so it reacts to the first real
+     * threat rather than waiting to be sure, the way GLOB_RETREAT_MARGIN
+     * lets a garrison inside the main army do.
+     */
+    private const GLOB2_ISOLATED_MARGIN = 1;
+
     // -- what the Empire is allowed to think -------------------------------
 
     /**
@@ -651,6 +660,166 @@ final class Bots
             }
         }
         return $distance;
+    }
+
+    // -- Mist2: lead with the richest garrison, not the safest one (issue #18) --
+
+    /**
+     * Port of Mist2Insurgency in sim/bots.py. Identical to mistInsurgencyTurn
+     * except placement goes through mist2Placements, which leads with
+     * mist2LeadTarget instead of mistLeadTarget.
+     *
+     * @param array<string, array> $towns
+     * @param array<int, array{id: int, presence: int}> $hand
+     * @return array{placements: array<string, int[]>, resolve: ?string}
+     */
+    public static function mist2InsurgencyTurn(Scenario $scenario, array $towns, array $hand): array
+    {
+        $board = $towns;
+
+        $resolve = self::mistResolution($scenario, $board);
+        if ($resolve !== null) {
+            $board = self::mistApplyResolution($board, $resolve);
+        }
+
+        return [
+            'placements' => self::mist2Placements($scenario, $board, $hand),
+            'resolve' => $resolve,
+        ];
+    }
+
+    /**
+     * As mistPlacements, but the lead-taking pass calls mist2LeadTarget.
+     *
+     * @param array<string, array> $board
+     * @param array<int, array{id: int, presence: int}> $hand
+     * @return array<string, int[]>
+     */
+    private static function mist2Placements(Scenario $scenario, array $board, array $hand): array
+    {
+        $anyOpen = false;
+        foreach ($board as $town) {
+            if (!$town['resolved']) {
+                $anyOpen = true;
+                break;
+            }
+        }
+        if (!$anyOpen) {
+            return [];
+        }
+
+        $placements = [];
+        $place = static function (string $townId, int $cardId, int $presence) use (&$placements, &$board): void {
+            $placements[$townId][] = $cardId;
+            array_unshift($board[$townId]['pile'], [
+                'id' => $cardId,
+                'type' => "presence{$presence}",
+                'presence' => $presence,
+                'seen' => false,
+            ]);
+        };
+
+        $valueOf = [];
+        $ordered = [];
+        $bluffs = [];
+        foreach (array_values($hand) as $position => $card) {
+            $cardId = (int) $card['id'];
+            $valueOf[$cardId] = (int) $card['presence'];
+            if ($valueOf[$cardId] > 0) {
+                $ordered[] = [$position, $cardId];
+            } else {
+                $bluffs[] = $cardId;
+            }
+        }
+        usort(
+            $ordered,
+            static fn(array $a, array $b): int
+                => [$valueOf[$b[1]], $a[0]] <=> [$valueOf[$a[1]], $b[0]],
+        );
+        $real = array_map(static fn(array $entry): int => $entry[1], $ordered);
+
+        $bestTarget = null;
+        while ($real) {
+            $budget = 0;
+            foreach ($real as $cardId) {
+                $budget += $valueOf[$cardId];
+            }
+            $target = self::mist2LeadTarget($scenario, $board, $budget);
+            if ($target === null) {
+                break;
+            }
+            if ($bestTarget === null) {
+                $bestTarget = $target;
+            }
+            $needed = Rules::troopPresence((int) $board[$target]['troops'], $scenario->unitPresence())
+                - Rules::cardPresence($board[$target]) + 1;
+            while ($real && $needed > 0) {
+                $cardId = array_shift($real);
+                $needed -= $valueOf[$cardId];
+                $place($target, $cardId, $valueOf[$cardId]);
+            }
+        }
+
+        while ($real) {
+            $target = self::mistArrivalTarget($board);
+            if ($target === null) {
+                break;
+            }
+            $cardId = array_shift($real);
+            $place($target, $cardId, $valueOf[$cardId]);
+        }
+
+        if ($bestTarget !== null) {
+            while ($real) {
+                $cardId = array_shift($real);
+                $place($bestTarget, $cardId, $valueOf[$cardId]);
+            }
+        }
+
+        foreach (array_merge($real, $bluffs) as $cardId) {
+            $place(self::mistBluffTarget($scenario, $board), $cardId, $valueOf[$cardId]);
+        }
+
+        return $placements;
+    }
+
+    /**
+     * The garrisoned town to take the lead in next, or null — richest first.
+     *
+     * MistBot's mistLeadTarget sorts by fewest troops in reach first, on the
+     * theory that a lead only survives an Empire that can answer it. Against
+     * an Empire that never breaks up its army, that rule always points away
+     * from the only ground worth anything (issue #18): three human games saw
+     * the rebels win six, four and one empty towns for zero while the actual
+     * garrison went untouched. Game 3 showed the fix works instead: a bigger
+     * garrison is a bigger prize, and clearing it by one costs no more than
+     * clearing a small one by one. So richness decides first here, and
+     * mistAdjacentTroops only breaks a tie between equally rich targets.
+     *
+     * @param array<string, array> $board
+     */
+    private static function mist2LeadTarget(Scenario $scenario, array $board, int $budget): ?string
+    {
+        $best = null;
+        $bestKey = null;
+
+        foreach ($board as $townId => $town) {
+            if ($town['resolved'] || $town['troops'] <= 0) {
+                continue;
+            }
+            $troopPresence = Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
+            $deficit = $troopPresence - Rules::cardPresence($town) + 1;
+            if ($deficit <= 0 || $deficit > $budget) {
+                continue;
+            }
+            $key = [-$troopPresence, self::mistAdjacentTroops($board, $town), $townId];
+            if ($bestKey === null || $key < $bestKey) {
+                $best = $townId;
+                $bestKey = $key;
+            }
+        }
+
+        return $best;
     }
 
     // -- the Empire --------------------------------------------------------
@@ -1384,5 +1553,197 @@ final class Bots
         }
 
         return $distance;
+    }
+
+    // -- Glob2: a much tighter leash on isolated garrisons (issue #18) ------
+
+    /**
+     * Port of Glob2Empire.choose in sim/bots.py. Identical to
+     * globEmpireTurn except moves go through glob2Moves, which derives the
+     * Empire's main component once and hands it to glob2Rescue.
+     *
+     * @param array<string, array> $towns
+     * @return array{produce: array<string, int>, moves: array<int, array{from: string, to: string, count: int}>, resolve: ?string, disband: array<string, int>}
+     */
+    public static function glob2EmpireTurn(Scenario $scenario, array $towns): array
+    {
+        $board = $towns;
+
+        $resolve = self::globResolution($scenario, $board);
+        if ($resolve !== null) {
+            $board = self::globApplyResolution($board, $resolve);
+        }
+
+        $standing = $board;
+        $moves = self::glob2Moves($scenario, $board);
+        $produce = self::globProduction($scenario, $standing, $board);
+        foreach ($produce as $townId => $count) {
+            $board[$townId]['troops'] += $count;
+        }
+
+        return [
+            'produce' => $produce,
+            'moves' => $moves,
+            'resolve' => $resolve,
+            'disband' => self::globDisband($scenario, $board),
+        ];
+    }
+
+    /**
+     * The Empire's main body: the network holding the most troops.
+     *
+     * Ties broken by town count and then by the joined town ids, purely so
+     * the choice is deterministic — neither tie-break means anything on its
+     * own, and real ties are rare enough not to matter.
+     *
+     * Rules::components already returns each network sorted, so the result
+     * here compares equal (===) to whatever Rules::componentOf later returns
+     * for a town still in the same network, with no extra sorting needed.
+     *
+     * @param array<string, array> $board
+     * @return string[]
+     */
+    private static function glob2HomeComponent(array $board): array
+    {
+        $best = [];
+        $bestKey = null;
+        foreach (Rules::components($board) as $component) {
+            $key = [Rules::troopsIn($board, $component), count($component), implode(',', $component)];
+            if ($bestKey === null || $key > $bestKey) {
+                $best = $component;
+                $bestKey = $key;
+            }
+        }
+        return $best;
+    }
+
+    /**
+     * As globMoves, but derives the Empire's main component once up front and
+     * hands it to glob2Rescue so trouble can be judged by a different
+     * standard depending on whether help is reachable.
+     *
+     * @param array<string, array> $board
+     * @return array<int, array{from: string, to: string, count: int}>
+     */
+    private static function glob2Moves(Scenario $scenario, array &$board): array
+    {
+        $origin = [];
+        foreach ($board as $townId => $town) {
+            $origin[$townId] = (int) $town['troops'];
+        }
+        $departed = [];
+        $moves = [];
+        $tolerated = self::globOverage($scenario, $board);
+        $home = self::glob2HomeComponent($board);
+
+        $available = static function (string $townId) use ($origin, &$departed): int {
+            return $origin[$townId] - ($departed[$townId] ?? 0);
+        };
+
+        $spare = function (string $townId) use ($scenario, &$board, &$origin, &$departed): int {
+            $keep = self::globGarrisonNeeded($scenario, $board[$townId]);
+            $free = $origin[$townId] - ($departed[$townId] ?? 0);
+            return max(0, min($free, (int) $board[$townId]['troops'] - $keep));
+        };
+
+        $commit = function (string $from, string $to, int $count)
+            use ($scenario, &$board, &$departed, &$moves, $tolerated): bool {
+            if ($count <= 0) {
+                return false;
+            }
+            $board[$from]['troops'] -= $count;
+            $board[$to]['troops'] += $count;
+            if (self::globOverage($scenario, $board) > $tolerated) {
+                $board[$from]['troops'] += $count;
+                $board[$to]['troops'] -= $count;
+                return false;
+            }
+            $departed[$from] = ($departed[$from] ?? 0) + $count;
+            $moves[] = ['from' => $from, 'to' => $to, 'count' => $count];
+            return true;
+        };
+
+        self::glob2Rescue($scenario, $board, $available, $spare, $commit, $home);
+        self::globExpand($scenario, $board, $spare, $commit);
+
+        return $moves;
+    }
+
+    /**
+     * As globRescue, but a garrison outside `$home` reacts at
+     * GLOB2_ISOLATED_MARGIN instead of GLOB_RETREAT_MARGIN. Everything past
+     * the threshold — all-or-nothing reinforcement, withdrawing rather than
+     * standing half-fed — is unchanged; only the deficit that counts as
+     * "trouble" differs by whether the rest of the army is in reach.
+     *
+     * @param array<string, array> $board
+     * @param string[] $home
+     */
+    private static function glob2Rescue(
+        Scenario $scenario,
+        array &$board,
+        callable $available,
+        callable $spare,
+        callable $commit,
+        array $home,
+    ): void {
+        $deficit = fn(array $town): int => self::globWorstCase($scenario, $town)
+            - Rules::troopPresence((int) $town['troops'], $scenario->unitPresence());
+
+        $marginFor = function (string $townId) use ($board, $home): int {
+            return Rules::componentOf($board, $townId) === $home
+                ? self::GLOB_RETREAT_MARGIN
+                : self::GLOB2_ISOLATED_MARGIN;
+        };
+
+        $troubled = [];
+        foreach ($board as $townId => $town) {
+            if (!$town['resolved'] && $town['troops'] > 0
+                && $deficit($town) >= $marginFor($townId)) {
+                $troubled[$townId] = $deficit($town);
+            }
+        }
+        arsort($troubled);
+
+        foreach (array_keys($troubled) as $townId) {
+            $wanted = self::globGarrisonNeeded($scenario, $board[$townId])
+                - (int) $board[$townId]['troops'];
+
+            $helpers = [];
+            foreach ($board[$townId]['neighbors'] as $neighbor) {
+                if ($spare($neighbor) > 0) {
+                    $helpers[$neighbor] = $spare($neighbor);
+                }
+            }
+            arsort($helpers);
+            $helperIds = array_keys($helpers);
+
+            if (array_sum($helpers) >= $wanted) {
+                foreach ($helperIds as $helper) {
+                    if ($wanted <= 0) {
+                        break;
+                    }
+                    $sending = min($spare($helper), $wanted);
+                    if ($commit($helper, $townId, $sending)) {
+                        $wanted -= $sending;
+                    }
+                }
+                if ($wanted <= 0) {
+                    continue;
+                }
+                // The supply check refused part of the relief; fall through and
+                // treat the town as unsavable rather than leave it half-fed.
+            }
+
+            $retreat = self::globRetreatTo($scenario, $board, $townId);
+            if ($retreat !== null) {
+                $commit($townId, $retreat, $available($townId));
+                continue;
+            }
+
+            foreach ($helperIds as $helper) {
+                $commit($helper, $townId, $spare($helper));
+            }
+        }
     }
 }

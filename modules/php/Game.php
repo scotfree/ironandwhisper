@@ -39,15 +39,19 @@ class Game extends \Bga\GameFramework\Table
     /**
      * Which Empire bot a solo game plays against.
      *
-     * Not a difficulty slider: the two play differently. Glob plays for the
+     * Not a difficulty slider: the three play differently. Glob plays for the
      * supply network and only takes fights it is certain of; Heuristic marches
      * at the tallest pile it can see. Glob beats the Insurgency bot about 64%
-     * of the time and Heuristic about 0.5%, so Glob is the default and the
-     * other is kept as the port's reference implementation.
+     * of the time and Heuristic about 0.5%, so Glob is the default and
+     * Heuristic is kept as the port's reference implementation. Glob2 is Glob
+     * with a much tighter leash on any garrison outside its main army — see
+     * issue #18 and Bots::glob2EmpireTurn — and does not yet beat Mist2 either,
+     * but suppresses how much it loses by.
      */
     public const OPT_BOT = 101;
     public const BOT_GLOB = 0;
     public const BOT_HEURISTIC = 1;
+    public const BOT_GLOB2 = 2;
 
     /**
      * Which Insurgency bot a solo game plays against.
@@ -58,11 +62,14 @@ class Game extends \Bga\GameFramework\Table
      * garrison. Heuristic piles presence onto the richest garrison it can see
      * and scatters the rest at random. Mist takes every game off GlobEmpire in
      * self-play, where Heuristic loses about 63% of them, so Mist is the
-     * default and the other is kept as the port's reference implementation.
+     * default and Heuristic is kept as the port's reference implementation.
+     * Mist2 leads with the richest garrison in reach rather than the safest
+     * one — see issue #18 and Bots::mist2LeadTarget.
      */
     public const OPT_REBEL_BOT = 102;
     public const REBEL_MIST = 0;
     public const REBEL_HEURISTIC = 1;
+    public const REBEL_MIST2 = 2;
 
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
@@ -778,18 +785,22 @@ class Game extends \Bga\GameFramework\Table
         if ($side === Rules::INSURGENCY) {
             $towns = $this->board->towns();
             $hand = $this->board->hand();
-            $turn = $this->insurgencyBot() === self::REBEL_HEURISTIC
-                ? Bots::insurgencyTurn($this->scenario, $towns, $hand)
-                : Bots::mistInsurgencyTurn($this->scenario, $towns, $hand);
+            $turn = match ($this->insurgencyBot()) {
+                self::REBEL_HEURISTIC => Bots::insurgencyTurn($this->scenario, $towns, $hand),
+                self::REBEL_MIST2 => Bots::mist2InsurgencyTurn($this->scenario, $towns, $hand),
+                default => Bots::mistInsurgencyTurn($this->scenario, $towns, $hand),
+            };
 
             $this->applyInsurgencyTurn($turn['placements'], $turn['resolve'], $botId);
             return;
         }
 
         $towns = $this->board->towns();
-        $turn = $this->empireBot() === self::BOT_HEURISTIC
-            ? Bots::empireTurn($this->scenario, $towns)
-            : Bots::globEmpireTurn($this->scenario, $towns);
+        $turn = match ($this->empireBot()) {
+            self::BOT_HEURISTIC => Bots::empireTurn($this->scenario, $towns),
+            self::BOT_GLOB2 => Bots::glob2EmpireTurn($this->scenario, $towns),
+            default => Bots::globEmpireTurn($this->scenario, $towns),
+        };
 
         $this->applyEmpireTurn(
             $turn['produce'],

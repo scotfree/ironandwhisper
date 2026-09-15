@@ -42,6 +42,11 @@
         "name": "Heuristic",
         "description": "Marches at the tallest pile it can see and resolves when it likes the odds. The weaker opponent.",
         "tmdisplay": "Heuristic bot"
+      },
+      "2": {
+        "name": "Glob2",
+        "description": "Glob, with a much tighter leash on any garrison standing apart from its main army.",
+        "tmdisplay": "Glob2 bot"
       }
     },
     "default": 0,
@@ -71,6 +76,11 @@
         "name": "Heuristic",
         "description": "Piles presence onto the richest garrison it can see and scatters the rest at random. The weaker opponent.",
         "tmdisplay": "Heuristic rebels"
+      },
+      "2": {
+        "name": "Mist2",
+        "description": "Mist, leading with the richest garrison it can reach instead of the safest one.",
+        "tmdisplay": "Mist2 bot"
       }
     },
     "default": 0,

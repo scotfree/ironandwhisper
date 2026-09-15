@@ -586,6 +586,32 @@ statistic and the score means settle an argument faster.
 `sim/parity.py` regenerates `tests/fixtures/glob_parity.jsonl` when the bot changes
 deliberately — the simulator is the specification, so it is the PHP that moves.
 
+### Glob2: a tighter leash on isolated garrisons (2026-09-15)
+
+`Glob2Empire` in `sim/bots.py`, ported to `Bots::glob2EmpireTurn`, game option 101 value 2.
+GlobEmpire's own numbers say it loses to Mist — 0% (issue #18) — and three logged human
+games against Mist said why: a garrison the main army can reach tolerates a deficit up to
+`GLOB_RETREAT_MARGIN` (5) before reacting, which is right for a bluff but leaves a garrison
+with nobody next door to send it help standing there long after Mist's cheapest attack
+(clear it by exactly one) has already landed. Two games where the Empire held one blob
+scored 5-0 and 6-0; the one where it scattered into five lone garrisons lost 7-2, one
+garrison at a time.
+
+Glob2 is GlobEmpire with a second, much tighter margin — `GLOB2_ISOLATED_MARGIN` (1) — for
+any garrison outside the Empire's main component (the network holding the most troops).
+Inside the main army nothing changes; a lone outpost reacts to the first real threat instead
+of waiting to be sure, since there is no safety in numbers out there to wait for. It does
+not fix the loss — 300 PHP games are still 0%/100% against Mist and Mist2 alike — but it
+does suppress how much the Insurgency collects doing it: mean Insurgency score drops from
+5.8 to about 4.4 in both the simulator and the PHP port. **Issue #18 is not closed by this**;
+the underlying problem — the Empire's worst-case test cannot tell a precise "clear by one"
+attack from noise, because both look identical from information the Empire is entitled to —
+needs a probabilistic certainty test (issue #13) to actually close, not a margin.
+
+`tests/test_glob2.php` and the `test_glob2_*` cases in `sim/test_bots.py` pin the isolated-
+margin behaviour against the same board with and without the tighter leash. No parity
+fixture yet — regenerate one with `sim/parity.py` if this bot is tuned further.
+
 ## The rebel bot that works
 
 `MistBot` in `sim/bots.py`, ported to `Bots::mistInsurgencyTurn`, chosen in a solo game by
@@ -639,6 +665,28 @@ simulator's 0%/100% and 0.2/5.8.
 `sim/parity.py --bot mist` regenerates `tests/fixtures/mist_parity.jsonl` — 200 random
 boards, each with a hand, on which both engines must produce the same resolution and the
 same placements exactly.
+
+### Mist2: lead with the richest garrison, not the safest one (2026-09-15)
+
+`Mist2Insurgency` in `sim/bots.py`, ported to `Bots::mist2LeadTarget`, game option 102 value
+2. `mistLeadTarget` sorts by fewest troops in reach first, on the theory that a lead only
+survives an Empire that cannot answer it. Against a human Empire that never breaks its army
+up, that rule always points at the far edge of the map — the only place with few adjacent
+troops is wherever the Empire is not — so three logged human games saw the rebels "win" six,
+four and one *uncontested empty* towns for zero while the Empire's actual garrison went
+untouched (issue #18, games 1 and 2). The third game showed richness works instead: the
+Empire reinforced Kirn from one troop to three, and the rebels' own clear-by-one rule took it
+a second time anyway, for a bigger prize at no extra cost.
+
+Mist2 swaps the two keys: richest garrison decides first, and `mistAdjacentTroops` only
+breaks a tie between two equally rich targets. It does not stop attacking defended ground; it
+stops avoiding it. This does not change the win rate against Glob (still 100%) or against
+Glob2, since neither bot yet leaves anything genuinely undefended to find — see Glob2 above
+— but it is the correct half of the same fix, and the one to keep once a future Empire bot
+gives it something real to aim at.
+
+`tests/test_mist2.php` and the `test_mist2_*` cases in `sim/test_bots.py` pin the richness-
+first ordering against boards where the two rules disagree. No parity fixture yet.
 
 ## Testing the PHP
 
