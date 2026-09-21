@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iron and Whispers — Rules</title>
+
+<!--
+  The player's manual. This is the only player-facing rules document; design.md is
+  the other half of the old ironandwhisper.md and holds the reasoning, the
+  measurements and the rejected alternatives.
+
+  It is written for a physical game — a printed board, a deck you shuffle, tokens
+  you move — and it is meant to be printed. There is a print stylesheet at the
+  bottom of this <style> block; the board picture and every entry in the legend
+  are kept off page boundaries.
+
+  The board picture is built from the real geography (maps/grid12.json) and the
+  real silhouettes (img/town.svg, img/city.svg, img/pawn.svg), inlined as <symbol>
+  definitions so the file stands alone with no requests. Its colours and shapes
+  mirror src/scss/Game.scss deliberately: a player who reads this and then opens
+  the game should recognise every mark. The class names are the game's for the
+  same reason — but nothing here is shared with the game's stylesheet, so a change
+  to one does not reach the other.
+
+  Every symbol in the picture is a link into the section below it.
+
+  Numbers come from scenarios/baseline.json and maps/grid12.json as they stood on
+  2026-09-20. They are the tuning knobs and they move; the rules do not.
+-->
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap');
+
+:root {
+    --empire: #6b3fa0;
+    --rebels: #2e7d4f;
+    --presence: #f2c230;
+    --ink: #22201d;
+    --paper: #efe7d7;
+    --board: #e6e6e8;
+    --rule: #cfc7b5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0 auto;
+    padding: 48px 28px 96px;
+    max-width: 46em;
+    background: #fbfaf7;
+    color: var(--ink);
+    font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    font-size: 17px;
+    line-height: 1.7;
+}
+
+.display {
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-weight: bold;
+}
+
+/* ---- headings and the space between things ------------------------------ */
+
+h1 {
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-weight: bold;
+    font-size: 54px;
+    line-height: 1.05;
+    margin: 0 0 6px;
+    letter-spacing: 0.5px;
+}
+
+.subtitle {
+    margin: 0 0 8px;
+    font-size: 19px;
+    font-style: italic;
+    color: #6a6258;
+}
+
+.printnote {
+    margin: 0;
+    font-size: 14px;
+    font-style: italic;
+    color: #8a8279;
+}
+
+header {
+    padding-bottom: 28px;
+    margin-bottom: 40px;
+    border-bottom: 3px double var(--rule);
+}
+
+h2 {
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-weight: bold;
+    font-size: 32px;
+    line-height: 1.15;
+    margin: 0 0 4px;
+}
+
+h2 .num {
+    display: block;
+    font-family: Georgia, serif;
+    font-size: 12px;
+    font-weight: normal;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #9a9289;
+}
+
+h3 {
+    font-size: 20px;
+    margin: 40px 0 10px;
+}
+
+section {
+    margin-bottom: 64px;
+}
+
+section > h2 {
+    padding-bottom: 14px;
+    margin-bottom: 26px;
+    border-bottom: 1px solid var(--rule);
+}
+
+p { margin: 0 0 20px; }
+
+.lead {
+    font-size: 19px;
+    line-height: 1.75;
+}
+
+ul, ol { margin: 0 0 20px; padding-left: 26px; }
+li { margin-bottom: 10px; }
+
+strong { font-weight: bold; }
+
+/* A pull-out for the one sentence a section turns on. */
+.keystone {
+    margin: 28px 0;
+    padding: 18px 22px;
+    background: var(--paper);
+    border-left: 5px solid var(--empire);
+    font-size: 18px;
+}
+
+.keystone p:last-child { margin-bottom: 0; }
+
+/* ---- the picture of a game in progress --------------------------------- */
+
+figure {
+    margin: 32px 0 26px;
+    padding: 0;
+}
+
+.boardwrap {
+    display: flex;
+    justify-content: center;
+    padding: 18px 8px 24px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+}
+
+.board {
+    position: relative;
+    width: 440px;
+    height: 590px;
+    background: var(--board);
+    border: 1px solid #c9c9cc;
+    border-radius: 6px;
+}
+
+.roads { position: absolute; inset: 0; }
+
+.roads line {
+    stroke: #b4b4b8;
+    stroke-width: 5;
+    stroke-linecap: round;
+}
+
+.roads line.supplied {
+    stroke: var(--empire);
+    stroke-width: 8;
+}
+
+/* A town: a fixed box with a silhouette behind whatever it holds. */
+.town {
+    position: absolute;
+    width: 120px;
+    height: 104px;
+    transform: translate(-50%, -50%);
+    padding: 30px 8px 5px;
+    overflow: hidden;
+    text-align: center;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    line-height: 1.25;
+    --art-fill: #fff;
+    --art-stroke: #000;
+    filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3));
+}
+
+.town.empire-held { --art-fill: #cfc0e2; --art-stroke: var(--empire); }
+.town.rebels-held { --art-fill: #bcd8c7; --art-stroke: var(--rebels); }
+
+.frame {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: var(--art-fill);
+    stroke: var(--art-stroke);
+}
+
+.town > *:not(.frame) { position: relative; }
+
+.name {
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-weight: bold;
+    font-size: 15px;
+    line-height: 1.05;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+}
+
+.body {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.rebelside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.empireside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    margin-left: auto;
+}
+
+/* ---- the marks themselves, in the picture and in the legend ------------- */
+
+.pip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--presence);
+    border: 1px solid #ae8c17;
+    color: #000;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.stack {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 20px;
+    height: 24px;
+    padding: 0 5px;
+    border: 1px solid rgba(0, 0, 0, 0.45);
+    border-radius: 3px;
+    font-family: Georgia, serif;
+    font-size: 12px;
+    line-height: 1;
+    box-shadow:
+        2px 2px 0 -1px #fff, 2px 2px 0 0 rgba(0, 0, 0, 0.35),
+        4px 4px 0 -1px #fff, 4px 4px 0 0 rgba(0, 0, 0, 0.25);
+}
+
+.stack.down {
+    background: repeating-linear-gradient(45deg,
+        var(--rebels), var(--rebels) 3px, #3a9a63 3px, #3a9a63 6px);
+    border-color: #1f5636;
+    color: #fff;
+    font-weight: bold;
+}
+
+.stack.up {
+    background: #fff;
+    border-color: #1f5636;
+    color: var(--ink);
+}
+
+.garrison {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: #5a3489;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.pawn {
+    display: inline-block;
+    width: 16px;
+    height: 21px;
+    fill: var(--empire);
+    stroke: #4a2b70;
+}
+
+.starving {
+    display: inline-block;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: #b3261e;
+    color: #fff;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.hammer { font-size: 11px; }
+
+/* Symbols in the picture are links into the legend. On paper they are just
+   marks, so the affordance is quiet: a dotted underline, no colour change. */
+a.sym {
+    color: inherit;
+    text-decoration: none;
+    border-radius: 3px;
+}
+
+a.sym:hover, a.sym:focus {
+    outline: 2px solid #0a84ff;
+    outline-offset: 2px;
+}
+
+figcaption {
+    margin-top: 18px;
+    font-size: 15px;
+    line-height: 1.65;
+    color: #6a6258;
+}
+
+figcaption b { color: var(--ink); }
+
+.inpicture {
+    margin: 14px 0 0;
+    font-size: 14px;
+    line-height: 2.1;
+}
+
+.inpicture a {
+    color: var(--ink);
+    text-decoration-color: var(--rule);
+    text-underline-offset: 3px;
+}
+
+/* ---- the legend of pieces ---------------------------------------------- */
+
+.piece {
+    display: grid;
+    grid-template-columns: 132px 1fr;
+    gap: 26px;
+    padding: 26px 0;
+    border-top: 1px solid var(--rule);
+}
+
+.piece:last-child { border-bottom: 1px solid var(--rule); }
+
+.pieceart {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+/* A shrunken town box, for the entries that are about a whole town. */
+.mini {
+    position: relative;
+    width: 120px;
+    height: 104px;
+    padding: 30px 8px 5px;
+    overflow: hidden;
+    text-align: center;
+    font-family: Georgia, serif;
+    font-size: 11px;
+    line-height: 1.25;
+    --art-fill: #fff;
+    --art-stroke: #000;
+}
+
+.mini.empire-held { --art-fill: #cfc0e2; --art-stroke: var(--empire); }
+.mini.rebels-held { --art-fill: #bcd8c7; --art-stroke: var(--rebels); }
+.mini > *:not(.frame) { position: relative; }
+
+.piecetext h4 {
+    margin: 0 0 10px;
+    font-size: 19px;
+    font-weight: bold;
+}
+
+.piecetext p { margin: 0 0 14px; }
+.piecetext p:last-child { margin-bottom: 0; }
+
+.roadart {
+    width: 120px;
+    height: 40px;
+}
+
+.roadart line { stroke-linecap: round; }
+
+/* ---- the rules ---------------------------------------------------------- */
+
+.sides {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+    margin: 26px 0 32px;
+}
+
+.side {
+    padding: 20px 22px;
+    background: #fff;
+    border: 1px solid var(--rule);
+    border-top: 5px solid var(--empire);
+    border-radius: 3px;
+}
+
+.side.rebels { border-top-color: var(--rebels); }
+
+.side h4 {
+    margin: 0 0 12px;
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-weight: bold;
+    font-size: 24px;
+}
+
+.side ol { padding-left: 20px; margin-bottom: 0; }
+.side li { margin-bottom: 12px; }
+.side li:last-child { margin-bottom: 0; }
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0 28px;
+    font-size: 15px;
+}
+
+caption {
+    caption-side: top;
+    text-align: left;
+    padding-bottom: 10px;
+    font-size: 15px;
+    font-style: italic;
+    color: #6a6258;
+}
+
+th, td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #6a6258;
+    border-bottom: 2px solid var(--rule);
+}
+
+td:first-child { white-space: nowrap; }
+
+footer {
+    margin-top: 72px;
+    padding-top: 22px;
+    border-top: 3px double var(--rule);
+    font-size: 14px;
+    color: #8a8279;
+}
+
+footer a { color: #6a6258; }
+
+/* ---- print ------------------------------------------------------------- */
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 16mm 15mm 18mm;
+    }
+
+    body {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        font-size: 10.5pt;
+        line-height: 1.55;
+    }
+
+    h1 { font-size: 40pt; }
+    h2 { font-size: 22pt; }
+    h3 { font-size: 13pt; }
+    .lead { font-size: 11.5pt; }
+
+    section { margin-bottom: 30px; }
+
+    /* Keep a section's heading with what it introduces, and never break a
+       legend entry, a side's turn, or the picture across two sheets. */
+    h2, h3 { break-after: avoid; page-break-after: avoid; }
+    figure, .piece, .side, .keystone, table { break-inside: avoid; page-break-inside: avoid; }
+    #pieces { break-before: page; page-break-before: always; }
+    #rules { break-before: page; page-break-before: always; }
+
+    .boardwrap { border: none; padding: 0; }
+    a { color: inherit; text-decoration: none; }
+    a.sym { outline: none; }
+    .inpicture { display: none; }
+    footer { margin-top: 30px; }
+}
+</style>
+</head>
+<body>
+
+<!-- The real silhouettes, inlined once. Nothing in here specifies a fill or a
+     stroke, so both are inherited from whatever <use>s it — which is how one
+     drawing serves an ordinary town, an Empire-held one and a rebel-held one. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="art-town" viewBox="0 0 120 104">
+    <g transform="matrix(-1,0,0,1,121.073,0.889628)">
+      <path fill-rule="nonzero" stroke-width="2" stroke-linejoin="round"
+        d="M3,101L3.254,23.36L7.171,27.01L5.086,28.788L8.367,30.488L5.599,32.126L9.515,34.976L13.212,29.134L9.56,28.703L11.706,24.152L8.479,23.55L11.679,19.093L8.625,18.299L12.117,10.574L17.986,18.718L14.293,18.271L17.868,22.396L13.58,23.189L18.44,27.483L15.964,27.921L19.876,32.123L23.382,25.27L20.979,24.305L23.462,20.504L20.798,19.9L23.91,12.999L28.47,19.367L25.835,19.88L28.99,23.743L26.518,24.394L32.232,31.28L34.818,28.181L32.17,27.402L36.18,23.642L31.564,23.42L35.704,18.262L33.351,17.566L37.328,6.18L41.495,13.141L38.78,13.71L41.858,17.561L39.158,18.295L42.327,21.351L39.072,22.313L43.374,27.901L46.272,27.163L47.279,22.431L44.614,22.687L47,18.808L44.162,18.623L47.211,12.627L50.785,16.27L48.917,17.201L53.163,21.35L49.491,22.301L54.964,26.206L52.264,29.444L57.125,28.82L58.841,24.213L57.361,24.012L58.587,20.822L62.229,24.417L60.912,25.779L62.235,28.553L64.872,28.493L66.463,25.024L69.07,28.282L72.928,28.313L86.173,28.149L85.514,25.156L87.497,23.146L90.773,24.565L90.061,27.958L93.003,28.101L93.266,25.598L96.572,25.935L96.45,28.387L102.659,28.959L102.819,25.567L99.389,24.992L102.012,22.42L101.738,19.49L103.266,19.448L103.561,21.85L107.446,19.994L115.442,25.637L111.363,25.777L110.923,29.321L115.809,30.472L117,101L3,101Z"/>
+    </g>
+  </symbol>
+  <symbol id="art-city" viewBox="0 0 120 104">
+    <g transform="matrix(1,0,0,1,0.13678,-0.0372239)">
+      <path fill-rule="nonzero" stroke-width="2" stroke-linejoin="round"
+        d="M3,101L3,26L9.156,26.103L9.195,19.057L18.139,18.941L17.746,28.568L23.4,28.206L23.807,12.704L30.351,12.446L29.937,19.319L35.31,19.173L35.554,6.446L37.072,6.389L37.152,8.151L39.566,8.096L39.613,6.48L41.406,6.286L41.613,8.218L43.554,8.34L43.76,6.469L45.962,6.364L45.93,8.382L48.332,8.384L48.473,6.413L50.946,6.309L50.893,8.39L53.474,8.396L53.414,5.969L56,6L55.622,24.093L60.968,24.236L61.438,16.641L69.924,16.542L69.532,22.346L75.727,22.679L75.495,26.174L97,26L96.931,21.816L93.914,21.815L101.535,16.306L107.755,21.036L104.344,21.915L104.73,25.429L117,26L117,101L3,101Z"/>
+    </g>
+    <path d="M73.583,22.55C73.974,8.456 74.025,9.463 74.025,9.463L84.665,12.591L75.876,13.868L75.708,10.053"
+          fill="none" stroke-width="1" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="art-pawn" viewBox="0 0 24 32">
+    <circle cx="12" cy="7.5" r="4.6" stroke-width="2"/>
+    <path d="M 8 12.5 L 16 12.5 L 14.8 15.5 C 14.8 20, 17.5 23, 19.5 28 L 4.5 28
+             C 6.5 23, 9.2 20, 9.2 15.5 Z" stroke-width="2" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<header>
+  <h1>Iron and Whispers</h1>
+  <p class="subtitle">A game of occupation and rumour, for two players</p>
+  <p class="printnote">Print me. Everything here describes pieces you can hold: a board of
+    twelve towns, a deck of agents, a handful of troop tokens.</p>
+</header>
+
+<section id="idea">
+  <h2><span class="num">One</span>The idea</h2>
+
+  <p class="lead">One player is an <b>Empire</b> holding a province it has already
+    conquered. The other is an <b>Insurgency</b> taking it back. You are not playing the
+    same game as each other. The Empire owns pieces that everyone can see and moves them
+    along roads; the Insurgency owns cards that nobody can see and slides them face down
+    into towns. Neither side can do what the other does, and neither can win by doing more
+    of its own thing harder.</p>
+
+  <p>Everything in the game is measured in one quantity, called <b>presence</b>. A troop
+    standing in a town gives the Empire presence there. An agent lying face down in a town
+    gives the Insurgency presence there. Nothing else counts, and the two kinds are
+    interchangeable when they meet: the side with more presence in a town takes it.</p>
+
+  <p>What makes that a game rather than a sum is that only one side can count. Troops sit
+    on the table in the open. Agents lie face down, and roughly two in five of them are
+    worth nothing at all. So the Empire can always see <i>how many</i> cards are in a town
+    and never <i>what they are worth</i>, and the Insurgency knows both numbers exactly.
+    The Empire's whole problem is deciding what a pile is worth before committing an army
+    to beating it. The Insurgency's whole craft is making those piles lie — sometimes by
+    filling a town with blanks it will never fight for, sometimes by leaving a real
+    threat looking too small to bother with.</p>
+
+  <p>A town is settled when one side declares a <b>resolution</b> there. The cards turn
+    over, the two presences are compared, and the higher one wins the town for the rest of
+    the game. The winner scores what the loser had committed — and nothing else. Beating
+    an empty town is worth exactly zero points. This single rule is the engine of the
+    game: points come only from destroying something the other player paid for, so both
+    sides spend the whole game trying to win towns the opponent has invested in, while
+    avoiding towns where they themselves have invested more than they can defend.</p>
+
+  <div class="keystone">
+    <p><b>Declaring a resolution is not how you score. It is how you stop your opponent
+      reversing a result.</b> Every town still open at the end of the game resolves anyway,
+      all at once. An unresolved town is never safe — only deferred.</p>
+  </div>
+
+  <p>The last thing to know before looking at a board is that the Empire's army is not
+    free to stand wherever it likes. Towns the Empire occupies feed the troops in them,
+    and they feed each other along roads: a chain of occupied towns is a single
+    <b>supply network</b> with a single ceiling. March too many troops into too few towns
+    and the army starves, and starved troops score for the Insurgency exactly as beaten
+    ones do. So the Empire is pulled in two directions every single turn — spread out to
+    feed the army, concentrate to win a fight — and cutting a supply line in half is the
+    Insurgency's other way of killing troops without ever fighting them.</p>
+</section>
+
+<section id="board">
+  <h2><span class="num">Two</span>A game in progress</h2>
+
+  <p>Here is a board part-way through a game, with every mark the game uses on it at once.
+    <b>Each mark is a link</b> — follow any of them to what it means.</p>
+
+  <figure>
+    <div class="boardwrap">
+      <div class="board">
+
+        <svg class="roads" width="440" height="590" aria-hidden="true">
+          <!-- across the rows -->
+          <line class="supplied" x1="70" y1="70" x2="220" y2="70"/>
+          <line x1="220" y1="70" x2="370" y2="70"/>
+          <line x1="70" y1="220" x2="220" y2="220"/>
+          <line x1="220" y1="220" x2="370" y2="220"/>
+          <line x1="70" y1="370" x2="220" y2="370"/>
+          <line x1="220" y1="370" x2="370" y2="370"/>
+          <line x1="70" y1="520" x2="220" y2="520"/>
+          <line x1="220" y1="520" x2="370" y2="520"/>
+          <!-- down the columns -->
+          <line x1="70" y1="70" x2="70" y2="220"/>
+          <line x1="70" y1="220" x2="70" y2="370"/>
+          <line x1="70" y1="370" x2="70" y2="520"/>
+          <line class="supplied" x1="220" y1="70" x2="220" y2="220"/>
+          <line class="supplied" x1="220" y1="220" x2="220" y2="370"/>
+          <line x1="220" y1="370" x2="220" y2="520"/>
+          <line x1="370" y1="70" x2="370" y2="220"/>
+          <line x1="370" y1="220" x2="370" y2="370"/>
+          <line x1="370" y1="370" x2="370" y2="520"/>
+        </svg>
+
+        <!-- Ashford: resolved, the Empire won it, and its garrison stayed. -->
+        <div class="town empire-held" style="left:70px;top:70px">
+          <a class="sym" href="#empire-held" title="A town the Empire has won"><svg class="frame" aria-label="A town the Empire has won"><use href="#art-town"/></svg></a>
+          <div class="name">Ashford</div>
+          <div class="body">
+            <div class="rebelside"></div>
+            <div class="empireside">
+              <a class="sym" href="#troops" title="Troops"><span class="garrison"><svg class="pawn" viewBox="0 0 24 32"><use href="#art-pawn"/></svg>
+                <span class="pip">1</span></span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Belmar: two troops, in supply. -->
+        <div class="town" style="left:220px;top:70px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Belmar</div>
+          <div class="body">
+            <div class="rebelside"></div>
+            <div class="empireside">
+              <a class="sym" href="#troops" title="Troops"><span class="garrison"><svg class="pawn" viewBox="0 0 24 32"><use href="#art-pawn"/></svg>
+                <span class="pip">2</span></span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coldwater: resolved, the rebels won it, their agents left face up. -->
+        <div class="town rebels-held" style="left:370px;top:70px">
+          <a class="sym" href="#rebels-held" title="A town the rebels have taken"><svg class="frame" aria-label="A town the rebels have taken"><use href="#art-town"/></svg></a>
+          <div class="name">Coldwater</div>
+          <div class="body">
+            <div class="rebelside">
+              <a class="sym" href="#face-up" title="Face-up agents"><span class="stack up">2 <span class="pip">2</span></span></a>
+            </div>
+            <div class="empireside"></div>
+          </div>
+        </div>
+
+        <!-- Draymoor: two agents face down, nobody standing there. -->
+        <div class="town" style="left:70px;top:220px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Draymoor</div>
+          <div class="body">
+            <div class="rebelside">
+              <a class="sym" href="#face-down" title="Face-down agents"><span class="stack down">2 <span class="pip">?</span></span></a>
+            </div>
+            <div class="empireside"></div>
+          </div>
+        </div>
+
+        <!-- Everlan: a city, and the Empire's main garrison. -->
+        <div class="town" style="left:220px;top:220px">
+          <a class="sym" href="#city" title="A city"><svg class="frame" aria-label="A city"><use href="#art-city"/></svg></a>
+          <div class="name"><a class="sym" href="#city" title="A city"><span class="hammer">&#128296;</span></a>Everlan</div>
+          <div class="body">
+            <div class="rebelside"></div>
+            <div class="empireside">
+              <a class="sym" href="#troops" title="Troops"><span class="garrison"><svg class="pawn" viewBox="0 0 24 32"><use href="#art-pawn"/></svg>
+                <span class="pip">3</span></span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fenn: a deep pile and no garrison at all. -->
+        <div class="town" style="left:370px;top:220px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Fenn</div>
+          <div class="body">
+            <div class="rebelside">
+              <a class="sym" href="#face-down" title="Face-down agents"><span class="stack down">4 <span class="pip">?</span></span></a>
+            </div>
+            <div class="empireside"></div>
+          </div>
+        </div>
+
+        <!-- Gallow: empty ground. -->
+        <div class="town" style="left:70px;top:370px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Gallow</div>
+          <div class="body"><div class="rebelside"></div><div class="empireside"></div></div>
+        </div>
+
+        <!-- Harrow: the contest. Two troops against three face-down agents. -->
+        <div class="town" style="left:220px;top:370px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Harrow</div>
+          <div class="body">
+            <div class="rebelside">
+              <a class="sym" href="#face-down" title="Face-down agents"><span class="stack down">3 <span class="pip">?</span></span></a>
+            </div>
+            <div class="empireside">
+              <a class="sym" href="#troops" title="Troops"><span class="garrison"><svg class="pawn" viewBox="0 0 24 32"><use href="#art-pawn"/></svg>
+                <span class="pip">2</span></span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ilmen: two agents already turned over, one still hidden. -->
+        <div class="town" style="left:370px;top:370px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Ilmen</div>
+          <div class="body">
+            <div class="rebelside">
+              <a class="sym" href="#face-down" title="Face-down agents"><span class="stack down">1 <span class="pip">?</span></span></a>
+              <a class="sym" href="#face-up" title="Face-up agents"><span class="stack up">2 <span class="pip">1</span></span></a>
+            </div>
+            <div class="empireside"></div>
+          </div>
+        </div>
+
+        <!-- Joss: empty ground. -->
+        <div class="town" style="left:70px;top:520px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Joss</div>
+          <div class="body"><div class="rebelside"></div><div class="empireside"></div></div>
+        </div>
+
+        <!-- Kirn: the second city, which nobody has taken. -->
+        <div class="town" style="left:220px;top:520px">
+          <a class="sym" href="#city" title="A city"><svg class="frame" aria-label="A city"><use href="#art-city"/></svg></a>
+          <div class="name"><a class="sym" href="#city" title="A city"><span class="hammer">&#128296;</span></a>Kirn</div>
+          <div class="body"><div class="rebelside"></div><div class="empireside"></div></div>
+        </div>
+
+        <!-- Larrow: three troops cut off from the army, and starving for it. -->
+        <div class="town" style="left:370px;top:520px">
+          <a class="sym" href="#town" title="A town"><svg class="frame" aria-label="A town"><use href="#art-town"/></svg></a>
+          <div class="name">Larrow</div>
+          <div class="body">
+            <div class="rebelside"></div>
+            <div class="empireside">
+              <a class="sym" href="#troops" title="Troops"><span class="garrison"><svg class="pawn" viewBox="0 0 24 32"><use href="#art-pawn"/></svg>
+                <span class="pip">3</span></span></a>
+              <a class="sym" href="#starving" title="Starving"><span class="starving">&minus;1</span></a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <figcaption>
+      <p>The Empire holds a spine down the middle — <b>Ashford</b>, which it has already
+        won and still garrisons, then <b>Belmar</b>, <b>Everlan</b> and <b>Harrow</b>. Those
+        four towns touch, so they are one supply network: four towns feeding eight troops,
+        which is exactly its ceiling. It cannot raise another troop anywhere in that chain
+        without losing one.</p>
+      <p>The three troops in <b>Larrow</b> are a different story. Nothing beside them is
+        occupied, so they are a network of one town feeding three troops, and the red
+        <span class="starving">&minus;1</span> says one of them will starve at the end of
+        the Empire's next turn unless a road home is opened.</p>
+      <p><b>Harrow</b> is the live fight: two troops, worth two presence, against three
+        agents that could be worth anything from nought to three. Resolve it and the
+        Empire wins on a tie — but if even one of those three is real twice over, the
+        garrison is gone and the rebels score it. <b>Fenn</b> is the same question asked
+        louder, and with nobody there to answer it.</p>
+      <p><b>Coldwater</b> is over: the rebels took it, and their agents lie face up on it
+        for the rest of the game as a record. The Empire may still march through — but
+        Coldwater will never feed a troop again.</p>
+    </figcaption>
+
+    <p class="inpicture">In the picture:
+      <a href="#town">a town</a> &middot;
+      <a href="#city">a city</a> &middot;
+      <a href="#road">a road</a> &middot;
+      <a href="#supply-line">a supply line</a> &middot;
+      <a href="#troops">troops</a> &middot;
+      <a href="#presence">presence</a> &middot;
+      <a href="#face-down">face-down agents</a> &middot;
+      <a href="#face-up">face-up agents</a> &middot;
+      <a href="#starving">starving troops</a> &middot;
+      <a href="#empire-held">a town the Empire won</a> &middot;
+      <a href="#rebels-held">a town the rebels took</a>
+    </p>
+  </figure>
+</section>
+
+<section id="pieces">
+  <h2><span class="num">Three</span>The pieces and the marks</h2>
+
+  <div class="piece" id="town">
+    <div class="pieceart">
+      <div class="mini">
+        <svg class="frame"><use href="#art-town"/></svg>
+        <div class="name">Gallow</div>
+      </div>
+    </div>
+    <div class="piecetext">
+      <h4>A town</h4>
+      <p>The twelve places on the board, and the only things in the game worth points.
+        Towns are drawn as huts and joined by roads. Everything either side does happens in
+        a town or on the way to one.</p>
+      <p>A town holds three things at most: a pile of the Insurgency's agents, face down; a
+        row of agents that have been turned face up; and however many Empire troops are
+        standing in it. Any of those may be empty. A town with nothing in it is genuinely
+        neutral — neither side owns it, and neither gets anything for walking in.</p>
+      <p>Every town also feeds troops. In the current setup each one contributes <b>2
+        supply</b> to whatever Empire network holds it, which pays for two troops — see
+        <a href="#supply-line">supply lines</a>.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="city">
+    <div class="pieceart">
+      <div class="mini">
+        <svg class="frame"><use href="#art-city"/></svg>
+        <div class="name"><span class="hammer">&#128296;</span>Kirn</div>
+      </div>
+    </div>
+    <div class="piecetext">
+      <h4>A city</h4>
+      <p>A town that can build troops, drawn as a skyline instead of a hut and marked with
+        a hammer beside its name. There are two of them, <b>Everlan</b> and <b>Kirn</b>, at
+        opposite ends of the board. Each builds <b>one troop per turn</b>.</p>
+      <p>A city builds only for a side that <b>holds</b> it: the Empire needs troops
+        standing there, or to have already won the town at a resolution. A garrison on the
+        spot is not required once the town is won, so a factory the Empire has taken keeps
+        working after the army marches on. A city nobody has taken builds for nobody.</p>
+      <p>The rebels cannot build anything, ever — but if they <b>win</b> a city it stops
+        producing permanently. That makes the two cities the sharpest targets on the board
+        for a side whose only other way of scoring is beating troops.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="road">
+    <div class="pieceart">
+      <svg class="roadart" viewBox="0 0 120 40" aria-hidden="true">
+        <line x1="8" y1="20" x2="112" y2="20" stroke="#b4b4b8" stroke-width="5"/>
+      </svg>
+    </div>
+    <div class="piecetext">
+      <h4>A road</h4>
+      <p>The seventeen grey lines between towns. Troops may only move along roads, one road
+        per turn, and only the Empire moves at all.</p>
+      <p>Roads carry no information and are never blocked. A town that has been resolved is
+        ordinary ground: pacified, passable, simply no longer worth fighting over. Troops
+        march in and out of it freely.</p>
+      <p>The Insurgency ignores roads completely. An agent may be placed into <i>any</i>
+        unresolved town on the board, however far from anything — which is the whole
+        asymmetry in one line. The Empire has to walk; the rumour is already there.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="supply-line">
+    <div class="pieceart">
+      <svg class="roadart" viewBox="0 0 120 40" aria-hidden="true">
+        <line x1="8" y1="20" x2="112" y2="20" stroke="#6b3fa0" stroke-width="8"/>
+      </svg>
+    </div>
+    <div class="piecetext">
+      <h4>A supply line</h4>
+      <p>A road drawn thick and purple, because the Empire occupies the towns at
+        <i>both</i> ends. Follow those roads and you have a <b>network</b>: every chain of
+        occupied towns that touch.</p>
+      <p>A network adds up the supply of its towns and divides by one, and that is the most
+        troops it can keep standing anywhere in it. Four towns feed eight troops; lose a
+        town and the same army is suddenly two over. Networks pool separately, so <b>cutting
+        one line in half creates two smaller ceilings</b>, and troops that were comfortable
+        a moment ago are starving.</p>
+      <p>This is the Empire's whole character in one subsystem. It does not out-fight the
+        Insurgency, it out-organises it — and an organisation can be cut. It is also why
+        the Empire is pulled two ways every turn: <b>spread out to feed the army,
+        concentrate to win a fight.</b></p>
+    </div>
+  </div>
+
+  <div class="piece" id="troops">
+    <div class="pieceart">
+      <span class="garrison" style="font-size:19px">
+        <svg class="pawn" viewBox="0 0 24 32" style="width:28px;height:37px"><use href="#art-pawn"/></svg>
+        <span class="pip" style="min-width:24px;height:24px;border-radius:12px;font-size:14px">3</span>
+      </span>
+    </div>
+    <div class="piecetext">
+      <h4>Troops</h4>
+      <p>The Empire's only pieces, and completely public: a pawn and a number saying how
+        many are standing in that town. Each troop is <b>worth 1 presence</b>, <b>moves
+        one road per turn</b>, and <b>costs 1 supply</b> to keep standing.</p>
+      <p>Troops are not obliged to move, and there is a reason to stand still: a troop that
+        does not move <b>looks</b> at one of the agents in its town, turning the top card of
+        the pile face up for everyone. Several stationary troops in one town look several
+        times. A troop that arrived this turn cannot look until the next.</p>
+      <p>Troops are also the only thing the Empire can lose. Lose a resolution and every
+        troop in that town is taken off the board and scored by the rebels; starve and the
+        same thing happens without a fight. Win a resolution, though, and the garrison
+        <b>stays</b>, still feeding on the town it just took.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="presence">
+    <div class="pieceart">
+      <span class="pip" style="min-width:34px;height:34px;border-radius:17px;font-size:18px">4</span>
+    </div>
+    <div class="piecetext">
+      <h4>Presence</h4>
+      <p>The gold disc, and the one quantity in the game. Wherever you see it, it is
+        saying <i>this much presence is here</i> — never how many pieces. A plain number is
+        a count of things; a number in a gold disc is what those things are worth when the
+        town is settled.</p>
+      <p>It is deliberately the same mark on both sides of the board, because presence from
+        cards and presence from troops are the same stuff. When a town resolves you compare
+        two gold numbers and the larger wins. Nothing else about a piece matters at that
+        moment.</p>
+      <p>At the current settings a troop is worth 1 and an agent is worth 0 or 1, so a
+        garrison's presence happens to equal the number of troops. That is a coincidence of
+        the tuning, not a rule — the disc is what to read.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="face-down">
+    <div class="pieceart">
+      <span class="stack down" style="height:34px;font-size:15px">3 <span class="pip" style="min-width:22px;height:22px;border-radius:11px;font-size:13px">?</span></span>
+    </div>
+    <div class="piecetext">
+      <h4>Face-down agents</h4>
+      <p>The Insurgency's pile in a town, drawn as a stack of card backs. The first number
+        is <b>how many cards are in it, which is public</b> — anyone may count the pile at
+        any time. The gold disc is what they are worth, and for the Empire it is a question
+        mark: it can see the height and never the value.</p>
+      <p>Of the sixty agents in the deck, <b>24 are worth nothing</b>. A pile of four might
+        be worth four, or nothing whatever, or anything between. The Insurgency must place
+        its whole hand every turn, so cards land in towns it has no intention of fighting
+        for, which is precisely what makes the height of a pile uninformative.</p>
+      <p>New cards go on <b>top</b>. That matters: a look reads the top card, so the last
+        agent placed is the first one seen, and the order is the Insurgency's to choose.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="face-up">
+    <div class="pieceart">
+      <span class="stack up" style="height:34px;font-size:15px">2 <span class="pip" style="min-width:22px;height:22px;border-radius:11px;font-size:13px">1</span></span>
+    </div>
+    <div class="piecetext">
+      <h4>Face-up agents</h4>
+      <p>Agents that have been turned over, sitting in a row beside the pile they came
+        from. Here two cards have been read and are worth 1 between them — so one of them
+        is a blank.</p>
+      <p>A card turned face up <b>stays face up for the rest of the game</b>, and
+        <b>still counts in full</b> at the resolution. Looking tells you what a card is; it
+        does not take it out of the fight. The cards stay face up even if the garrison that
+        read them marches away, which is why a town can show face-up agents and no troops.</p>
+      <p>Because these are public, both players always know exactly what the Empire has
+        seen. That is better for the Insurgency than a secret peek would be: you can build
+        a bluff on a belief you know your opponent holds.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="starving">
+    <div class="pieceart">
+      <span class="starving" style="font-size:17px;padding:2px 7px">&minus;1</span>
+    </div>
+    <div class="piecetext">
+      <h4>Starving troops</h4>
+      <p>A red mark on a garrison in a network that cannot feed itself, saying how many
+        troops are forecast to die. It appears at the end of the Empire's turn and nothing
+        happens immediately.</p>
+      <p>If the network is <b>still</b> short at the end of the Empire's <b>next</b> turn,
+        those troops are removed and <b>the Insurgency scores them</b>, exactly as if it had
+        beaten them in a fight. Repair the line in between — take ground, or spread back
+        onto supply you abandoned — and the mark clears with nobody lost.</p>
+      <p>The mark is a forecast, not a sentence on particular troops: move the army and it
+        is recalculated where the army now is. That one turn of grace is what lets the
+        Empire mass for a fight, win the resolution, and spread out again afterwards.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="empire-held">
+    <div class="pieceart">
+      <div class="mini empire-held">
+        <svg class="frame"><use href="#art-town"/></svg>
+        <div class="name">Ashford</div>
+        <div class="body">
+          <div class="rebelside"></div>
+          <div class="empireside">
+            <span class="garrison"><svg class="pawn" viewBox="0 0 24 32"><use href="#art-pawn"/></svg>
+              <span class="pip">1</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="piecetext">
+      <h4>A town the Empire has won</h4>
+      <p>Tinted purple. The resolution is over and the Empire had more presence, so the
+        agents in it were captured and scored, and the town can never be contested again.</p>
+      <p>The garrison <b>stays</b> — it is the loser's commitment that is taken, never the
+        winner's. So the town keeps feeding the network, keeps building if it is a city, and
+        is now permanently safe. An Empire that locks down a network of towns like this has
+        won the game; stopping that from happening is the Insurgency's entire job.</p>
+      <p>Those troops are free to march out again whenever the Empire likes. Winning the
+        town is what holds it, not standing there.</p>
+    </div>
+  </div>
+
+  <div class="piece" id="rebels-held">
+    <div class="pieceart">
+      <div class="mini rebels-held">
+        <svg class="frame"><use href="#art-town"/></svg>
+        <div class="name">Coldwater</div>
+        <div class="body">
+          <div class="rebelside">
+            <span class="stack up">2 <span class="pip">2</span></span>
+          </div>
+          <div class="empireside"></div>
+        </div>
+      </div>
+    </div>
+    <div class="piecetext">
+      <h4>A town the rebels have taken</h4>
+      <p>Tinted green, with the winning agents left face up on it as a record. Any Empire
+        troops that were there have been removed and scored.</p>
+      <p>This town is now <b>dead ground for the Empire for the rest of the game</b>. It
+        supplies nothing and builds nothing, ever. The Empire may still march through it
+        and may even hold a line across it — but it will never feed one.</p>
+      <p>That is how a side which cannot build a network of its own still wins: it does not
+        capture supply, it destroys it. Every town the rebels take is a permanent hole in
+        the map the Empire has to route around.</p>
+    </div>
+  </div>
+</section>
+
+<section id="rules">
+  <h2><span class="num">Four</span>The rules</h2>
+
+  <h3>What you need</h3>
+
+  <ul>
+    <li>The <b>board</b>: twelve towns joined by seventeen roads, in a three-by-four
+      lattice. Two of the towns — Everlan and Kirn — are <b>cities</b>, at opposite ends of
+      the middle column.</li>
+    <li>A deck of <b>60 agent cards</b>: 36 worth <b>1 presence</b> and 24 worth
+      <b>nothing</b>. The backs must be identical.</li>
+    <li>Around a dozen <b>troop tokens</b> in one colour.</li>
+    <li>Markers for a <b>resolved town</b> in each side's colour, and something to keep
+      <b>score</b> with.</li>
+  </ul>
+
+  <h3>Setting up</h3>
+
+  <ol>
+    <li>Put <b>3 troops in Everlan</b> and <b>1 in Belmar</b>. No agents are on the board.</li>
+    <li>Shuffle the deck. The Insurgency draws a hand of <b>3</b>.</li>
+    <li>The <b>Insurgency takes the first turn.</b> Players then alternate.</li>
+  </ol>
+
+  <p>Because the whole hand is placed every turn and the deck never reshuffles, the game is
+    exactly <b>20 Insurgency turns</b> long unless it ends sooner.</p>
+
+  <h3>Taking a turn</h3>
+
+  <p>A turn is not one action. You do everything your side can do, in order. Both sides
+    begin the same way, and it is the most important ordering in the game.</p>
+
+  <div class="keystone">
+    <p><b>Resolution comes first, and it is judged on the board as your opponent left
+      it.</b> You cannot march into a town and cash it in on arrival, and you cannot place
+      exactly enough agents and collect in the same breath. Whatever you commit has to
+      survive a reply before it pays.</p>
+  </div>
+
+  <div class="sides">
+    <div class="side rebels">
+      <h4>The Insurgency</h4>
+      <ol>
+        <li>You may <b>declare a resolution</b> on one town where you have at least one
+          agent in the pile. It settles at once, on the pile as it already stands — this
+          turn's cards are not down yet and do not count.</li>
+        <li><b>Place your entire hand</b> face down, into any unresolved towns you like.
+          Any number into the same town, in whatever order you choose; the last one placed
+          goes on top. You may not hold a card back. A town you resolved in step 1 is
+          closed and takes none of them.</li>
+        <li><b>Draw</b> back up to three.</li>
+      </ol>
+    </div>
+    <div class="side">
+      <h4>The Empire</h4>
+      <ol>
+        <li>You may <b>declare a resolution</b> on one town where you have at least one
+          troop, against the agents already standing there.</li>
+        <li><b>Build</b>: raise up to one troop in each city you hold. You may build past
+          your supply ceiling.</li>
+        <li><b>March</b>: any or all troops may move one road. Nobody has to move. A
+          garrison that just won its town in step 1 may march straight out of it.</li>
+        <li><b>Look</b>: every troop that did not move turns one agent in its town face up.</li>
+        <li><b>Starve</b>: see below. This is the only step you do not choose.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h3>Resolving a town</h3>
+
+  <p>Either player may resolve <b>one town per turn</b>, free of charge, and only a town
+    they are actually in — the Empire needs a troop there, the Insurgency needs an agent in
+    the pile. You cannot force a confrontation somewhere you do not exist.</p>
+
+  <ol>
+    <li>Turn the town's whole pile face up. It stays that way.</li>
+    <li>Add up the <b>Insurgency's presence</b>: the values of all its agents there, face
+      up and face down alike. Blanks count nothing.</li>
+    <li>Add up the <b>Empire's presence</b>: 1 for each troop standing there.</li>
+    <li>The higher total takes the town. <b>The Empire wins ties.</b></li>
+    <li>Mark the town with the winner's colour. It is finished for the rest of the game.</li>
+  </ol>
+
+  <h3>Scoring</h3>
+
+  <div class="keystone">
+    <p><b>The winner scores the presence the loser had committed, and nothing else.</b>
+      There are no points for the town itself.</p>
+  </div>
+
+  <p>So the Insurgency scores the troops it destroys, and the Empire scores the real agents
+    it captures. Three consequences are worth saying out loud, because they shape every
+    decision in the game:</p>
+
+  <ul>
+    <li><b>Walkovers pay nothing.</b> Taking an empty town scores zero. It may still be
+      worth doing — it denies the ground — but it does not move the score.</li>
+    <li><b>The bigger the enemy's commitment, the bigger your score.</b> The ideal
+      resolution wins by one against everything the opponent has.</li>
+    <li><b>A pile of blanks has teeth.</b> Bait the Empire into marching an army at a town
+      worth nothing, and even winning the resolution pays it nothing at all — while the
+      troops it moved were needed somewhere else.</li>
+  </ul>
+
+  <p>Afterwards, the loser's commitment leaves the board and the winner's stays. Captured
+    agents are removed; a losing garrison is removed. A winning garrison remains where it
+    is. The winner's agents stay face up on the town as a permanent record and do nothing
+    further.</p>
+
+  <h3>Supply, building and starvation</h3>
+
+  <p>Each town the Empire <b>occupies</b> contributes <b>2 supply</b>, and occupied towns
+    that touch pool theirs into one <b>network</b>. Each troop costs <b>1 supply</b> to
+    keep standing, so a network of four towns supports eight troops wherever in the chain
+    they are.</p>
+
+  <p>Supply limits what the Empire can <b>keep</b>, not what it can build. Raising troops
+    past the ceiling is legal and often right — you may build in a city and march the new
+    troops out to the ground that will feed them in the same turn.</p>
+
+  <p>At the end of the Empire's turn, any network holding more troops than it can feed is
+    <b>marked</b> with the number that will die. If that network is still short at the end
+    of the Empire's <b>next</b> turn, those troops are removed and the Insurgency scores
+    them. The Empire may say which towns pay; otherwise the loss falls on the largest
+    garrisons first.</p>
+
+  <p>A town the rebels have <b>won</b> contributes nothing to any network, for ever. That
+    is the Insurgency's second way of killing troops: not by beating them, but by cutting
+    the ground out from under them.</p>
+
+  <h3>How the game ends</h3>
+
+  <p>Four things end it, and all four do the same thing: <b>every town still open resolves
+    at once</b>, by the normal rules, and all the points are scored.</p>
+
+  <ul>
+    <li><b>The deck runs out</b> and the Insurgency cannot refill its hand. This is the
+      clock, and it is exact.</li>
+    <li><b>Every town has been resolved.</b> There is nothing left to play for.</li>
+    <li><b>The Empire is eliminated</b> — no troops anywhere and no city left that will
+      build it any. It can never act again.</li>
+    <li><b>Both players offer to end.</b> Either may put up a standing offer and take it
+      down again; when both are up, the game stops. This is not a pass — you cannot skip a
+      turn, because that would stop the clock.</li>
+  </ul>
+
+  <p>In the final sweep, a town <b>neither side ever set foot in</b> — no troops, no agents
+    — is simply left open. You may only resolve a town you are in, and that holds for the
+    sweep as much as for anything else.</p>
+
+  <p><b>Whoever has the most points wins.</b></p>
+
+  <h3>The numbers, in one place</h3>
+
+  <table>
+    <caption>Current settings. These are tuning knobs and they move; the rules above do not.</caption>
+    <tr><th>Thing</th><th>Value</th><th></th></tr>
+    <tr><td>Towns</td><td>12</td><td>Seventeen roads, three-by-four lattice</td></tr>
+    <tr><td>Cities</td><td>2</td><td>Everlan and Kirn, one troop per turn each</td></tr>
+    <tr><td>Empire start</td><td>3 + 1</td><td>Three troops in Everlan, one in Belmar</td></tr>
+    <tr><td>Deck</td><td>60 agents</td><td>36 worth 1, 24 worth nothing. Never reshuffled</td></tr>
+    <tr><td>Hand</td><td>3</td><td>Drawn and entirely placed every turn</td></tr>
+    <tr><td>Game length</td><td>20 turns</td><td>Deck divided by hand size, exactly</td></tr>
+    <tr><td>Troop presence</td><td>1</td><td>What one troop is worth at a resolution</td></tr>
+    <tr><td>Troop movement</td><td>1 road</td><td>Per turn, and moving is optional</td></tr>
+    <tr><td>Troop look</td><td>1 card</td><td>Only if it did not move</td></tr>
+    <tr><td>Town supply</td><td>2</td><td>Every town, while the Empire occupies it</td></tr>
+    <tr><td>Supply per troop</td><td>1</td><td>So a town pays for two troops</td></tr>
+    <tr><td>Ties</td><td>Empire</td><td>The rebels must beat the garrison, not match it</td></tr>
+    <tr><td>First turn</td><td>Insurgency</td><td>The empty board gives the Empire nothing to do</td></tr>
+  </table>
+</section>
+
+<footer>
+  <p><b>Iron and Whispers.</b> The reasoning behind every rule above — what was tried
+    instead, and what the measurements said — is in
+    <a href="https://github.com/scotfree/ironandwhisper/blob/main/design.md">design.md</a>.
+    That link is absolute on purpose: this file is served from the game folder on Board Game
+    Arena, where the Markdown is not deployed. Deferred work is in the
+    <a href="https://github.com/scotfree/ironandwhisper/issues">issue tracker</a>.</p>
+  <p>The board picture is drawn from the game's own geography and artwork, so it cannot
+    drift from what you see on screen.</p>
+</footer>
+
+</body>
+</html>

@@ -19,7 +19,7 @@ md("""
 # Iron and Whisper — rules exploration
 
 This notebook drives the simulator in `sim/`, which is the executable version of the rules
-in `../ironandwhisper.md`. It reads the same JSON config the PHP implementation will read,
+in `../design.md`. It reads the same JSON config the PHP implementation will read,
 so anything tuned here transfers.
 
 Two things it is for:

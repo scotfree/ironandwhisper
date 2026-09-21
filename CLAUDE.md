@@ -5,8 +5,9 @@ The game is **displayed** as "Iron and Whispers". Every identifier is still
 and should stay that way. Only `gameinfos.jsonc`'s `game_name` carries the plural.
 
 Asymmetric two-player board game for Board Game Arena. Empire moves visible troops;
-Insurgency seeds hidden cards. See `ironandwhisper.md` for the full rules and the
-reasoning behind every decision.
+Insurgency seeds hidden cards. **`rules.html` is the player's manual and `design.md` is the
+reasoning** — one file used to be both, split 2026-09-20 because the player-facing half
+could not carry sentences like "an earlier version measured 99.7% Empire wins".
 
 ---
 
@@ -20,14 +21,14 @@ two names for one thing in the exact place a player has to compare them. Cards a
 gate — is replaced by **occupied** (troops there), **seeded** (cards there) and
 **controlled** (resolved and won), because it was never clear which of the three it meant.
 Card type ids stay `influence0`…`influence3`: arbitrary, unseen, and not worth churning
-every scenario file for. See *Vocabulary* in `ironandwhisper.md`.
+every scenario file for. See *Vocabulary* in `design.md`.
 
 
 **The rules are settled and encoded in `sim/`. Port from the simulator, not from memory.**
 `sim/engine.py` is the executable specification and `sim/test_engine.py` has 50 tests, each
 named for the design decision it pins down. If the PHP disagrees with the simulator, the
 PHP is wrong. `tests/test_rules.php` mirrors those cases in PHP — when you change a rule,
-change it in both places and in `ironandwhisper.md`.
+change it in both places, in `rules.html` and in `design.md`.
 
 **The loser's commitment is taken; the winner's stays** (Decision 3). The Empire keeps its
 garrison in a town it wins, and that garrison keeps carrying supply. This is *not* the old
@@ -56,7 +57,7 @@ into production: it was one word doing two jobs, and it left a network at its ce
 an idle factory. Production is a separate per-town
 number. The two are independent on purpose — a poor town can be a depot, a rich one can
 build nothing. An earlier design had the network contribute *attack presence* instead;
-it fails, and `ironandwhisper.md` Decision 2 records why.
+it fails, and `design.md` Decision 2 records why.
 
 **Resolution happens first in a turn, and is judged on the board as your opponent left
 it** (Decision 4). It used to be last, which made every resolution risk-free: the Empire
@@ -143,7 +144,7 @@ than a real property of the game, and re-tune after any rules change.
 
 **The control scenarios are stale.** `flat`, `graded36`, `blind` and friends were measured
 before supply, production and denial existed. They still load and run; their recorded
-numbers in `ironandwhisper.md` belong to the rules of the time.
+numbers in `design.md` belong to the rules of the time.
 
 **There is no "dummy" card any more.** Card type ids are `influence0` through `influence3`
 and carry their own value. A bluff is a card worth 0.
@@ -309,14 +310,34 @@ Done:
   exists for. Both dialogs kept one instance and so opened exactly once, then silently did
   nothing. They are rebuilt on every open instead. Anything using `ebg.popindialog` needs
   this.
+- **`rules.html` is the player's manual** (2026-09-20, issue #6), split out of the old
+  `ironandwhisper.md` along with `design.md`. One file was the rules *and* the design
+  rationale, and the player-facing half could not carry sentences like "an earlier version
+  measured 99.7% Empire wins". Four sections: the idea, a board part-way through a game,
+  the pieces, the rules. **HTML rather than Markdown, deliberately and with permission** —
+  the board picture is a live render whose every mark is a link into the explanation of it,
+  which GitHub's Markdown sanitizer would strip (no `<script>`, no `<svg>`, no image maps).
+  It is **written for a physical game** — a printed board, a deck you shuffle, tokens you
+  move — with a components list and a print stylesheet: A4, `break-inside: avoid` on the
+  picture and on every legend entry, a page break before the pieces and before the rules.
+  The picture inlines the real `img/*.svg` silhouettes as `<symbol>` definitions with no
+  fill or stroke of their own, so one drawing serves an ordinary town, an Empire-held one
+  and a rebel-held one by inheritance — `<use>` shadow content cannot be reached by a CSS
+  selector, but inherited properties do reach it. The state it shows is chosen to put every
+  mark on screen at once *and* be legal: one army of four towns feeding exactly eight
+  troops, and a detachment of three in Larrow cut off and starving. Its numbers come from
+  `scenarios/baseline.json` and `maps/grid12.json`; nothing reads them automatically, so
+  they are the one thing in it that can drift.
 - **A `?` at the right-hand end of the title bar opens the cheat sheet** (`src/ts/Help.ts`),
   four paragraphs and a legend of every icon. It is **not** a status bar action button:
   `removeActionButtons()` runs on every state change and would take it with it, so it lives
   in `#iaw-help-corner`, added once to `#page-title`. The legend draws the *real* components
   — the silhouettes fetched from `img/`, the pawn, the same stack and badge markup the board
   uses — so it cannot drift from what is on screen, and every number in the text comes from
-  the scenario. It links out to `ironandwhisper.md` on GitHub, since `*.md` is excluded from
-  the deploy and the rules are not on the BGA server.
+  the scenario. It links to **`rules.html`, which ships with the game** —
+  `${g_gamethemeurl}rules.html`, beside `img/`. It used to link out to GitHub because `*.md`
+  is excluded from the deploy and the rules were not on the BGA server; an HTML manual is
+  not excluded, so there is no external site and nothing to configure.
 - **The client caps a march at the troops that may actually leave.** `EmpireTurn.projected`
   counts arrivals, and marching was staged against it, so the client offered marches the
   server refused on commit — a real game lost a turn to "fenn has 3 troops, tried to move 4"
@@ -390,7 +411,7 @@ on the machine that made them.
 
 **Deferred work lives in GitHub Issues**, not in this file:
 https://github.com/scotfree/ironandwhisper/issues, labelled `design`, `balance`, `ui`,
-`bots`, `playtest`, `deferred`. This document and `ironandwhisper.md` record decisions and
+`bots`, `playtest`, `deferred`. This document and `design.md` record decisions and
 the reasoning behind them; the tracker holds what has not been done. An issue here carries
 the *why* — why it is parked, what it would cost, what it interacts with — in the same
 voice as the design doc, because that is what makes it worth reading a month later.
@@ -476,7 +497,10 @@ Specifics:
 ## Repo layout
 
 ```
-ironandwhisper.md      rules + Decisions & Constraints (the source of truth for design)
+rules.html             the player's manual: printable, a live board with every symbol
+                       linked to its explanation. Ships to BGA with the game
+design.md              Decisions & Constraints, measurements, rejected alternatives
+                       (the source of truth for design)
 data/units.json        presence / movement / peek per unit type
 data/cards.json        presence value per card type
 maps/*.json            geography: towns with x/y, edges
@@ -835,7 +859,7 @@ from `https://dl.static-php.dev/static-php-cli/common/`.
 
 ## Decisions & Constraints
 
-The full set with reasoning is in `ironandwhisper.md` under *Decisions & Constraints*. The
+The full set with reasoning is in `design.md` under *Decisions & Constraints*. The
 ones a PHP port is most likely to break:
 
 - **Troops are spent at resolution** (Decision 3). See CRITICAL above.
@@ -850,7 +874,7 @@ ones a PHP port is most likely to break:
   per turn in total, anywhere the Empire already stands", with a warning that per-town
   generation was degenerate (dilution becomes strictly correct and out-produces the deck).
   That warning lapsed when Decision 3 made dilution costly — a thin garrison loses its
-  local fight and is scored — and `ironandwhisper.md` records why. Do not reinstate the
+  local fight and is scored — and `design.md` records why. Do not reinstate the
   garrison requirement: it was a chicken-and-egg that left an eliminated Empire playing out
   the clock for nothing. There is no longer a "no troops anywhere" fallback clause; it was
   written in the docs and never existed in either engine.

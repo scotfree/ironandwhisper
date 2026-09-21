@@ -1,23 +1,23 @@
-# Iron and Whisper — Core Rules (MVP)
+# Iron and Whispers — Design Notes
 
-An asymmetric two-player board game about the struggle between an **Empire** trying to hold territory and an **Insurgency** trying to take it. The two sides play by almost completely different rules: the Empire acts entirely in the open, moving physical troops; the Insurgency acts almost entirely in secret, seeding hidden cards across the map. The design goal is a *minimal* rule set — a small number of mechanics that interact to produce tension and bluffing, rather than realism.
+**The rules live in [`rules.html`](rules.html), not here.** That is the manual a player
+reads: what the pieces are, what the symbols mean, and how a turn goes. This file is the
+other half — *why* each rule is what it is, what was tried instead, and what the
+measurements said. Split out 2026-09-20, because one file was doing both jobs and the
+player-facing half could not carry sentences like "an earlier version measured 99.7%
+Empire wins".
 
-Status: **implementable draft.** Every rule below is settled. The numbers in [Parameters](#parameters) are starting guesses and are expected to move; the rules are not.
+Read this before changing a rule. Every decision below was paid for, several of them
+twice, and the reasoning is the only thing that stops a fixed problem being reintroduced
+as a good idea.
+
+The design goal, for orientation: a *minimal* rule set — a small number of mechanics that
+interact to produce tension and bluffing, rather than realism. The Empire acts entirely in
+the open, moving troops; the Insurgency acts almost entirely in secret, seeding hidden
+cards. Every rule is settled. The numbers in [Parameters](#parameters) are expected to
+move; the rules are not.
 
 ---
-
-## The Board
-
-The board is a **network graph**:
-
-- **Nodes** are towns (also read as cities or communities) — the places that get contested and scored.
-- **Edges** are routes connecting towns — the only paths troops can move along.
-
-Each town can hold a **face-down pile of cards** (the Insurgency's placed cards). The *height* of a pile is public information — everyone can see how many cards sit in a town. The *identity* of those cards is hidden until the town is resolved.
-
-Once a town is **resolved**, it is frozen for the rest of the game: no more cards are placed there, no troops fight over it, and its outcome is fixed. Everything committed to it stays on the board face up, as a permanent public record.
-
-There are no capitals. See [Decision 2](#2-troop-generation--one-per-turn-anywhere-the-empire-already-stands).
 
 ## Vocabulary
 
@@ -53,109 +53,15 @@ churn every scenario file for nothing.
 
 ---
 
-## The Pieces
-
-**Insurgency**
-- A **draw deck** containing two kinds of cards mixed together at a set ratio:
-  - **Presence cards** — real presence, each worth 1 at resolution.
-  - **Dummy cards** — blanks. Worth zero at resolution. Their only purpose is to disguise where real presence sits.
-- Cards get placed face-down into town piles over the course of the game.
-
-**Empire**
-- **Troop pawns** — identical **Imperial Infantry** in the MVP. Each infantry has three defining numbers:
-  - **Presence 3** — how much it counts for at resolution.
-  - **Movement 1** — how many edges it can travel per turn.
-  - **Peek 1** — how many hidden cards it can secretly look at when it holds still.
-
-**Shared**
-- **Resolved-town markers** to show a town is frozen and who won it.
-- A **score track**.
-
----
-
-## The Core Idea
-
-- The **Insurgency** places cards secretly and can place them *anywhere* on the map. Because dummy cards are mixed in, the Empire can see a pile growing but never knows how much of it is real.
-- The **Empire** plays *no cards at all*. It only moves troops (visible to everyone) and spends **looks** to peek at hidden piles. Its presence in a town is simply the troops standing there.
-- A town is scored when someone calls for **resolution**. The pile flips, real presence is weighed against troop presence, and the higher total wins.
-- **You only score points for what you capture from the opponent.** Taking an undefended town is worth nothing. The points come from beating a committed enemy.
-- **Everything committed to a resolved town is spent permanently.** Both sides are playing from a finite budget, so the ideal outcome is winning a town by the narrowest possible margin against the largest possible enemy investment.
-
----
-
-## Turn Structure
-
-The **Insurgency takes the first turn.** Players then alternate. On a turn, a player does **everything** available to their side, rather than a single action.
-
-Resolution comes first on both turns and is settled before anything else happens (Decision 4) — a phase of its own, not a decision held over until the end.
-
-### Insurgency turn
-1. Draw a full hand up to the **hand size**.
-2. Optionally declare a **resolution** on one town where the Insurgency has at least one card. It resolves at once, on the pile as it already stands: this turn's cards are not down yet and do not count.
-3. Place **the entire hand** face-down into unresolved town piles — any mix of presence and dummy cards, any number of towns, any number of cards into the same town. A town resolved in step 2 is closed and takes none of them.
-
-### Empire turn
-1. Optionally declare a **resolution** on one town where the Empire has at least one troop. It resolves at once, against the cards already standing there.
-2. **Generate**: raise troops in any producing town the Empire **holds** — meaning it has troops there, *or* it won the town at a resolution. A garrison on the spot is not required, so a factory the Empire has already taken goes on building once the garrison marches off. An empty town nobody has taken builds for nobody. Supply does not limit this: overshooting the ceiling is legal and settled by attrition a turn later. The rebels *winning* the town stops it permanently.
-3. **Move troops**: any or all troops may move up to their Movement in edges. Troops are not required to move. Resolved towns are ordinary terrain — pacified and passable, simply no longer contestable. A garrison that just *won* its town in step 1 may march straight out of it.
-4. **Look**: any troop that did *not* move this turn may spend its Peek to secretly examine cards in its town.
-
----
-
-## Resolution
-
-Either player may declare one town resolved per turn, as a free action, on a town where **they have presence** — the Empire needs at least one troop there, the Insurgency at least one card in the pile. When a resolution is declared:
-
-1. Flip the town's entire pile face-up. It stays face up for the rest of the game.
-2. Total the **Insurgency presence** (sum of presence cards; dummies count zero).
-3. Total the **Empire presence** (sum of the presence of all troops in that town).
-4. The higher total **wins the town**. **The Empire wins ties.**
-5. The town is frozen and marked with the winner.
-
-### Scoring — capture only, winner take all
-
-The winner scores points equal to **the opponent's committed presence in that town** — nothing more.
-
-- **Insurgency wins** → scores points equal to the **Empire presence** that was present.
-- **Empire wins** → scores points equal to the **Insurgency presence** that was present (real presence cards only; dummies are worth nothing).
-
-Consequences that fall straight out of this one rule:
-- Grabbing an empty or undefended town is worth **zero**. Walkovers don't pay.
-- The bigger the enemy commitment you overcome, the bigger the score.
-- A pile of dummy cards can bait the Empire into marching in a large garrison. If the Empire then wins the resolution, it captures only real presence — which was zero. A whole campaign spent on a phantom pays nothing. The bluff has teeth.
-
-### After resolution
-
-Everything in the town stays where it is, face up, for the rest of the game:
-
-- **Cards** stay on the board face up, as a permanent public record of the fight. They score at the moment of the flip and do nothing afterward.
-- **Troops committed to the town are spent.** They are removed from play entirely.
-
-This is what makes commitment cost something. A resolved town is not a base, a garrison or an anchor — it is a hole in the ground where some of your army used to be.
-
-Because commitment is permanent, waiting costs resources: the longer a town goes unresolved, the more both sides have sunk into it, and the more the eventual resolution consumes.
-
----
-
-## End of the Game
-
-The Insurgency deck is **finite and never reshuffles**. When it is exhausted and the Insurgency can no longer refill its hand, the game ends: **every remaining town anybody committed to resolves simultaneously**, by the normal rules, and all resulting points are scored. A town neither side ever set foot in — no troops, no cards — is left open instead. You may only resolve a town you are in (Decision 5), and that holds for the sweep as much as for a declared resolution: such a town is worth nothing to either side by definition, and handing it to whoever wins ties is noise on the board and in the log.
-
-Whoever has the most points wins.
-
-This means unresolved towns are never *safe* — only deferred. Declaring a resolution is not how you score; it is how you **lock in a result before the opponent can reverse it**.
-
-There are three other ways the game ends, all of which do the same thing — resolve everything still standing, at once:
-
-- **Every town is resolved.** There is nothing left to play for.
-- **The Empire is eliminated**: no troops on the board, and no town left that will build it any. It can never act again, so the remaining turns would be the Insurgency placing cards nobody will contest. This costs the Insurgency nothing, because an undefended town is worth zero to it under capture-only scoring.
-- **Both sides agree to stop.** Either player may put up a standing **offer to end**, and withdraw it again; when both offers are up, the game ends. This is *not* a pass in the turn-skipping sense — skipping a turn would stop the deck draining, and two cautious players could then stall forever, which is the failure this whole decision exists to prevent. It is an agreement, and it is not free: mass resolution settles every outstanding fight at the presence standing in it today, so agreeing to end is a real decision rather than a way of leaving the room. In a solo game one offer is enough, since the bot has no opinion to give.
-
----
-
 ## Parameters
 
-The tunable knobs. These are starting values to playtest first, and all are expected to move.
+The tunable knobs, and where the tuning pressure lives.
+
+> **This table is the graded configuration the measurements below were taken on, not what
+> is currently played.** The live numbers are in `scenarios/baseline.json`, and `rules.html`
+> quotes those: cards worth 0 or 1, a troop worth 1 presence, every town supplying 2, hand
+> of 3. The simplification was deliberate and is recorded in `CLAUDE.md`. Both are kept
+> because a measurement is only meaningful alongside the parameters it was taken on.
 
 | Parameter | Starting value | Notes |
 |---|---|---|

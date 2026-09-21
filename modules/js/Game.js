@@ -1389,8 +1389,17 @@ class Resolve {
     }
 }
 
-/** Where the written rules live. The repo is the source of truth for them. */
-const RULES_URL = 'https://github.com/scotfree/ironandwhisper/blob/main/ironandwhisper.md';
+/**
+ * The player's manual, served from the game's own folder.
+ *
+ * It used to link out to `ironandwhisper.md` on GitHub, because `*.md` is
+ * excluded from the deploy and the rules were not on the BGA server. `rules.html`
+ * is not excluded, so the manual now ships with the game: no external site, no
+ * GitHub Pages to configure, and it works for a player who has never heard of
+ * the repository. `g_gamethemeurl` is the game folder BGA serves the artwork
+ * from, so the file sits beside `img/`.
+ */
+const rulesUrl = () => `${g_gamethemeurl}rules.html`;
 /**
  * The cheat sheet, and the side-specific reminder beside the board.
  *
@@ -1480,8 +1489,8 @@ class Help {
                 <div class="iaw-help-heading">${_('What you are looking at')}</div>
                 ${this.legendHtml()}
                 <p class="iaw-help-more">
-                    <a href="${RULES_URL}" target="_blank" rel="noopener">
-                        ${_('The full rules, and the reasoning behind every decision')}</a>
+                    <a href="${rulesUrl()}" target="_blank" rel="noopener">
+                        ${_('The full rules, with a picture of every symbol')}</a>
                 </p>
             </div>
         `;
