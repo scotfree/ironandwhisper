@@ -328,6 +328,14 @@ Done:
   troops, and a detachment of three in Larrow cut off and starving. Its numbers come from
   `scenarios/baseline.json` and `maps/grid12.json`; nothing reads them automatically, so
   they are the one thing in it that can drift.
+- **"How to play" links to the manual; the `?` opens the cheat sheet.** They used to be the
+  same dialog — two differently-named controls doing one thing, with `rules.html` reachable
+  only as a text link at the bottom of it. The button on the side reminder is now an
+  ordinary `<a>` to `rules.html`, which is also what fixes the full-screen start card:
+  that renders the same `primerHtml` markup, and its copy of the button never had a
+  handler, so a click on it only closed the card. An anchor needs no wiring anywhere. The
+  start overlay's click-to-dismiss skips clicks on that link, because removing the card
+  mid-click can cancel the navigation it was asking for.
 - **A `?` at the right-hand end of the title bar opens the cheat sheet** (`src/ts/Help.ts`),
   four paragraphs and a legend of every icon. It is **not** a status bar action button:
   `removeActionButtons()` runs on every state change and would take it with it, so it lives

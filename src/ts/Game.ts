@@ -468,9 +468,9 @@ export class Game {
         if (!element || !this.help) {
             return;
         }
+        // No wiring: "How to play" is an ordinary link to the manual, which is
+        // what lets the start card's copy of this markup work as well.
         element.innerHTML = this.help.primerHtml(this.side);
-        element.querySelector('.iaw-primer-more')
-            ?.addEventListener('click', () => this.help.show());
     }
 
     cardById(cardId: number): CardView | undefined {

@@ -99,7 +99,15 @@ export class Help {
             overlay.remove();
             document.removeEventListener('keydown', dismiss);
         };
-        overlay.addEventListener('click', dismiss);
+        // Everything dismisses this except the one control on it. Removing the
+        // card mid-click can cancel the link's own navigation, and a player who
+        // asked for the manual should not have to find it twice.
+        overlay.addEventListener('click', event => {
+            if ((event.target as HTMLElement)?.closest('.iaw-primer-more')) {
+                return;
+            }
+            dismiss();
+        });
         document.addEventListener('keydown', dismiss);
     }
 
@@ -213,7 +221,15 @@ export class Help {
     }
 
     /**
-     * A permanent few lines saying what your side does.
+     * A permanent few lines saying what your side does, and a way into the manual.
+     *
+     * "How to play" is a *link to `rules.html`*, not a button that opens the
+     * cheat sheet: the `?` in the title bar already opens that, and two
+     * differently-named controls doing one thing left the document that
+     * actually teaches the game as a text link at the bottom of a dialog. Being
+     * an anchor rather than a button is also what makes it work inside the
+     * full-screen start card, which renders this same markup and never had a
+     * click handler attached to its copy — see `showStartOverlay`.
      *
      * Spectators get the Empire's, arbitrarily: something is more use than an
      * empty box. No turn order here any more — that is `phaseListHtml`, which
@@ -244,7 +260,8 @@ export class Help {
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
                 <div class="iaw-frame-title">${title}</div>
                 <p>${summary}</p>
-                <button type="button" class="iaw-primer-more">${_('How to play')}</button>
+                <a class="iaw-primer-more" href="${rulesUrl()}"
+                   target="_blank" rel="noopener">${_('How to play')}</a>
             </div>
         `;
     }
