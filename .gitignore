@@ -6,3 +6,9 @@ __pycache__/
 sim/.venv/
 .ipynb_checkpoints/
 .pytest_cache/
+
+# The GPT experiment's working directory. It is parked on the `gpt-experiment`
+# branch, where `gpt/` is tracked — an ignore rule does not untrack anything, so
+# this only stops training runs and checkpoints showing up as untracked noise on
+# `main`. `tools/deploy.json` excludes `gpt` on both branches.
+gpt/
