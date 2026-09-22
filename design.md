@@ -51,6 +51,38 @@ Card *type ids* are still `influence0`…`influence3` in `data/cards.json` and t
 deck blocks. They are arbitrary identifiers that no player sees, and renaming them would
 churn every scenario file for nothing.
 
+### Neither side is the good guys (2026-09-22)
+
+The word for what the Insurgency *does* is **sedition**. Not *resistance*, and not
+*rumour*, which is what the manual said first and which says nothing.
+
+The tone this is protecting: **fascists against terrorists.** Neither side is meant to be
+sympathetic, and the vocabulary is the main thing that leaks sympathy. *Resistance* is the
+word to avoid above all — it is reactive, which is mechanically wrong (the Insurgency moves
+first by Decision 10 and acts anywhere on the map with no travel, so the Empire is the side
+spending every turn answering), it is the noble reading of the same acts, and it collides
+with a well-known hidden-role bluffing game. *Sedition* is a crime of words and organising
+rather than of arms, it is what an Empire would call it — and the board is drawn from the
+Empire's point of view, being its map, its roads and its supply — and it sits beside the
+title.
+
+The manual no longer says the Insurgency is "taking it back", which granted it a rightful
+claim it does not need. It is *making the province ungovernable*, which is the accurate
+description of Decision 2's denial rule as well: a town the rebels win supplies nothing and
+builds nothing, for ever. They do not liberate a town, they make sure nobody can hold one.
+The forced whole-hand placement points the same way — most agents are put in towns the
+Insurgency will never fight for, so the population is cover.
+
+**This must not become a second name for presence.** Sedition is flavour and nothing else.
+*Unrest* is the tempting one and is exactly the trap the rest of this section exists to
+close: one quantity, one word, and that word is presence.
+
+Open, if the tone is ever pushed further: **"rebels" is the sympathetic word** and it is
+everywhere — six translatable strings in the client, one in `Game.php`, and thirty-odd uses
+in `rules.html`. *Insurgency* is the colder term and is already the formal name of the side.
+Not changed, because it would be a sweep for a shade of meaning; noted so it is a decision
+rather than an oversight.
+
 ---
 
 ## Parameters
