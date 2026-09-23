@@ -156,6 +156,18 @@ and carry their own value. A bluff is a card worth 0.
 **Deployed, playable on the Studio, and being played.** The rules have moved a long way
 since the first port; several sessions of real play have driven that.
 
+**The rebel side is called "Rebels" to the player** (2026-09-23), in every display string in
+the client and the PHP, and in `rules.html`. `Insurgency` survives as the *identifier*
+everywhere — `Side = 'insurgency'`, the database, `first_player`, the state class — on the
+same precedent as the repo still being `ironandwhisper` and the cards still being
+`influence0`. The manual calls the side the **Rebel Conspiracy**; **sedition** is the word
+for what it does, and *resistance* is the word to avoid. See *Vocabulary* in `design.md`,
+which records why: neither side is meant to be sympathetic.
+
+**The manual says "location" for a place on the map**, and reserves *town* and *city* for the
+two legend entries about what those are and what they do. Three words for one thing is the
+failure the Vocabulary decision exists to prevent.
+
 Done:
 - BGA Studio project `ironandwhisper`, deploying cleanly over SFTP with a client build.
 - Full rules simulator, bots, 87 tests, an exploration notebook, and a batch runner.
