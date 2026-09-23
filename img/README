@@ -36,3 +36,15 @@ Three things the board relies on:
 pawn.svg has no shoulder to respect and is scaled to the badge rather than a
 box, so only the colour convention applies to it. Keep it roughly upright —
 it is drawn at 13 x 17 on screen.
+
+
+Earlier drafts of these frames live in misc/img-drafts/, not here. That is not
+tidiness: BGA loads *every* file in the img root into every player's browser on
+every game load, so an unused draft is a download for everyone, forever. Only
+files the game actually references belong in this directory.
+
+misc/ is BGA's designated non-deployed directory and tools/deploy.json excludes
+it, so anything in there stays in git and never reaches the Studio. Note that
+misc/README is BGA's stock text and claims the directory is not committed to
+source control — in this repo it is, deliberately, which is the whole point of
+keeping the drafts there.
