@@ -483,6 +483,21 @@ cards spent on it were unrecallable anyway, so the exchange is a trade rather th
 end. Whether it is a trade worth playing is a table question. **Graded cards and troop
 presence above 1 (issue #2) stay the sanctioned levers**, because they are parameter edits.
 
+**`design.md` carries the release plan and the deferred-ideas list.** *Path to Release* has
+one line per thing needed for alpha, beta and full release, each marked whether it was verified
+against the code and BGA's own docs or whether the authoritative answer is BGA's. *Next Steps*
+is split into **tier one — complexity without a new mechanic** (presence above 1, more than one
+resolution per turn: a parameter edit or a relaxed limit, so the cheap experiments) and **tier
+two — changes that move a mechanic**. The split is the useful axis because some of these are a
+line in `scenarios/` and some are a different game.
+
+**Two things that look like tier one and are not.** Letting the rebels hold cards back reads as
+a relaxation, but Decision 6 exists to prevent exactly it: forced placement is the noise
+generator that makes pile height uninformative, and it is what makes the deck an exact clock.
+And lifting the one-resolution-per-turn cap *is* a fair relaxation — Decision 4's reason for it
+is rate-limiting, not a mechanism — but it would accelerate board-shrinking, which already ends
+games around turn 8 of 20, so measure game length and not just win rate.
+
 **Deferred work lives in GitHub Issues**, not in this file:
 https://github.com/scotfree/ironandwhisper/issues, labelled `design`, `balance`, `ui`,
 `bots`, `playtest`, `deferred`. This document and `design.md` record decisions and

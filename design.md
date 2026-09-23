@@ -286,17 +286,130 @@ Map and scenario are split because every parameter is still a guess. The separat
 
 ---
 
+## Path to Release
+
+Where the project has to get to, and in what order. One line each. Marked **[verified]** where
+it was checked against the code or BGA's own documentation, and **[ask BGA]** where the
+authoritative answer belongs to them and this is only the expected shape.
+
+### Alpha — on the live site, playable by invited BGA accounts
+
+- **Fill in `stats.jsonc`.** It is still the skeleton: both the table and player blocks are
+  empty. **[verified]**
+- **Choose and implement a tie-breaker.** `tie_breaker_description` is empty and nothing
+  writes `player_score_aux`, and roughly one game in five ends level because scores are small
+  integers — this is the only item on the list that is a design decision rather than data
+  entry. **[verified]**
+- **Audit `gameinfos.jsonc`** against the deprecation warning that "Reload game informations"
+  throws; it has never been done, and some fields there are now ignored in favour of the
+  Metadata Manager. **[verified]**
+- **Move the six unreferenced SVG drafts out of `img/`** into `misc/`, because BGA loads every
+  file in the img root into every player's browser on every game load. **[verified]**
+- **Play a full game with two Studio test accounts in separate browser profiles**, which is
+  the only way `View::forSide` is exercised by two differently-privileged clients at once —
+  every game so far has been against a bot that reads the database directly. **[verified]**
+- **Request alpha once** from the game management page after a successful build; it costs BGA
+  staff time, so it is not a request to make twice. **[ask BGA]**
+
+**Not needed for alpha:** the box, banner and title images. BGA's art documentation says those
+are "no longer stored in project directory" — they live in the Metadata Manager, and it says
+they can be done later. The in-game art needs nothing: SVG is one of the four formats the same
+page endorses, "really efficient for icons or abstract images". **[verified]**
+
+### Beta — visible to every BGA member
+
+- **The game has to be published.** BGA will not take an unpublished prototype past private
+  alpha; for a self-designed game that means self-publishing, and print-and-play is the
+  lightest form of it — `rules.html` is already written for physical components, so what is
+  missing is the printable component sheets. **[ask BGA]**
+- **A BGG entry**, which follows from publication rather than preceding it, since BGG's
+  criterion is public availability. **[ask BGA]**
+- **Confirm what evidence of publication BGA wants**, in one message to the developer forum —
+  the same place that settled the display-name question. **[ask BGA]**
+- **Balance that survives strangers.** Every figure in this document was measured against a
+  bot, and four of five logged human games ended with the rebels scoring at or near zero.
+- **The game-page presentation** in the Metadata Manager, plus whatever the pre-release
+  checklist asks for by then.
+
+### Full release
+
+- **BGA's beta exit criteria**, which are a volume of clean games plus staff sign-off. **[ask BGA]**
+- **Translation.** The display name arrives through the translation system at alpha and the
+  rest of the strings follow, which is why the client's prose is compiled into `_()` literals
+  rather than imported as data.
+- **The deferred UI work**: animations (#4), the narrow-screen layout (#17), and letting the
+  player choose where attrition falls (#11).
+- **Stats worth looking at, a tie-breaker that has actually been played with, and art that is
+  not placeholder.**
+
+---
+
 ## Next Steps — Deferred Richness
 
-Explicitly **out of the MVP**. These are the directions worth growing into once the core loop is proven fun. Each should be a modification of the simple rules above, not a replacement.
+Explicitly **out of the MVP**, and as of 2026-09-23 explicitly *not now*: the game reads as
+close to playable, so nothing here goes in before it has been played more. The list is split
+by how much it costs to try, because that turned out to be the useful axis — some of these are
+a line in `scenarios/`, and some of them are a different game.
 
-**Generation:** the most promising direction is *earned capitals* — make generation per-anchor rather than one-per-turn, so the Empire's recruitment network grows out of where it actually fought. Note this requires revisiting Decision 3 at the same time (see the coupling warning).
+### Tier one — complexity without a new mechanic
+
+Same pieces, same rules, a different number or a relaxed limit. Each of these changes how the
+game *plays* without adding machinery to learn, which makes them the cheap experiments and the
+ones to try first.
+
+**Presence above 1, for cards and for troops.** Purely a parameter edit in `data/` and
+`scenarios/` — no code moves. It is the lever that changes what a garrison is *worth*: at
+presence 1 a lone troop is beaten by two cards, at presence 3 it takes four. Graded cards are
+also what make concealment mean anything, since with a maximum of 1 the public pile height is
+an exact upper bound on what a location can hold. The work is not the rules, it is the tuning
+and the bots — every sweep so far has found a cliff where the bots' strategy flips, and
+`GlobEmpire`'s certainty test does not survive graded cards at all (#13, #2).
+
+**More than one resolution per turn.** Decision 4's stated reason for the cap is
+rate-limiting — "ample for a twelve-town map" — not a mechanism it protects, so lifting it is
+a genuine relaxation rather than a rewrite. The decision it creates is real: three lone rebel
+cards sitting on empty locations, the Empire knowing some of them must be zeros and not which,
+and now able to call more than one of them in a turn. **Caution**: it would accelerate
+board-shrinking, which already ends games around turn 8 of 20 (#10), so it wants measuring
+against game length rather than win rate alone.
+
+### Tier two — changes that move a mechanic
+
+The machinery itself changes. Each of these is interesting and each needs its own conversation,
+because something currently load-bearing comes out.
+
+**Not having to place the whole hand, and carrying cards over.** This looks like a relaxation
+and is not: Decision 6 exists precisely to prevent it. Forced placement is the noise generator
+that makes pile height uninformative — if cards could be held you would place only when it
+helped, pile growth would start to correlate with real presence, and the Empire could read the
+board directly — and it is what makes the deck an exact clock, which is lost the moment the
+placement rate can vary. What the proposal adds that Decision 6 never weighed is the *upside*:
+banking your real cards behind a screen of decoys and committing them in a burst is a genuinely
+attractive decision, and nothing in the game currently lets you save anything. So the trade is
+stated, not dismissed — a banking decision, paid for with an unreadable board and a
+deterministic game length.
+
+**A hand size that changes** over the course of the game, or in response to what either side
+does. Hand size was tuned early and has barely been revisited since; making it dynamic is a new
+rule rather than a new number, and it interacts directly with the clock (`turns = deck_size /
+hand_size`).
+
+**Rebels placing into resolved locations** (#8) — the change that opens the most and costs the
+most, since "resolved is finished" is currently what makes a resolution worth calling at all.
+
+**Earned capitals:** make generation per-anchor rather than per-town, so the Empire's
+recruitment network grows out of where it actually fought. Requires revisiting Decision 3 at
+the same time — see the coupling warning there.
 
 **Richer cards** (revealed at resolution alongside plain presence):
+- A card that, when revealed at a resolution, **triggers resolutions in the neighbouring
+  locations** — one call cascading into the places around it.
+- A card that, when played, **lets you place further cards face down in neighbouring
+  locations**, spreading the rebels outward from a commitment rather than from the hand.
 - A card worth *extra* presence.
-- A card that *doubles* the town's stakes — a way to gamble on a contested town.
-- A card that *resets* a town (clears the pile) without resolving it.
-- A card that *delays* resolution — the town doesn't lock even though someone called it.
+- A card that *doubles* the location's stakes — a way to gamble on a contested place.
+- A card that *resets* a location (clears the pile) without resolving it.
+- A card that *delays* resolution — the location does not lock even though someone called it.
 
 **Richer Empire units** (the Empire trades card-play flexibility for unit variety):
 - **Scouts** — fast movement, low presence.
@@ -304,10 +417,13 @@ Explicitly **out of the MVP**. These are the directions worth growing into once 
 - Generally, new units defined by trading among Presence / Movement / Peek.
 
 **Information mechanics** (letting the Empire partially pierce the fog):
-- The Empire occasionally gets to see the Insurgency's hand before placement, or learn *how many* real cards are in it, or the current real/dummy ratio.
+- The Empire occasionally gets to see the rebels' hand before placement, or learn *how many*
+  real cards are in it, or the current real/decoy ratio.
 
-**Scoring / map variants:**
-- Intrinsic town values (small towns vs. cities) so *where* you fight matters, not just how hard.
+**Scoring and map variants:**
+- Intrinsic location values, so *where* you fight matters and not only how hard — the
+  long-deferred answer to the rebels only being able to score where the Empire chooses to
+  stand (#1).
 
 **Flow variants:**
 - ~~A Go-style **mutual pass**~~ — built, 2026-09-11. See Decision 1.
