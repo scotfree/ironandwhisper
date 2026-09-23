@@ -83,6 +83,15 @@ $board: #e6e6e8;
     text-align: right;
 }
 
+// Marches are drawn above the town boxes so they can reach into the town they
+// arrive in; the roads stay underneath, where they belong.
+#iaw-arrows {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
 #iaw-roads {
     position: absolute;
     inset: 0;
@@ -228,19 +237,49 @@ $board: #e6e6e8;
 
 // A pawn and a count, rather than a capsule with a number in it: the piece
 // says whose it is without the colour having to.
+// A pawn with its presence *underneath* it rather than beside it. The Empire's
+// column is one narrow strip down the right of a fixed 120x104 box, so stacking
+// buys the piece real size — 28x37 against the old 16x21 — out of height that
+// was going unused once MINIMAL_TOWNS took the supply arithmetic away.
 .iaw-troops {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 1px;
     color: color.adjust($empire, $lightness: -8%);
     font-size: 13px;
     font-weight: bold;
+
+    // A resolved town is a record, not a position: the result line above it is
+    // what matters, and the large token plus that line does not fit the box.
+    &.compact {
+        flex-direction: row;
+        align-items: center;
+        gap: 2px;
+
+        .iaw-pawn {
+            width: 14px;
+            height: 18px;
+        }
+    }
+}
+
+// The staged and doomed markers, on their own line under the token.
+.iaw-troop-marks {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    line-height: 1;
+}
+
+.iaw-troops.compact .iaw-troop-marks {
+    display: inline-flex;
 }
 
 .iaw-pawn {
     display: inline-block;
-    width: 16px;
-    height: 21px;
+    width: 28px;
+    height: 37px;
 
     // The pawn is a piece, not ground, so it takes the Empire's colours rather
     // than the town's. Same white/black convention as the frames.
@@ -264,6 +303,36 @@ $board: #e6e6e8;
 .iaw-troop-count {
     font-variant-numeric: tabular-nums;
     font-weight: bold;
+}
+
+// What a resolution was decided on, kept under the name for the rest of the
+// game. Centred rather than pushed to a side, because it belongs to both.
+.iaw-town-result {
+    display: flex;
+    justify-content: center;
+}
+
+.iaw-result-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    transform: scale(0.78);
+}
+
+.iaw-result-dash {
+    color: #555;
+    font-weight: bold;
+}
+
+// The one town an announcement is about. Red is otherwise only a small local
+// mark on a starving garrison; this is meant to be the only thing you see.
+.iaw-town.resolving {
+    --art-fill: #{color.mix(#d8443c, #fff, 30%)};
+    --art-stroke: #a01b13;
+    filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35))
+            drop-shadow(0 0 12px rgba(216, 68, 60, 1))
+            drop-shadow(0 0 20px rgba(216, 68, 60, 0.9));
+    z-index: 3;
 }
 
 // The face-down stack and whatever is being staged onto it, on one line.
@@ -395,6 +464,13 @@ $board: #e6e6e8;
 
     li {
         margin-bottom: 1px;
+    }
+
+    // The half of the round that is not yours: quieter, but not hidden — what
+    // your opponent does next is the reason the list shows both sides at all.
+    // Before `li.current`, so the live step wins even when it is theirs.
+    li.theirs {
+        color: #999;
     }
 
     li.current {
@@ -1058,6 +1134,91 @@ $board: #e6e6e8;
         font-size: 14px;
         padding: 6px 14px;
     }
+}
+
+/********* a resolution, announced *********/
+
+#iaw-resolution {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.62);
+    cursor: pointer;
+}
+
+#iaw-resolution-card {
+    width: 100%;
+    max-width: 520px;
+    padding: 30px 34px 22px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    // The winner's colour, at the strength a resolved town takes on the board,
+    // so the card and the box it is about read as the same event.
+    border-left: 8px solid $empire;
+    background: color.mix($empire, #fff, 14%);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    cursor: default;
+
+    &.insurgency {
+        border-left-color: $insurgency;
+        background: color.mix($insurgency, #fff, 14%);
+    }
+}
+
+.iaw-resolution-town {
+    font-family: 'UnifrakturCook', 'UnifrakturMaguntia', 'Old English Text MT', serif;
+    font-size: 34px;
+    line-height: 1.1;
+    color: $ink;
+}
+
+.iaw-resolution-score {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 18px;
+    margin: 18px 0 16px;
+}
+
+.iaw-resolution-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.iaw-resolution-who {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #6a6a6a;
+}
+
+.iaw-resolution-dash {
+    padding-bottom: 6px;
+    font-size: 22px;
+    color: #777;
+}
+
+.iaw-resolution-verdict {
+    font-size: 19px;
+    font-weight: bold;
+    color: $ink;
+}
+
+.iaw-resolution-points {
+    margin-top: 4px;
+    font-size: 14px;
+    color: #555;
+}
+
+#iaw-resolution #iaw-start-hint {
+    margin-top: 18px;
 }
 
 #iaw-start-hint {

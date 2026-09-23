@@ -48,7 +48,10 @@ export class EmpireTurn {
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} must move'));
             this.game.setStagingText(this.watchingHtml());
-            this.game.setPhase(-1);
+            // Building is step 4 of the round. Which of its steps the Empire is
+            // on is never notified, so a watcher gets the first one rather than
+            // nothing at all.
+            this.game.setPhase(4);
             return;
         }
 
@@ -61,7 +64,7 @@ export class EmpireTurn {
      * this the screen is indistinguishable from a broken one.
      */
     private watchingHtml(): string {
-        return `<div class="iaw-hint">${_('The Empire is moving. You are the Insurgency, so there is nothing to do until it is your turn.')}</div>`;
+        return `<div class="iaw-hint">${_('The Empire is moving. You are the Rebels, so there is nothing to do until it is your turn.')}</div>`;
     }
 
     onLeavingState() {
@@ -213,7 +216,7 @@ export class EmpireTurn {
         const title = this.title();
         this.bga.statusBar.setTitle(title.text, title.args);
         // Building is step 2 of the Empire's turn, marching step 3.
-        this.game.setPhase(this.step === 'build' ? 1 : 2);
+        this.game.setPhase(this.step === 'build' ? 4 : 5);
 
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.

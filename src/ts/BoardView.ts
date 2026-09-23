@@ -17,6 +17,9 @@ const PADDING = 70;
 const TOWN_WIDTH = 120;
 const TOWN_HEIGHT = 104;
 
+/** How far a march arrow reaches inside the box of the town it arrives in. */
+const ARROW_OVERLAP = 18;
+
 /**
  * Hide the Empire's supply arithmetic inside the town boxes.
  *
@@ -83,6 +86,7 @@ export class BoardView {
             <div id="iaw-board" style="width:${width}px;height:${height}px">
                 ${this.edgesSvg(width, height)}
                 ${definitions.map(town => this.townHtml(town)).join('')}
+                ${this.arrowsSvg(width, height)}
                 <div id="iaw-overlays"></div>
             </div>
         `;
@@ -153,32 +157,55 @@ export class BoardView {
         }).join('');
 
         return `<svg id="iaw-roads" width="${width}" height="${height}">
+            <g id="iaw-roads-edges">${lines}</g>
+        </svg>`;
+    }
+
+    /**
+     * Marches are drawn on a layer of their own, *above* the town boxes.
+     *
+     * They used to live inside `#iaw-roads`, which is the first thing in the
+     * board and therefore painted under every town — and a town's frame has an
+     * opaque fill, so an arrow that reached into its target simply disappeared.
+     * Up here it can overlap, which is what makes the head land on the town it
+     * is pointing at.
+     *
+     * The head is sized in `userSpaceOnUse` rather than the default multiples of
+     * stroke width. It was `markerWidth="4"` against `stroke-width: 8`, so it
+     * drew **32px** wide — in a gap between two horizontally adjacent boxes that
+     * is only 150 − 120 − 12 = **18px**. The head was nearly twice the length of
+     * the line, so it spilled back over the source and read as sitting at the
+     * base of the arrow. Absolute units also stop the ghost arrows, at stroke 6,
+     * getting a different head from the live ones for no reason anybody chose.
+     */
+    private arrowsSvg(width: number, height: number): string {
+        return `<svg id="iaw-arrows" width="${width}" height="${height}">
             <defs>
-                <marker id="iaw-arrowhead" viewBox="0 0 10 10" refX="9" refY="5"
-                        markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <marker id="iaw-arrowhead" viewBox="0 0 10 10" refX="10" refY="5"
+                        markerUnits="userSpaceOnUse"
+                        markerWidth="15" markerHeight="15" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" />
                 </marker>
             </defs>
-            <g id="iaw-roads-edges">${lines}</g>
             <g id="iaw-ghost-arrows"></g>
             <g id="iaw-move-arrows"></g>
         </svg>`;
     }
 
     /**
-     * Where a line from one town to another should start, so it emerges from
-     * the edge of the town's box rather than from under it.
+     * A point on the line between two towns, `air` pixels outside the first
+     * town's box. A negative `air` is *inside* the box, which is how a march
+     * ends up overlapping the town it arrives in.
      */
-    private boxExit(from: TownDef, to: TownDef): { x: number; y: number } {
+    private boxExit(from: TownDef, to: TownDef, air = 6): { x: number; y: number } {
         const x = this.px(from.x);
         const y = this.px(from.y);
         const dx = this.px(to.x) - x;
         const dy = this.px(to.y) - y;
 
-        // Half the town box, plus a little air.
         const scale = Math.min(
-            dx === 0 ? Infinity : (TOWN_WIDTH / 2 + 6) / Math.abs(dx),
-            dy === 0 ? Infinity : (TOWN_HEIGHT / 2 + 6) / Math.abs(dy),
+            dx === 0 ? Infinity : (TOWN_WIDTH / 2 + air) / Math.abs(dx),
+            dy === 0 ? Infinity : (TOWN_HEIGHT / 2 + air) / Math.abs(dy),
         );
         return { x: x + dx * scale, y: y + dy * scale };
     }
@@ -189,6 +216,7 @@ export class BoardView {
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
                 <div class="iaw-town-frame">${this.frameSvg(town)}</div>
                 <div class="iaw-town-name"></div>
+                <div class="iaw-town-result"></div>
                 <div class="iaw-town-body">
                     <div class="iaw-town-rebel"></div>
                     <div class="iaw-town-empire"></div>
@@ -463,6 +491,13 @@ export class BoardView {
 
         // Rebels down the left, Empire down the right, so which side a number
         // belongs to can be read off the board without reading the number.
+        // What happened here, kept on the board rather than only announced.
+        // The pop-up says it once, and in a turn-based game you often arrive
+        // after it played — the same argument that made the opponent's last turn
+        // persistent instead of animated.
+        const result = element.querySelector('.iaw-town-result') as HTMLElement;
+        result.innerHTML = this.resultHtml(town);
+
         const rebel = element.querySelector('.iaw-town-rebel') as HTMLElement;
         rebel.innerHTML = this.faceDownHtml(townId, town) + this.faceUpHtml(town);
 
@@ -473,8 +508,32 @@ export class BoardView {
     }
 
     /**
+     * The two presences a resolution was decided on, side by side, for the rest
+     * of the game. The numbers were already being sent and stored and had never
+     * been drawn anywhere.
+     *
+     * It reads left to right in the same order as the rest of the box — rebels,
+     * then Empire — so which pip is whose needs no label.
+     */
+    private resultHtml(town: TownView): string {
+        if (!town.resolved) {
+            return '';
+        }
+        return `<div class="iaw-result-line" title="${
+                _('How this location was decided: rebel presence against Empire presence')}"
+            >${presenceHtml(town.resolvedCardPresence)}<span class="iaw-result-dash"
+            >&ndash;</span>${presenceHtml(town.resolvedTroopPresence)}</div>`;
+    }
+
+    /**
      * The garrison: a pawn and a count, with what this turn would change and
      * what is about to starve.
+     *
+     * A live town draws the pawn large with its presence underneath, which uses
+     * the height of the Empire's column rather than the width of a single line.
+     * A **resolved** town draws it small and inline instead: the box is a record
+     * by then, the result line above it is the thing worth reading, and the two
+     * together do not fit in a fixed 104px box.
      */
     private troopsHtml(townId: string, town: TownView): string {
         const delta = this.troopDelta[townId] ?? 0;
@@ -486,6 +545,7 @@ export class BoardView {
         const pawn = this.frames
             ? `<span class="iaw-pawn">${this.frames.pawn}</span>`
             : '';
+        const compact = town.resolved ? ' compact' : '';
 
         // The build is called out on its own, loudly: it is the one change on
         // the board the Empire *creates* rather than moves, and it is the step
@@ -503,9 +563,10 @@ export class BoardView {
             ? `<span class="iaw-troops-doomed" title="${_('Starving: these troops are lost at the end of the Empire\'s next turn unless the supply line is repaired')}">&minus;${town.starving}</span>`
             : '';
 
-        return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
+        return `<div class="iaw-troops clickable${compact}${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}${this.garrisonHtml(town.troops)}${change}${raising}${doomed}</div>`;
+                 >${pawn}${this.garrisonHtml(town.troops)}<span class="iaw-troop-marks"
+                 >${change}${raising}${doomed}</span></div>`;
     }
 
     /**
@@ -546,7 +607,7 @@ export class BoardView {
                   >${network.troops}/${network.ceiling}</div>
                 <div class="iaw-contribution${denied ? ' denied' : ''}"
                      title="${denied
-                         ? _('Taken by the Insurgency: supplies nothing, builds nothing')
+                         ? _('Taken by the Rebels: supplies nothing, builds nothing')
                          : _('What this town adds to the network')}"
                   >(${this.supplyOf(townId)})</div>`;
     }
@@ -712,6 +773,19 @@ export class BoardView {
         this.dropHandler = handler;
     }
 
+    /**
+     * The one town a resolution announcement is about, marked hard in red while
+     * the announcement is up. Red is used nowhere else on the board except a
+     * starving garrison, and that mark is small and local; this is meant to be
+     * the only thing you can see.
+     */
+    setResolving(townId: string | null): void {
+        Object.keys(this.scenario.towns).forEach(id => {
+            document.getElementById(this.townElementId(id))
+                ?.classList.toggle('resolving', id === townId);
+        });
+    }
+
     /** Highlight the towns a player may click right now. */
     setSelectable(townIds: string[]): void {
         Object.keys(this.scenario.towns).forEach(townId => {
@@ -821,10 +895,16 @@ export class BoardView {
             const from = this.scenario.towns[move.from];
             const to = this.scenario.towns[move.to];
             const start = this.boxExit(from, to);
-            const end = this.boxExit(to, from);
+            // Reaching into the target: the head belongs on the town being
+            // marched into, not in the gap before it.
+            const end = this.boxExit(to, from, -ARROW_OVERLAP);
+            // The count stays in the *gap* rather than at the midpoint of the
+            // line, which now ends inside a town box and would put the number on
+            // top of a garrison.
+            const edge = this.boxExit(to, from);
             const label = move.count > 1
-                ? `<text class="iaw-move-count" x="${(start.x + end.x) / 2}"
-                         y="${(start.y + end.y) / 2 - 4}">${move.count}</text>`
+                ? `<text class="iaw-move-count" x="${(start.x + edge.x) / 2}"
+                         y="${(start.y + edge.y) / 2 - 4}">${move.count}</text>`
                 : '';
             return `<line class="iaw-move-arrow" x1="${start.x}" y1="${start.y}"
                           x2="${end.x}" y2="${end.y}"

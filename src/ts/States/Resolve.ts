@@ -29,7 +29,10 @@ export class Resolve {
             resolvable: args?.resolvable ?? [],
         };
         this.target = null;
-        this.game.setPhase(isCurrentPlayerActive ? 0 : -1);
+        // Absolute index into the whole round: the rebels' resolve is step 0,
+        // the Empire's is step 3. Set whoever is resolving, active or not — the
+        // list shows both sides, so a watcher sees where the turn actually is.
+        this.game.setPhase(this.args.side === 'insurgency' ? 0 : 3);
 
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} may resolve a town'));

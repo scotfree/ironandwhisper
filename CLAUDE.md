@@ -336,6 +336,52 @@ Done:
   handler, so a click on it only closed the card. An anchor needs no wiring anywhere. The
   start overlay's click-to-dismiss skips clicks on that link, because removing the card
   mid-click can cancel the navigation it was asking for.
+- **The turn order shows the whole round, both sides** (2026-09-23), eight steps from the
+  rebels' resolve to the Empire's starvation, the other side's half greyed but present.
+  It used to list only your own three or five, which answered "what do I do now" and never
+  "what happens after I do it" — and the thing it now puts permanently on screen is that
+  **resolution comes first on both sides**, which two logged games were lost to not seeing.
+  `setPhase` takes an absolute index into that list, so a step belonging to the side that
+  is not you can be lit: `Resolve` sets 0 or 3 from `args.side` whether you are active or
+  not, `InsurgencyTurn` sets 1 for watcher and player alike, and `EmpireTurn` sets 4 for a
+  watcher because which of its steps the Empire is on is never notified.
+- **A resolution is announced full-screen, and then kept on the board.** `Help.showResolution`
+  is the same shape as the start card — a plain fixed backdrop, not a popin, dismissed by
+  any click or key — showing both presences as pips, who won and what they scored, tinted
+  with the winner's colour, while `BoardView.setResolving` marks the town itself in red.
+  The board then keeps the two numbers under the town's name for good
+  (`BoardView.resultHtml`), because an announcement plays once and in a turn-based game you
+  often arrive after it played: the same argument that made the opponent's last turn
+  persistent rather than animated. `resolvedCardPresence` and `resolvedTroopPresence` were
+  already stored, sent and kept on `TownView` — nothing had ever drawn them.
+- **The garrison is a stacked token**: the pawn at 28x37 rather than 16x21, with its
+  presence pip underneath instead of beside it. The Empire's column is a narrow strip down
+  the right of a fixed 120x104 box, so stacking buys the piece real size out of height that
+  went unused once `MINIMAL_TOWNS` removed the supply arithmetic. A **resolved** town draws
+  it small and inline instead: by then the box is a record, the result line is the thing to
+  read, and the two together do not fit.
+- **March arrows point at the town they arrive in.** The head was `markerWidth="4"` against
+  `stroke-width: 8` — the default `markerUnits` being multiples of stroke width — so it drew
+  **32px** wide in a gap between two horizontally adjacent boxes that is only
+  `150 - 120 - 12 = 18px`. The head was nearly twice the length of its line and spilled back
+  over the source, which reads as an arrowhead at the base. It is now sized in
+  `userSpaceOnUse` (so the ghost arrows at stroke 6 stop getting a different head for no
+  reason) and the line runs `ARROW_OVERLAP` px *inside* the target's box. That needed the
+  arrows moved out of `#iaw-roads` — the first child of the board, painted under every town,
+  whose frames are opaque — into `#iaw-arrows` above them. The count label stays in the gap
+  rather than at the line's midpoint, which is now inside a town.
+- **Prose lives in `src/text/*.md`**, compiled to `src/ts/primers.generated.ts` by
+  `tools/build-text.mjs` as part of `npm run build`. `*.md` is excluded from the deploy, so
+  it is compiled in rather than fetched; the generated file is committed and emits
+  `_('…')` **literals**, because BGA finds translatable text by scanning the deployed
+  `modules/js/Game.js` and `_(someVariable)` extracts nothing. The Markdown subset is
+  paragraphs, `**bold**` and `*italic*` — a dependency for that would be more code than the
+  converter. Edit the `.md`, never the generated `.ts`.
+- **The `?` cheat sheet is the legend and nothing else** (2026-09-23). It opened with four
+  paragraphs of rules that said what `rules.html` says at more length, so two places had to
+  be kept current and one of them would always lose. What is left is the thing it does
+  *better* than the manual: the legend draws the **real** components, so it cannot drift
+  from the board, where the manual's picture is hand-built and can.
 - **A `?` at the right-hand end of the title bar opens the cheat sheet** (`src/ts/Help.ts`),
   four paragraphs and a legend of every icon. It is **not** a status bar action button:
   `removeActionButtons()` runs on every state change and would take it with it, so it lives
@@ -358,7 +404,7 @@ Done:
   both engines.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
-- **116 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+- **126 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 - **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,
   `Bots::globEmpireTurn`), and game option 101 to choose between it and the heuristic bot

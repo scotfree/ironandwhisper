@@ -30,6 +30,8 @@ const PADDING = 70;
 // went on and no two towns were the same shape.
 const TOWN_WIDTH = 120;
 const TOWN_HEIGHT = 104;
+/** How far a march arrow reaches inside the box of the town it arrives in. */
+const ARROW_OVERLAP = 18;
 /**
  * Hide the Empire's supply arithmetic inside the town boxes.
  *
@@ -82,6 +84,7 @@ class BoardView {
             <div id="iaw-board" style="width:${width}px;height:${height}px">
                 ${this.edgesSvg(width, height)}
                 ${definitions.map(town => this.townHtml(town)).join('')}
+                ${this.arrowsSvg(width, height)}
                 <div id="iaw-overlays"></div>
             </div>
         `;
@@ -143,28 +146,50 @@ class BoardView {
                           x2="${this.px(to.x)}" y2="${this.px(to.y)}" />`;
         }).join('');
         return `<svg id="iaw-roads" width="${width}" height="${height}">
+            <g id="iaw-roads-edges">${lines}</g>
+        </svg>`;
+    }
+    /**
+     * Marches are drawn on a layer of their own, *above* the town boxes.
+     *
+     * They used to live inside `#iaw-roads`, which is the first thing in the
+     * board and therefore painted under every town — and a town's frame has an
+     * opaque fill, so an arrow that reached into its target simply disappeared.
+     * Up here it can overlap, which is what makes the head land on the town it
+     * is pointing at.
+     *
+     * The head is sized in `userSpaceOnUse` rather than the default multiples of
+     * stroke width. It was `markerWidth="4"` against `stroke-width: 8`, so it
+     * drew **32px** wide — in a gap between two horizontally adjacent boxes that
+     * is only 150 − 120 − 12 = **18px**. The head was nearly twice the length of
+     * the line, so it spilled back over the source and read as sitting at the
+     * base of the arrow. Absolute units also stop the ghost arrows, at stroke 6,
+     * getting a different head from the live ones for no reason anybody chose.
+     */
+    arrowsSvg(width, height) {
+        return `<svg id="iaw-arrows" width="${width}" height="${height}">
             <defs>
-                <marker id="iaw-arrowhead" viewBox="0 0 10 10" refX="9" refY="5"
-                        markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                <marker id="iaw-arrowhead" viewBox="0 0 10 10" refX="10" refY="5"
+                        markerUnits="userSpaceOnUse"
+                        markerWidth="15" markerHeight="15" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" />
                 </marker>
             </defs>
-            <g id="iaw-roads-edges">${lines}</g>
             <g id="iaw-ghost-arrows"></g>
             <g id="iaw-move-arrows"></g>
         </svg>`;
     }
     /**
-     * Where a line from one town to another should start, so it emerges from
-     * the edge of the town's box rather than from under it.
+     * A point on the line between two towns, `air` pixels outside the first
+     * town's box. A negative `air` is *inside* the box, which is how a march
+     * ends up overlapping the town it arrives in.
      */
-    boxExit(from, to) {
+    boxExit(from, to, air = 6) {
         const x = this.px(from.x);
         const y = this.px(from.y);
         const dx = this.px(to.x) - x;
         const dy = this.px(to.y) - y;
-        // Half the town box, plus a little air.
-        const scale = Math.min(dx === 0 ? Infinity : (TOWN_WIDTH / 2 + 6) / Math.abs(dx), dy === 0 ? Infinity : (TOWN_HEIGHT / 2 + 6) / Math.abs(dy));
+        const scale = Math.min(dx === 0 ? Infinity : (TOWN_WIDTH / 2 + air) / Math.abs(dx), dy === 0 ? Infinity : (TOWN_HEIGHT / 2 + air) / Math.abs(dy));
         return { x: x + dx * scale, y: y + dy * scale };
     }
     townHtml(town) {
@@ -173,6 +198,7 @@ class BoardView {
                  style="left:${this.px(town.x)}px;top:${this.px(town.y)}px">
                 <div class="iaw-town-frame">${this.frameSvg(town)}</div>
                 <div class="iaw-town-name"></div>
+                <div class="iaw-town-result"></div>
                 <div class="iaw-town-body">
                     <div class="iaw-town-rebel"></div>
                     <div class="iaw-town-empire"></div>
@@ -409,6 +435,12 @@ class BoardView {
             : ''}${definition.label}`;
         // Rebels down the left, Empire down the right, so which side a number
         // belongs to can be read off the board without reading the number.
+        // What happened here, kept on the board rather than only announced.
+        // The pop-up says it once, and in a turn-based game you often arrive
+        // after it played — the same argument that made the opponent's last turn
+        // persistent instead of animated.
+        const result = element.querySelector('.iaw-town-result');
+        result.innerHTML = this.resultHtml(town);
         const rebel = element.querySelector('.iaw-town-rebel');
         rebel.innerHTML = this.faceDownHtml(townId, town) + this.faceUpHtml(town);
         const empire = element.querySelector('.iaw-town-empire');
@@ -416,8 +448,30 @@ class BoardView {
         this.changeHandler();
     }
     /**
+     * The two presences a resolution was decided on, side by side, for the rest
+     * of the game. The numbers were already being sent and stored and had never
+     * been drawn anywhere.
+     *
+     * It reads left to right in the same order as the rest of the box — rebels,
+     * then Empire — so which pip is whose needs no label.
+     */
+    resultHtml(town) {
+        if (!town.resolved) {
+            return '';
+        }
+        return `<div class="iaw-result-line" title="${_('How this location was decided: rebel presence against Empire presence')}"
+            >${presenceHtml(town.resolvedCardPresence)}<span class="iaw-result-dash"
+            >&ndash;</span>${presenceHtml(town.resolvedTroopPresence)}</div>`;
+    }
+    /**
      * The garrison: a pawn and a count, with what this turn would change and
      * what is about to starve.
+     *
+     * A live town draws the pawn large with its presence underneath, which uses
+     * the height of the Empire's column rather than the width of a single line.
+     * A **resolved** town draws it small and inline instead: the box is a record
+     * by then, the result line above it is the thing worth reading, and the two
+     * together do not fit in a fixed 104px box.
      */
     troopsHtml(townId, town) {
         const delta = this.troopDelta[townId] ?? 0;
@@ -428,6 +482,7 @@ class BoardView {
         const pawn = this.frames
             ? `<span class="iaw-pawn">${this.frames.pawn}</span>`
             : '';
+        const compact = town.resolved ? ' compact' : '';
         // The build is called out on its own, loudly: it is the one change on
         // the board the Empire *creates* rather than moves, and it is the step
         // being decided when it is shown. What is left of the delta is the
@@ -443,9 +498,10 @@ class BoardView {
         const doomed = town.starving > 0
             ? `<span class="iaw-troops-doomed" title="${_('Starving: these troops are lost at the end of the Empire\'s next turn unless the supply line is repaired')}">&minus;${town.starving}</span>`
             : '';
-        return `<div class="iaw-troops clickable${town.starving > 0 ? ' starving' : ''}"
+        return `<div class="iaw-troops clickable${compact}${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}${this.garrisonHtml(town.troops)}${change}${raising}${doomed}</div>`;
+                 >${pawn}${this.garrisonHtml(town.troops)}<span class="iaw-troop-marks"
+                 >${change}${raising}${doomed}</span></div>`;
     }
     /**
      * The garrison, as the number that decides the town.
@@ -481,7 +537,7 @@ class BoardView {
                   >${network.troops}/${network.ceiling}</div>
                 <div class="iaw-contribution${denied ? ' denied' : ''}"
                      title="${denied
-            ? _('Taken by the Insurgency: supplies nothing, builds nothing')
+            ? _('Taken by the Rebels: supplies nothing, builds nothing')
             : _('What this town adds to the network')}"
                   >(${this.supplyOf(townId)})</div>`;
     }
@@ -626,6 +682,18 @@ class BoardView {
     onTownDrop(handler) {
         this.dropHandler = handler;
     }
+    /**
+     * The one town a resolution announcement is about, marked hard in red while
+     * the announcement is up. Red is used nowhere else on the board except a
+     * starving garrison, and that mark is small and local; this is meant to be
+     * the only thing you can see.
+     */
+    setResolving(townId) {
+        Object.keys(this.scenario.towns).forEach(id => {
+            document.getElementById(this.townElementId(id))
+                ?.classList.toggle('resolving', id === townId);
+        });
+    }
     /** Highlight the towns a player may click right now. */
     setSelectable(townIds) {
         Object.keys(this.scenario.towns).forEach(townId => {
@@ -721,10 +789,16 @@ class BoardView {
             const from = this.scenario.towns[move.from];
             const to = this.scenario.towns[move.to];
             const start = this.boxExit(from, to);
-            const end = this.boxExit(to, from);
+            // Reaching into the target: the head belongs on the town being
+            // marched into, not in the gap before it.
+            const end = this.boxExit(to, from, -ARROW_OVERLAP);
+            // The count stays in the *gap* rather than at the midpoint of the
+            // line, which now ends inside a town box and would put the number on
+            // top of a garrison.
+            const edge = this.boxExit(to, from);
             const label = move.count > 1
-                ? `<text class="iaw-move-count" x="${(start.x + end.x) / 2}"
-                         y="${(start.y + end.y) / 2 - 4}">${move.count}</text>`
+                ? `<text class="iaw-move-count" x="${(start.x + edge.x) / 2}"
+                         y="${(start.y + edge.y) / 2 - 4}">${move.count}</text>`
                 : '';
             return `<line class="iaw-move-arrow" x1="${start.x}" y1="${start.y}"
                           x2="${end.x}" y2="${end.y}"
@@ -820,7 +894,10 @@ class EmpireTurn {
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} must move'));
             this.game.setStagingText(this.watchingHtml());
-            this.game.setPhase(-1);
+            // Building is step 4 of the round. Which of its steps the Empire is
+            // on is never notified, so a watcher gets the first one rather than
+            // nothing at all.
+            this.game.setPhase(4);
             return;
         }
         this.game.board.onTownClick(townId => this.onTownClick(townId));
@@ -831,7 +908,7 @@ class EmpireTurn {
      * this the screen is indistinguishable from a broken one.
      */
     watchingHtml() {
-        return `<div class="iaw-hint">${_('The Empire is moving. You are the Insurgency, so there is nothing to do until it is your turn.')}</div>`;
+        return `<div class="iaw-hint">${_('The Empire is moving. You are the Rebels, so there is nothing to do until it is your turn.')}</div>`;
     }
     onLeavingState() {
         this.reset();
@@ -966,7 +1043,7 @@ class EmpireTurn {
         const title = this.title();
         this.bga.statusBar.setTitle(title.text, title.args);
         // Building is step 2 of the Empire's turn, marching step 3.
-        this.game.setPhase(this.step === 'build' ? 1 : 2);
+        this.game.setPhase(this.step === 'build' ? 4 : 5);
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.
         const delta = {};
@@ -1146,12 +1223,12 @@ class InsurgencyTurn {
         this.bga.statusBar.setTitle(isCurrentPlayerActive
             ? _('${you} must place the entire hand')
             : _('${actplayer} must place the whole hand'));
-        this.game.setPhase(-1);
+        // Step 1 of the round, whoever is watching.
+        this.game.setPhase(1);
         if (!isCurrentPlayerActive) {
-            this.game.setStagingText(`<div class="iaw-hint">${_('The Insurgency is placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`);
+            this.game.setStagingText(`<div class="iaw-hint">${_('The Rebels are placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`);
             return;
         }
-        this.game.setPhase(1); // placing the hand
         this.game.onHandClick(cardId => this.onCardClick(cardId));
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));
@@ -1333,7 +1410,10 @@ class Resolve {
             resolvable: args?.resolvable ?? [],
         };
         this.target = null;
-        this.game.setPhase(isCurrentPlayerActive ? 0 : -1);
+        // Absolute index into the whole round: the rebels' resolve is step 0,
+        // the Empire's is step 3. Set whoever is resolving, active or not — the
+        // list shows both sides, so a watcher sees where the turn actually is.
+        this.game.setPhase(this.args.side === 'insurgency' ? 0 : 3);
         if (!isCurrentPlayerActive) {
             this.bga.statusBar.setTitle(_('${actplayer} may resolve a town'));
             this.game.setStagingText(`<div class="iaw-hint">${_('Your opponent is deciding whether to resolve a town.')}</div>`);
@@ -1388,6 +1468,18 @@ class Resolve {
         return this.bga.gameui.gamedatas.scenario.towns[townId].label;
     }
 }
+
+/**
+ * GENERATED by tools/build-text.mjs from src/text/*.md — do not edit.
+ *
+ * Each export is a function rather than a constant so that `_()` is called when
+ * the text is needed rather than when this module is imported, which is before
+ * BGA has installed the translator.
+ */
+/** From `src/text/primer-empire.md`. Edit that file, not this one. */
+const primerEmpire = () => _('<p>You build troops in cities, march them along roads, and keep them supplied by networks of occupied locations. When you think a garrison outweighs the rebels\' presence in a location, <b>resolve</b> it and find out: you score the presence you capture, if you win.</p><p><b>You win ties.</b> A garrison only has to match the presence against it.</p>');
+/** From `src/text/primer-rebels.md`. Edit that file, not this one. */
+const primerRebels = () => _('<p>You place <b>${hand} hidden agents</b> on locations each turn — some are decoys, some carry real presence, and you must place your whole hand. When you think a location\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.</p><p><b>The Empire wins ties.</b> You have to <i>beat</i> a garrison, not match it.</p>');
 
 /**
  * The player's manual, served from the game's own folder.
@@ -1489,30 +1581,82 @@ class Help {
         });
         document.addEventListener('keydown', dismiss);
     }
+    /**
+     * What just happened in a town, full-screen, until it is dismissed.
+     *
+     * A resolution is the only thing in the game that settles a location for
+     * good, it happens at most twice a round, and before this the only sign of
+     * one was a line in the log and a tint on a distant box. It is built like
+     * the start card — a plain fixed backdrop, not a BGA popin, because it has
+     * to close on the first click or keypress *anywhere*.
+     *
+     * The board's own mark for the town stays afterwards, drawn by
+     * `BoardView.resultHtml`: this says it once, loudly, and the box keeps the
+     * record for whoever arrives later.
+     */
+    showResolution(result, onDismiss) {
+        document.getElementById('iaw-resolution')?.remove();
+        const rebels = result.winner === 'insurgency';
+        const label = this.scenario.towns[result.townId]?.label ?? result.townId;
+        const won = rebels
+            ? _('The Rebels won ${town}').replace('${town}', label)
+            : _('The Empire won ${town}').replace('${town}', label);
+        const scored = result.points > 0
+            ? _('and scored ${points} presence').replace('${points}', String(result.points))
+            : _('and scored nothing: there is no prize for a location nobody contested');
+        const overlay = document.createElement('div');
+        overlay.id = 'iaw-resolution';
+        overlay.innerHTML = `
+            <div id="iaw-resolution-card" class="${rebels ? 'insurgency' : 'empire'}">
+                <div class="iaw-resolution-town">${label}</div>
+                <div class="iaw-resolution-score">
+                    <span class="iaw-resolution-side">
+                        <span class="iaw-resolution-who">${_('Rebels')}</span>
+                        ${presenceHtml(result.cardPresence, 'large')}
+                    </span>
+                    <span class="iaw-resolution-dash">&ndash;</span>
+                    <span class="iaw-resolution-side">
+                        <span class="iaw-resolution-who">${_('Empire')}</span>
+                        ${presenceHtml(result.troopPresence, 'large')}
+                    </span>
+                </div>
+                <div class="iaw-resolution-verdict">${won}</div>
+                <div class="iaw-resolution-points">${scored}</div>
+                <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const dismiss = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', dismiss);
+            onDismiss();
+        };
+        overlay.addEventListener('click', dismiss);
+        document.addEventListener('keydown', dismiss);
+    }
     // -- the cheat sheet ----------------------------------------------------
+    /**
+     * The quick reference: what every mark on the board means, and a way to the
+     * manual for everything else.
+     *
+     * It used to open with four paragraphs of rules as well. Those said the same
+     * things `rules.html` says at more length, so there were two places to keep
+     * current and one of them was always going to lose. What is left is the one
+     * thing this does *better* than the manual: the legend draws the **real**
+     * components — the silhouettes fetched from `img/`, the same pip and stack
+     * markup the board itself uses — so it cannot drift from what is on screen,
+     * where the manual's picture is hand-built and can.
+     */
     sheetHtml() {
         return `
             <div class="iaw-help">
-                ${this.paragraphs()}
-                <div class="iaw-help-heading">${_('What you are looking at')}</div>
-                ${this.legendHtml()}
                 <p class="iaw-help-more">
                     <a href="${rulesUrl()}" target="_blank" rel="noopener">
-                        ${_('The full rules, with a picture of every symbol')}</a>
+                        ${_('Read the full rules — how to play, with a picture of every symbol')}</a>
                 </p>
+                <div class="iaw-help-heading">${_('What you are looking at')}</div>
+                ${this.legendHtml()}
             </div>
-        `;
-    }
-    paragraphs() {
-        const ties = this.scenario.empireWinsTies ? _('ties go to the Empire') : _('ties go to the Insurgency');
-        return `
-            <p>${_('An asymmetric game for two. The Empire moves troops everyone can see; the Insurgency plays cards nobody can. A town is settled when one side <b>resolves</b> it: the presence the rebels have there against the presence the Empire has, higher wins, and')} ${ties}. ${_('The winner scores what the loser committed — each side scores the presence it took off the other — and the loser\'s commitment leaves the board for good. A walkover scores nothing: there is no prize for a town nobody contested.')}</p>
-
-            <p>${_('<b>Resolution comes first in a turn</b>, and it is judged on the board as your opponent left it. You may only resolve a town you are present in — the Empire needs a troop there, the rebels need a card in the pile — so you cannot march in and cash out on arrival. Whatever you commit has to survive a reply.')}</p>
-
-            <p>${_('<b>The deck is the clock.</b>')} ${_('The rebels place their entire hand every turn, so the game runs ${turns} turns, or fewer if every town is resolved first.').replace('${turns}', String(this.scenario.turns))} ${_('Four things end it: the deck runs out, every town is resolved, the Empire is eliminated, or both sides have a standing offer to end. Everything still open then resolves at once, at whatever is standing.')}</p>
-
-            <p>${_('<b>Supply limits an army, not production.</b> Occupied towns that touch form a network, and its supply is the most troops it can keep standing. Go over and they are marked; if the network is still short at the end of the Empire\'s next turn they starve, and the rebels score them. Building past the ceiling is legal, so the Empire may raise troops and march them out to the supply that will feed them in one motion.')}</p>
         `;
     }
     legendHtml() {
@@ -1534,13 +1678,13 @@ class Help {
                 _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
                     .replace('${presence}', String(this.scenario.unit.presence))],
             [stack('face-down', 4, '?'),
-                _('Face-down agents: how many, and what they total. The rebels see their own total; the Empire sees a question mark. Click either stack to see the pile in order.')],
+                _('Face-down agents: how many, and what they total. The Rebels see their own total; the Empire sees a question mark. Click either stack to see the pile in order.')],
             [stack('face-up', 2, 3),
                 _('Face-up agents and their presence. A troop that does not march turns one card over each turn.')],
             [`<span class="iaw-supply">2/4</span>`,
                 _('Troops standing in this network, and the most it can supply.')],
             [`<span class="iaw-contribution">(2)</span>`,
-                _('What this town adds to that. A town the rebels have won adds nothing, for ever.')],
+                _('What this location adds to that. A location the Rebels have won adds nothing, for ever.')],
             [`<span class="iaw-troops-doomed">&minus;1</span>`,
                 _('Starving. Lost at the end of the Empire\'s next turn unless the supply line is repaired first.')],
             [`<span class="iaw-troop-delta">+1</span>
@@ -1563,24 +1707,44 @@ class Help {
      * them.
      */
     phaseListHtml(side, current) {
+        // Which half of the round is yours, so the other side's steps can be
+        // drawn quieter without being hidden: what the opponent will do next is
+        // the reason this list shows both.
+        const mine = (index) => side === null
+            || (side === 'insurgency' ? index < 3 : index >= 3);
         return `
-            <ol class="iaw-phases">${this.steps(side).map((step, index) => `<li class="${index === current ? 'current' : ''}">${step}</li>`).join('')}</ol>
+            <ol class="iaw-phases">${this.steps().map((step, index) => {
+            const classes = [
+                index === current ? 'current' : '',
+                mine(index) ? 'mine' : 'theirs',
+            ].filter(Boolean).join(' ');
+            return `<li class="${classes}">${step}</li>`;
+        }).join('')}</ol>
         `;
     }
-    steps(side) {
-        return side === 'insurgency'
-            ? [
-                _('Resolve a town you have a card in'),
-                _('Place your entire hand'),
-                _('Draw back up to ${hand}').replace('${hand}', String(this.scenario.handSize)),
-            ]
-            : [
-                _('Resolve a town you have troops in'),
-                _('Build in cities you hold'),
-                _('March along roads'),
-                _('Troops that stayed put each read a card'),
-                _('Troops over supply starve'),
-            ];
+    /**
+     * The whole round, both sides, in the order it actually happens.
+     *
+     * It used to list only the viewer's own three or five steps, which answered
+     * "what do I do now" and never "what happens after I do it" — and the thing
+     * players most need to see is that **resolution comes first on both sides**,
+     * so anything you commit is exposed to your opponent's reply before it pays.
+     * Two logged games were lost to not having that in front of somebody.
+     *
+     * The indices are absolute and the state classes pass them directly, so a
+     * step belonging to the side that is *not* you can be lit as well.
+     */
+    steps() {
+        return [
+            _('Rebels: resolve a location they have a card in'),
+            _('Rebels: place their entire hand'),
+            _('Rebels: draw back up to ${hand}').replace('${hand}', String(this.scenario.handSize)),
+            _('Empire: resolve a location it has troops in'),
+            _('Empire: build in cities it holds'),
+            _('Empire: march along roads'),
+            _('Empire: troops that stayed put each read a card'),
+            _('Empire: troops over supply starve'),
+        ];
     }
     /**
      * A permanent few lines saying what your side does, and a way into the manual.
@@ -1610,15 +1774,19 @@ class Help {
         // named for what it is.
         const title = side === null
             ? _('Rules Summary')
-            : (rebel ? _('You Are Playing the Insurgency') : _('You Are Playing the Empire'));
+            : (rebel ? _('You Are Playing the Rebels') : _('You Are Playing the Empire'));
+        // Written as Markdown in `src/text/`, compiled into
+        // `primers.generated.ts` by `tools/build-text.mjs`. Prose belongs in a
+        // prose file; `*.md` is excluded from the deploy, so it is compiled in
+        // rather than fetched, and the generated form keeps the literal inside
+        // `_()` so BGA can still translate it.
         const summary = rebel
-            ? _('You place ${hand} hidden agents on towns each turn; some are decoys, some carry real presence. When you think a town\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.')
-                .replace('${hand}', String(this.scenario.handSize))
-            : _('You build troops in cities, march them along roads, and keep them supplied by networks of occupied towns. When you think a garrison outweighs the rebels\' presence in a town, <b>resolve</b> it and find out: you score the presence you capture, if you win.');
+            ? primerRebels().replace('${hand}', String(this.scenario.handSize))
+            : primerEmpire();
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
                 <div class="iaw-frame-title">${title}</div>
-                <p>${summary}</p>
+                ${summary}
                 <a class="iaw-primer-more" href="${rulesUrl()}"
                    target="_blank" rel="noopener">${_('How to play')}</a>
             </div>
@@ -1644,7 +1812,7 @@ class Help {
             : _('A face-down agent')}</div>
                 <div class="iaw-detail-text">${known
             ? (value > 0
-                ? _('Adds ${n} presence to the rebels in the town it is placed in.')
+                ? _('Adds ${n} presence to the Rebels in the location it is placed in.')
                     .replace('${n}', String(value))
                 : _('Adds no presence. Use it as a decoy: face down it is indistinguishable from any other agent, and it makes a pile look dangerous.'))
             : _('The Empire knows it is there and how deep in the pile it sits, but not what it is worth.')}</div>
@@ -1761,7 +1929,7 @@ class Game {
                 score: this.bot.score,
             });
         }
-        const sideLabel = (side) => side === 'empire' ? _('Empire') : _('Insurgency');
+        const sideLabel = (side) => side === 'empire' ? _('Empire') : _('Rebels');
         Object.entries(gamedatas.players).forEach(([playerId, player]) => {
             this.bga.playerPanels.getElement(Number(playerId)).insertAdjacentHTML('beforeend', `
                 <div class="iaw-player-side">${sideLabel(player.side)}</div>
@@ -2234,6 +2402,33 @@ class Game {
         town.revealed = args.winner === 'empire' ? [] : args.pile;
         town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
+        // Said once, loudly, with the town itself marked in red so the
+        // announcement and the place it is about are connected. The board keeps
+        // its own record of the numbers afterwards.
+        this.board.setResolving(args.town_id);
+        this.help.showResolution({
+            townId: args.town_id,
+            winner: args.winner,
+            cardPresence: args.cardPresence,
+            troopPresence: args.troopPresence,
+            points: args.points,
+        }, () => this.board.setResolving(null));
+    }
+    /**
+     * Troops that have starved, taken off the board.
+     *
+     * This handler did not exist, and the notification carries an authoritative
+     * troop count for every town — so after any starvation the board went on
+     * showing troops that were gone, through the rebels' whole turn and the
+     * Empire's next resolve phase, until the next `empireMoved` re-synced it.
+     * Anyone planning a resolution in that window was reading a garrison that
+     * was not there.
+     */
+    async notif_troopsStarved(args) {
+        Object.entries(args.troops ?? {}).forEach(([townId, troops]) => {
+            this.board.getTown(townId).troops = troops;
+            this.board.updateTown(townId);
+        });
     }
     /**
      * Which garrisons are under notice. Sent every Empire turn, including when

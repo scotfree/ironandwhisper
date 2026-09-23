@@ -43,6 +43,13 @@
   text-align: right;
 }
 
+#iaw-arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
 #iaw-roads {
   position: absolute;
   inset: 0;
@@ -132,17 +139,38 @@
 
 .iaw-troops {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   color: rgb(34.2836542689%, 20.1857029807%, 51.2652774114%);
   font-size: 13px;
   font-weight: bold;
 }
+.iaw-troops.compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+}
+.iaw-troops.compact .iaw-pawn {
+  width: 14px;
+  height: 18px;
+}
+
+.iaw-troop-marks {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+}
+
+.iaw-troops.compact .iaw-troop-marks {
+  display: inline-flex;
+}
 
 .iaw-pawn {
   display: inline-block;
-  width: 16px;
-  height: 21px;
+  width: 28px;
+  height: 37px;
   --art-fill: #6b3fa0;
   --art-stroke: rgb(17.9697529236%, 10.5803218148%, 26.8706585773%);
 }
@@ -158,6 +186,30 @@
 .iaw-troop-count {
   font-variant-numeric: tabular-nums;
   font-weight: bold;
+}
+
+.iaw-town-result {
+  display: flex;
+  justify-content: center;
+}
+
+.iaw-result-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  transform: scale(0.78);
+}
+
+.iaw-result-dash {
+  color: #555;
+  font-weight: bold;
+}
+
+.iaw-town.resolving {
+  --art-fill: rgb(95.4117647059%, 78%, 77.0588235294%);
+  --art-stroke: #a01b13;
+  filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35)) drop-shadow(0 0 12px rgb(216, 68, 60)) drop-shadow(0 0 20px rgba(216, 68, 60, 0.9));
+  z-index: 3;
 }
 
 .iaw-pile-line {
@@ -258,6 +310,9 @@
 }
 .iaw-phases li {
   margin-bottom: 1px;
+}
+.iaw-phases li.theirs {
+  color: #999;
 }
 .iaw-phases li.current {
   color: #000;
@@ -792,6 +847,87 @@
 #iaw-start-card .iaw-primer-more {
   font-size: 14px;
   padding: 6px 14px;
+}
+
+/********* a resolution, announced *********/
+#iaw-resolution {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.62);
+  cursor: pointer;
+}
+
+#iaw-resolution-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 30px 34px 22px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  border-left: 8px solid #6b3fa0;
+  background: rgb(91.8745098039%, 89.4588235294%, 94.7843137255%);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  cursor: default;
+}
+#iaw-resolution-card.insurgency {
+  border-left-color: #2e7d4f;
+  background: rgb(88.5254901961%, 92.862745098%, 90.337254902%);
+}
+
+.iaw-resolution-town {
+  font-family: "UnifrakturCook", "UnifrakturMaguntia", "Old English Text MT", serif;
+  font-size: 34px;
+  line-height: 1.1;
+  color: #2b2b2b;
+}
+
+.iaw-resolution-score {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 18px;
+  margin: 18px 0 16px;
+}
+
+.iaw-resolution-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.iaw-resolution-who {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #6a6a6a;
+}
+
+.iaw-resolution-dash {
+  padding-bottom: 6px;
+  font-size: 22px;
+  color: #777;
+}
+
+.iaw-resolution-verdict {
+  font-size: 19px;
+  font-weight: bold;
+  color: #2b2b2b;
+}
+
+.iaw-resolution-points {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #555;
+}
+
+#iaw-resolution #iaw-start-hint {
+  margin-top: 18px;
 }
 
 #iaw-start-hint {

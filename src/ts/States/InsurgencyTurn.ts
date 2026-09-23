@@ -40,15 +40,15 @@ export class InsurgencyTurn {
             ? _('${you} must place the entire hand')
             : _('${actplayer} must place the whole hand'));
 
-        this.game.setPhase(-1);
+        // Step 1 of the round, whoever is watching.
+        this.game.setPhase(1);
         if (!isCurrentPlayerActive) {
             this.game.setStagingText(
-                `<div class="iaw-hint">${_('The Insurgency is placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`
+                `<div class="iaw-hint">${_('The Rebels are placing cards. You are the Empire, so there is nothing to do until it is your turn.')}</div>`
             );
             return;
         }
 
-        this.game.setPhase(1);  // placing the hand
         this.game.onHandClick(cardId => this.onCardClick(cardId));
         this.game.board.onTownClick(townId => this.onTownClick(townId));
         this.game.board.onTownDrop((townId, cardId) => this.onCardDropped(townId, cardId));

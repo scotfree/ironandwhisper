@@ -124,7 +124,7 @@ export class Game {
             });
         }
 
-        const sideLabel = (side: Side) => side === 'empire' ? _('Empire') : _('Insurgency');
+        const sideLabel = (side: Side) => side === 'empire' ? _('Empire') : _('Rebels');
 
         Object.entries(gamedatas.players).forEach(([playerId, player]) => {
             this.bga.playerPanels.getElement(Number(playerId)).insertAdjacentHTML('beforeend', `
@@ -669,6 +669,35 @@ export class Game {
         town.revealed = args.winner === 'empire' ? [] : args.pile;
         town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
+
+        // Said once, loudly, with the town itself marked in red so the
+        // announcement and the place it is about are connected. The board keeps
+        // its own record of the numbers afterwards.
+        this.board.setResolving(args.town_id);
+        this.help.showResolution({
+            townId: args.town_id,
+            winner: args.winner,
+            cardPresence: args.cardPresence,
+            troopPresence: args.troopPresence,
+            points: args.points,
+        }, () => this.board.setResolving(null));
+    }
+
+    /**
+     * Troops that have starved, taken off the board.
+     *
+     * This handler did not exist, and the notification carries an authoritative
+     * troop count for every town — so after any starvation the board went on
+     * showing troops that were gone, through the rebels' whole turn and the
+     * Empire's next resolve phase, until the next `empireMoved` re-synced it.
+     * Anyone planning a resolution in that window was reading a garrison that
+     * was not there.
+     */
+    async notif_troopsStarved(args: { troops: Record<string, number> }) {
+        Object.entries(args.troops ?? {}).forEach(([townId, troops]) => {
+            this.board.getTown(townId).troops = troops;
+            this.board.updateTown(townId);
+        });
     }
 
     /**

@@ -251,7 +251,7 @@ class Game extends \Bga\GameFramework\Table
         }
         return $this->sides()[$playerId] === Rules::EMPIRE
             ? clienttranslate('The Empire')
-            : clienttranslate('The Insurgency');
+            : clienttranslate('The Rebels');
     }
 
     public function playerIdForSide(string $side): int
@@ -359,7 +359,7 @@ class Game extends \Bga\GameFramework\Table
 
         $this->bga->notify->all(
             'townResolved',
-            clienttranslate('T${turn}: ${town_label} resolves: rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}'),
+            clienttranslate('T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}'),
             [
                 'turn' => $this->round(),
                 'town_id' => $townId,
