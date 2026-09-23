@@ -970,3 +970,80 @@ function test_a_town_the_insurgency_takes_reports_the_troops_lost(): void
         assertSame(1, $game->board->towns()['belmar']['troops']);
     }
 }
+
+// -- what the client is told about troops -----------------------------------
+
+/**
+ * The rebels decide against the board the Empire left, so the board they are
+ * shown has to be the board that exists.
+ *
+ * The specific worry, from a real game: the Empire evacuates a town on its turn
+ * and the rebels resolve it on theirs, winning an empty place for nothing. That
+ * is a legitimate and interesting outcome — but only if the rebels could *see*
+ * it coming. If any notification carried a troop count from before the march,
+ * they would be choosing against a garrison that had already gone.
+ *
+ * `troopsStarved` was exactly that failure and had no client handler at all,
+ * which is why both notifications are checked here rather than just the one.
+ */
+function test_the_move_notification_carries_troops_as_they_stand_afterwards(): void
+{
+    $game = newGame();
+    $empireId = $game->playerIdForSide(Rules::EMPIRE);
+
+    // Empty Belmar, which starts with one troop, into Everlan beside it.
+    $game->bga->notify->clear();
+    empireTurn($game)->actCommitTurn(
+        [],
+        [['from' => 'belmar', 'to' => 'everlan', 'count' => 1]],
+        [],
+        '0',
+        $empireId,
+    );
+
+    $sent = $game->bga->notify->of('empireMoved');
+    assertSame(1, count($sent), 'one move notification per Empire turn');
+
+    $told = $sent[0]['args']['troops'];
+    $board = $game->board->towns();
+    assertSame(0, $told['belmar'], 'the town the Empire marched out of reads empty');
+
+    foreach ($board as $townId => $town) {
+        assertSame(
+            $town['troops'],
+            $told[$townId],
+            "empireMoved disagrees with the board about {$townId}",
+        );
+    }
+}
+
+function test_the_starvation_notification_carries_troops_as_they_stand_afterwards(): void
+{
+    // Strand a garrison the network cannot feed, then let the grace turn run
+    // out. What starves is announced with a full board, because the client has
+    // no other way to learn about it.
+    $game = newGame();
+    $empireId = $game->playerIdForSide(Rules::EMPIRE);
+    $towns = $game->board->towns();
+    $ceiling = intdiv($towns['ashford']['supply'], $game->scenario->supplyPerTroop);
+
+    // Ashford touches nothing the Empire holds, so it is a network of one.
+    $game->board->adjustTroops(['ashford' => $ceiling + 2]);
+
+    // First Empire turn marks them; the second one takes them.
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empireId);
+    $game->bga->notify->clear();
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empireId);
+
+    $sent = $game->bga->notify->of('troopsStarved');
+    assertSame(1, count($sent), 'the grace turn expired, so somebody starved');
+
+    $told = $sent[0]['args']['troops'];
+    foreach ($game->board->towns() as $townId => $town) {
+        assertSame(
+            $town['troops'],
+            $told[$townId],
+            "troopsStarved disagrees with the board about {$townId}",
+        );
+    }
+}
