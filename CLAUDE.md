@@ -416,7 +416,7 @@ Done:
   both engines.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
-- **126 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+- **128 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 - **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,
   `Bots::globEmpireTurn`), and game option 101 to choose between it and the heuristic bot
@@ -474,6 +474,14 @@ from random init reaches −0.12, worse than a random rebel. The finding worth c
 back to any future bot work is that reward alone farmed the *weakest* opponent in the
 pool. `gpt/RESULTS.md` has the tables. The trained weights are gitignored and exist only
 on the machine that made them.
+
+**Not new mechanics, for now** (2026-09-23). The game reads as close to playable, and the
+balance hole five logged games keep showing — a human Empire that concentrates and declines
+every contested location holds the rebels' *scored* total near zero — is parked rather than
+patched. Issue #1 records why: a location the rebels win denies its supply for ever, and the
+cards spent on it were unrecallable anyway, so the exchange is a trade rather than a dead
+end. Whether it is a trade worth playing is a table question. **Graded cards and troop
+presence above 1 (issue #2) stay the sanctioned levers**, because they are parameter edits.
 
 **Deferred work lives in GitHub Issues**, not in this file:
 https://github.com/scotfree/ironandwhisper/issues, labelled `design`, `balance`, `ui`,
@@ -853,12 +861,31 @@ than proof of one. It catches drift, not subtlety. Re-run it after any rules cha
 has agreed to within a couple of points after every one so far, which is the main evidence
 that `Rules.php` still matches `engine.py`.
 
-**Two classes of Studio-only bug are now caught locally, both by making the harness
+**Three classes of Studio-only bug are now caught locally, all by making the harness
 stricter rather than by testing more.** `tests/support/framework.php` pre-creates a decoy
 `card` table, because BGA's database already has one and `CREATE TABLE IF NOT EXISTS`
 against it is a silent no-op; and its `Globals::inc` throws on a global that was never set,
 exactly as BGA does. Each was found by a deploy, and each now fails a test instead. When
 the Studio surfaces something the tests missed, tightening the stub is usually the fix.
+
+The third is **`tests/test_notifications.php`, which lints the seam between the two
+languages**: every name the PHP sends through `notify->all`/`notify->player` must have a
+`notif_` handler in `src/ts`, and every handler must have something that sends it. It is a
+source lint rather than a behavioural test, because the client is TypeScript and cannot be
+exercised from here — and it is the only place the two halves are compared at all.
+`troopsStarved` had no handler for as long as attrition has existed, so after any
+starvation the board showed troops that were gone for a whole opposing turn; nothing
+catches that at runtime, because BGA logs an unregistered notification to the console and
+the notification's *message* still appears in the game log, so the game looks fine. Its
+second check — handlers nobody feeds — caught a blind spot in the lint's own file glob the
+first time it ran, which is the argument for writing both directions.
+
+**`tests/test_game.php` also pins that the client is told troops as they stand**, town by
+town, for both notifications that move them. The rebels choose what to resolve against the
+board the Empire left them, so an evacuated location has to read as evacuated: winning an
+empty place for nothing is a legitimate outcome, but only if they could see it coming.
+`empireMoved` was already correct, since its payload is built from the array the departures
+and arrivals were applied to.
 
 `tests/support/framework.php` is a small stand-in for the parts of the BGA framework this
 game touches, backed by in-memory SQLite. It is not an attempt to reimplement BGA — it
