@@ -867,16 +867,15 @@
   max-width: 520px;
   padding: 30px 34px 22px;
   border-radius: 6px;
-  border: 1px solid #ddd;
-  border-left: 8px solid #6b3fa0;
-  background: rgb(91.8745098039%, 89.4588235294%, 94.7843137255%);
+  border: 2px solid #6b3fa0;
+  background: rgb(81.4274509804%, 75.9058823529%, 88.0784313725%);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
   text-align: center;
   cursor: default;
 }
 #iaw-resolution-card.insurgency {
-  border-left-color: #2e7d4f;
-  background: rgb(88.5254901961%, 92.862745098%, 90.337254902%);
+  border-color: #2e7d4f;
+  background: rgb(73.7725490196%, 83.6862745098%, 77.9137254902%);
 }
 
 .iaw-resolution-town {

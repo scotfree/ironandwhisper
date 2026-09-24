@@ -1047,3 +1047,18 @@ function test_the_starvation_notification_carries_troops_as_they_stand_afterward
         );
     }
 }
+
+function test_a_page_load_knows_which_town_was_resolved_last(): void
+{
+    // The board keeps the result line on the most recent resolution only, for
+    // whoever missed the announcement — and missing it usually means arriving
+    // by page load, so the server has to remember which one it was.
+    $game = newGame();
+    $playerId = array_key_first(datasFor($game, 0)['players']);
+
+    assertSame('', datasFor($game, (int) $playerId)['lastResolved'], 'nothing resolved yet');
+
+    $game->resolveTown('fenn', null);
+    $game->resolveTown('gallow', null);
+    assertSame('gallow', datasFor($game, (int) $playerId)['lastResolved']);
+}

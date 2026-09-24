@@ -77,6 +77,13 @@ class Game extends \Bga\GameFramework\Table
     public const G_BOT_SCORE = 'bot_score';
     public const G_END_OFFERED_EMPIRE = 'end_offered_empire';
     public const G_END_OFFERED_INSURGENCY = 'end_offered_insurgency';
+    /**
+     * The town resolved most recently, or '' before any has been. The board
+     * keeps the result of that one resolution on screen, for whoever missed the
+     * announcement; it has to be stored because missing it usually means a
+     * page load, and a page load remembers nothing the server does not.
+     */
+    public const G_LAST_RESOLVED = 'last_resolved';
 
     /**
      * The bot's stand-in player id in a solo game.
@@ -353,6 +360,7 @@ class Game extends \Bga\GameFramework\Table
         );
 
         $this->board->markResolved($townId, $outcome);
+        $this->bga->globals->set(self::G_LAST_RESOLVED, $townId);
 
         $winnerPlayerId = $this->playerIdForSide($outcome['winner']);
         $this->addScore($winnerPlayerId, $outcome['points']);
@@ -857,6 +865,8 @@ class Game extends \Bga\GameFramework\Table
             'score' => $this->botScore(),
         ] : null;
 
+        $result['lastResolved'] = (string) $this->bga->globals->get(self::G_LAST_RESOLVED, '');
+
         return $result;
     }
 
@@ -895,6 +905,7 @@ class Game extends \Bga\GameFramework\Table
         $this->bga->globals->set(self::G_ROUND, 1);
         $this->bga->globals->set(self::G_END_OFFERED_EMPIRE, 0);
         $this->bga->globals->set(self::G_END_OFFERED_INSURGENCY, 0);
+        $this->bga->globals->set(self::G_LAST_RESOLVED, '');
         // Must exist before anything increments it: BGA refuses to inc a global
         // that was never set, rather than treating it as zero.
         $this->bga->globals->set(self::G_BOT_SCORE, 0);

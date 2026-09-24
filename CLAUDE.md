@@ -361,17 +361,21 @@ Done:
   is the same shape as the start card — a plain fixed backdrop, not a popin, dismissed by
   any click or key — showing both presences as pips, who won and what they scored, tinted
   with the winner's colour, while `BoardView.setResolving` marks the town itself in red.
-  The board then keeps the two numbers under the town's name for good
-  (`BoardView.resultHtml`), because an announcement plays once and in a turn-based game you
-  often arrive after it played: the same argument that made the opponent's last turn
-  persistent rather than animated. `resolvedCardPresence` and `resolvedTroopPresence` were
+  The board then keeps the two numbers under the town's name (`BoardView.resultHtml`)
+  **on the most recently resolved town only** (2026-09-24), because an announcement plays
+  once and in a turn-based game you often arrive after it played: the same argument that made
+  the opponent's last turn persistent rather than animated. Kept on every resolved town for
+  the whole game they were clutter, and forced every garrison small. Which town was last is
+  the `last_resolved` global, sent as `lastResolved` in `getAllDatas`, since arriving late
+  usually means a page load. The card is tinted with the winner's colour at 32%, the same
+  mix a held town's frame takes. `resolvedCardPresence` and `resolvedTroopPresence` were
   already stored, sent and kept on `TownView` — nothing had ever drawn them.
 - **The garrison is a stacked token**: the pawn at 28x37 rather than 16x21, with its
   presence pip underneath instead of beside it. The Empire's column is a narrow strip down
   the right of a fixed 120x104 box, so stacking buys the piece real size out of height that
-  went unused once `MINIMAL_TOWNS` removed the supply arithmetic. A **resolved** town draws
-  it small and inline instead: by then the box is a record, the result line is the thing to
-  read, and the two together do not fit.
+  went unused once `MINIMAL_TOWNS` removed the supply arithmetic. The town carrying the
+  **result line** draws it small and inline instead: the result is the thing to read there,
+  and the two together do not fit. Every other resolved town keeps the large token.
 - **March arrows point at the town they arrive in.** The head was `markerWidth="4"` against
   `stroke-width: 8` — the default `markerUnits` being multiples of stroke width — so it drew
   **32px** wide in a gap between two horizontally adjacent boxes that is only

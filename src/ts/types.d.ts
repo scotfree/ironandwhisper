@@ -96,6 +96,8 @@ interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
     handCount: number;
     deckCount: number;
     round: number;
+    /** The town resolved most recently, or '' before any has been. */
+    lastResolved: string;
 }
 
 /** The resolution phase, which both sides pass through before their turn. */

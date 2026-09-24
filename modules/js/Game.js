@@ -73,6 +73,12 @@ class BoardView {
         /** Cards drawn above a town: staged this turn, or placed on the last one. */
         this.overlay = {};
         this.overlayGhost = false;
+        /**
+         * The town resolved most recently. Only it keeps its result line: the
+         * numbers are there for whoever missed the announcement, and once another
+         * town has been decided they are old news taking up the box.
+         */
+        this.lastResolved = null;
         this.towns = towns;
     }
     // -- building -----------------------------------------------------------
@@ -440,7 +446,7 @@ class BoardView {
         // after it played — the same argument that made the opponent's last turn
         // persistent instead of animated.
         const result = element.querySelector('.iaw-town-result');
-        result.innerHTML = this.resultHtml(town);
+        result.innerHTML = this.resultHtml(townId, town);
         const rebel = element.querySelector('.iaw-town-rebel');
         rebel.innerHTML = this.faceDownHtml(townId, town) + this.faceUpHtml(town);
         const empire = element.querySelector('.iaw-town-empire');
@@ -448,15 +454,15 @@ class BoardView {
         this.changeHandler();
     }
     /**
-     * The two presences a resolution was decided on, side by side, for the rest
-     * of the game. The numbers were already being sent and stored and had never
-     * been drawn anywhere.
+     * The two presences a resolution was decided on, side by side, on the most
+     * recently resolved town only. Kept for the rest of the game on every town,
+     * they were clutter nobody read, and they forced the garrison small.
      *
      * It reads left to right in the same order as the rest of the box — rebels,
      * then Empire — so which pip is whose needs no label.
      */
-    resultHtml(town) {
-        if (!town.resolved) {
+    resultHtml(townId, town) {
+        if (!town.resolved || townId !== this.lastResolved) {
             return '';
         }
         return `<div class="iaw-result-line" title="${_('How this location was decided: rebel presence against Empire presence')}"
@@ -469,9 +475,9 @@ class BoardView {
      *
      * A live town draws the pawn large with its presence underneath, which uses
      * the height of the Empire's column rather than the width of a single line.
-     * A **resolved** town draws it small and inline instead: the box is a record
-     * by then, the result line above it is the thing worth reading, and the two
-     * together do not fit in a fixed 104px box.
+     * The town carrying the **result line** draws it small and inline instead:
+     * the result is the thing worth reading there, and the two together do not
+     * fit in a fixed 104px box. Every other resolved town keeps the large token.
      */
     troopsHtml(townId, town) {
         const delta = this.troopDelta[townId] ?? 0;
@@ -482,7 +488,7 @@ class BoardView {
         const pawn = this.frames
             ? `<span class="iaw-pawn">${this.frames.pawn}</span>`
             : '';
-        const compact = town.resolved ? ' compact' : '';
+        const compact = town.resolved && townId === this.lastResolved ? ' compact' : '';
         // The build is called out on its own, loudly: it is the one change on
         // the board the Empire *creates* rather than moves, and it is the step
         // being decided when it is shown. What is left of the delta is the
@@ -688,6 +694,15 @@ class BoardView {
      * starving garrison, and that mark is small and local; this is meant to be
      * the only thing you can see.
      */
+    setLastResolved(townId) {
+        const previous = this.lastResolved;
+        this.lastResolved = townId || null;
+        [previous, this.lastResolved].forEach(id => {
+            if (id && this.towns[id]) {
+                this.updateTown(id);
+            }
+        });
+    }
     setResolving(townId) {
         Object.keys(this.scenario.towns).forEach(id => {
             document.getElementById(this.townElementId(id))
@@ -1916,6 +1931,7 @@ class Game {
         `);
         this.board = new BoardView(document.getElementById('iaw-board-area'), gamedatas.scenario, gamedatas.towns, this.side);
         this.board.onBoardChanged(() => this.renderArmies());
+        this.board.setLastResolved(gamedatas.lastResolved);
         this.board.render();
         // The silhouettes are files, so they arrive after the first paint. The
         // board is drawn and usable without them.
@@ -2402,6 +2418,7 @@ class Game {
         town.revealed = args.winner === 'empire' ? [] : args.pile;
         town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
+        this.board.setLastResolved(args.town_id);
         // Said once, loudly, with the town itself marked in red so the
         // announcement and the place it is about are connected. The board keeps
         // its own record of the numbers afterwards.

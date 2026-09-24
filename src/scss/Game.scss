@@ -1155,18 +1155,17 @@ $board: #e6e6e8;
     max-width: 520px;
     padding: 30px 34px 22px;
     border-radius: 6px;
-    border: 1px solid #ddd;
     // The winner's colour, at the strength a resolved town takes on the board,
     // so the card and the box it is about read as the same event.
-    border-left: 8px solid $empire;
-    background: color.mix($empire, #fff, 14%);
+    border: 2px solid $empire;
+    background: color.mix($empire, #fff, 32%);
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
     text-align: center;
     cursor: default;
 
     &.insurgency {
-        border-left-color: $insurgency;
-        background: color.mix($insurgency, #fff, 14%);
+        border-color: $insurgency;
+        background: color.mix($insurgency, #fff, 32%);
     }
 }
 

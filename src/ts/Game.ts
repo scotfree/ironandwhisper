@@ -109,6 +109,7 @@ export class Game {
             this.side,
         );
         this.board.onBoardChanged(() => this.renderArmies());
+        this.board.setLastResolved(gamedatas.lastResolved);
         this.board.render();
         // The silhouettes are files, so they arrive after the first paint. The
         // board is drawn and usable without them.
@@ -669,6 +670,7 @@ export class Game {
         town.revealed = args.winner === 'empire' ? [] : args.pile;
         town.cardCount = town.revealed.length;
         this.board.updateTown(args.town_id);
+        this.board.setLastResolved(args.town_id);
 
         // Said once, loudly, with the town itself marked in red so the
         // announcement and the place it is about are connected. The board keeps
