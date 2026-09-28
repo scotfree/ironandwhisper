@@ -184,13 +184,17 @@ export class BoardView {
      * the line, so it spilled back over the source and read as sitting at the
      * base of the arrow. Absolute units also stop the ghost arrows, at stroke 6,
      * getting a different head from the live ones for no reason anybody chose.
+     *
+     * It is now 30px, doubled on purpose because 15 read too small. Its base
+     * sits about 12px into the 18px gap and can cover the march count label;
+     * that was accepted as the price of a head you can see.
      */
     private arrowsSvg(width: number, height: number): string {
         return `<svg id="iaw-arrows" width="${width}" height="${height}">
             <defs>
                 <marker id="iaw-arrowhead" viewBox="0 0 10 10" refX="10" refY="5"
                         markerUnits="userSpaceOnUse"
-                        markerWidth="15" markerHeight="15" orient="auto-start-reverse">
+                        markerWidth="30" markerHeight="30" orient="auto-start-reverse">
                     <path d="M 0 0 L 10 5 L 0 10 z" />
                 </marker>
             </defs>
@@ -572,8 +576,8 @@ export class BoardView {
 
         return `<div class="iaw-troops clickable${compact}${town.starving > 0 ? ' starving' : ''}"
                  data-troop="${townId}"
-                 >${pawn}${this.garrisonHtml(town.troops)}<span class="iaw-troop-marks"
-                 >${change}${raising}${doomed}</span></div>`;
+                 >${pawn}<span class="iaw-garrison-row">${this.garrisonHtml(town.troops)}<span
+                 class="iaw-troop-marks">${change}${raising}${doomed}</span></span></div>`;
     }
 
     /**

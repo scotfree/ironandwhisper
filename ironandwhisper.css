@@ -156,6 +156,11 @@
   height: 18px;
 }
 
+.iaw-garrison-row {
+  display: flex;
+  align-items: center;
+}
+
 .iaw-troop-marks {
   display: flex;
   align-items: center;

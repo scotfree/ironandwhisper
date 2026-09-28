@@ -371,7 +371,9 @@ Done:
   mix a held town's frame takes. `resolvedCardPresence` and `resolvedTroopPresence` were
   already stored, sent and kept on `TownView` — nothing had ever drawn them.
 - **The garrison is a stacked token**: the pawn at 28x37 rather than 16x21, with its
-  presence pip underneath instead of beside it. The Empire's column is a narrow strip down
+  presence pip underneath instead of beside it, and this turn's marks — the build `+1`, the
+  march delta, the starving `−N` — beside the pip. They were a third row once, and the fixed
+  box clipped them out of sight without anybody noticing for a release. The Empire's column is a narrow strip down
   the right of a fixed 120x104 box, so stacking buys the piece real size out of height that
   went unused once `MINIMAL_TOWNS` removed the supply arithmetic. The town carrying the
   **result line** draws it small and inline instead: the result is the thing to read there,
@@ -382,7 +384,9 @@ Done:
   `150 - 120 - 12 = 18px`. The head was nearly twice the length of its line and spilled back
   over the source, which reads as an arrowhead at the base. It is now sized in
   `userSpaceOnUse` (so the ghost arrows at stroke 6 stop getting a different head for no
-  reason) and the line runs `ARROW_OVERLAP` px *inside* the target's box. That needed the
+  reason) and the line runs `ARROW_OVERLAP` px *inside* the target's box. The head
+  was then doubled to 30px (2026-09-28) because 15 read too small, accepting that it can
+  cover the count label in a tight gap. That needed the
   arrows moved out of `#iaw-roads` — the first child of the board, painted under every town,
   whose frames are opaque — into `#iaw-arrows` above them. The count label stays in the gap
   rather than at the line's midpoint, which is now inside a town.

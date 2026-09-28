@@ -265,6 +265,13 @@ $board: #e6e6e8;
 }
 
 // The staged and doomed markers, on their own line under the token.
+// The pip and what this turn changes, side by side under the pawn. The marks
+// were a third row once, and a fixed 104px box clipped them out of sight.
+.iaw-garrison-row {
+    display: flex;
+    align-items: center;
+}
+
 .iaw-troop-marks {
     display: flex;
     align-items: center;
