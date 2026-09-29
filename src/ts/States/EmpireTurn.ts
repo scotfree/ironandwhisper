@@ -248,7 +248,7 @@ export class EmpireTurn {
             return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
         if (this.source === null) {
-            return { text: _('${you} must select a town to move troops from') };
+            return { text: _('${you} may select a town to move troops from') };
         }
         return {
             text: _('${you} must select where to move troops from ${town} to'),
