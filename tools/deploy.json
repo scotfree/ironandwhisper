@@ -22,6 +22,8 @@
     "sim",
     "gpt",
     "notebooks",
+    "logs",
+    ".claude",
     "*.ipynb",
     ".ipynb_checkpoints",
     ".pytest_cache",
