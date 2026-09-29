@@ -7,7 +7,7 @@
  */
 
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
-export const primerEmpire = (): string => _('<p>You build troops in cities, march them along roads, and keep them supplied by networks of occupied locations. When you think a garrison outweighs the rebels\' presence in a location, <b>resolve</b> it and find out: you score the presence you capture, if you win.</p><p><b>You win ties.</b> A garrison only has to match the presence against it.</p>');
+export const primerEmpire = (): string => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
 
 /** From `src/text/primer-rebels.md`. Edit that file, not this one. */
-export const primerRebels = (): string => _('<p>You place <b>${hand} hidden agents</b> on locations each turn — some are decoys, some carry real presence, and you must place your whole hand. When you think a location\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.</p><p><b>The Empire wins ties.</b> You have to <i>beat</i> a garrison, not match it.</p>');
+export const primerRebels = (): string => _('<p>You place <b>${hand} hidden ${agent} agents</b> on ${town} locations each turn — some are decoys, some carry real ${presence} presence, and you must place your whole hand. When you think a ${town} location\'s ${agent} cards overpower its ${troop} garrison, <b>resolve</b> it and find out: you score the ${presence} presence you drive out, if you win.</p><p><b>The Empire wins ties.</b> You have to <i>beat</i> a ${troop} garrison, not match it.</p>');

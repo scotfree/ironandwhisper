@@ -1496,9 +1496,9 @@ class Resolve {
  * BGA has installed the translator.
  */
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
-const primerEmpire = () => _('<p>You build troops in cities, march them along roads, and keep them supplied by networks of occupied locations. When you think a garrison outweighs the rebels\' presence in a location, <b>resolve</b> it and find out: you score the presence you capture, if you win.</p><p><b>You win ties.</b> A garrison only has to match the presence against it.</p>');
+const primerEmpire = () => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
 /** From `src/text/primer-rebels.md`. Edit that file, not this one. */
-const primerRebels = () => _('<p>You place <b>${hand} hidden agents</b> on locations each turn — some are decoys, some carry real presence, and you must place your whole hand. When you think a location\'s cards overpower its garrison, <b>resolve</b> it and find out: you score the presence you drive out, if you win.</p><p><b>The Empire wins ties.</b> You have to <i>beat</i> a garrison, not match it.</p>');
+const primerRebels = () => _('<p>You place <b>${hand} hidden ${agent} agents</b> on ${town} locations each turn — some are decoys, some carry real ${presence} presence, and you must place your whole hand. When you think a ${town} location\'s ${agent} cards overpower its ${troop} garrison, <b>resolve</b> it and find out: you score the ${presence} presence you drive out, if you win.</p><p><b>The Empire wins ties.</b> You have to <i>beat</i> a ${troop} garrison, not match it.</p>');
 
 /**
  * The player's manual, served from the game's own folder.
@@ -1523,11 +1523,52 @@ const rulesUrl = () => `${g_gamethemeurl}rules.html`;
  * are tuning knobs that live in `scenarios/`, and a help page with last month's
  * numbers written into it is worse than no help page.
  */
+/**
+ * The icons that may appear in running text, by placeholder name.
+ *
+ * Every piece of prose that names a piece of the game draws that piece beside
+ * the word: the text writes `${troop} troops`, and `withIcons` swaps the
+ * placeholder for the real mark. Placeholders rather than markup, so a
+ * translator sees `${troop}` instead of a wall of SVG, and so the `_()`
+ * literal survives into the bundle where BGA's extractor can find it.
+ */
+const ICON_NAMES = ['troop', 'town', 'city', 'agent', 'presence'];
 class Help {
     constructor(scenario, board) {
         this.scenario = scenario;
         this.board = board;
         this.dialog = null;
+    }
+    /**
+     * One mark, at the size of a letter, for use inside a sentence.
+     *
+     * The pawn and the two silhouettes are the files from `img/`, the same
+     * markup the board draws; the agent and the presence disc are the board's
+     * own CSS, made small. None is a copy, so none can drift. A word joiner
+     * follows each, so a line never breaks between an icon and its word.
+     *
+     * The SVGs arrive after the first paint (`BoardView.loadFrames`); until
+     * then those three are empty boxes of the right size, and whatever drew
+     * them is redrawn when the files land — see `Game.setup`.
+     */
+    icon(name) {
+        const svg = name === 'troop' ? this.board.pawnSvg()
+            : name === 'town' ? this.board.townSvg()
+                : name === 'city' ? this.board.citySvg()
+                    : '';
+        return `<span class="iaw-icon iaw-icon-${name}" aria-hidden="true">${svg}</span>\u2060`;
+    }
+    /**
+     * Replace every `${troop}`-style placeholder in `text` with its icon.
+     *
+     * The source writes `${troop} troops`, with a space, because that is how a
+     * translator will read it. The space is absorbed here so the icon sits
+     * against its word, as it does in the manual.
+     */
+    withIcons(text) {
+        return ICON_NAMES.reduce((result, name) => result
+            .split('${' + name + '} ').join(this.icon(name))
+            .split('${' + name + '}').join(this.icon(name)), text);
     }
     /**
      * Put a ? at the right-hand end of the status bar.
@@ -1580,7 +1621,7 @@ class Help {
         overlay.id = 'iaw-start-overlay';
         overlay.innerHTML = `
             <div id="iaw-start-card">
-                ${this.primerHtml(side)}
+                <div id="iaw-start-primer">${this.primerHtml(side)}</div>
                 <div id="iaw-start-hint">${_('Click anywhere, or press any key, to continue')}</div>
             </div>
         `;
@@ -1599,6 +1640,16 @@ class Help {
             dismiss();
         });
         document.addEventListener('keydown', dismiss);
+    }
+    /**
+     * Redraw the start card's text in place, if it is still up. The icons in
+     * it are the SVG files, which can land after the card has opened.
+     */
+    refreshStartOverlay(side) {
+        const primer = document.getElementById('iaw-start-primer');
+        if (primer) {
+            primer.innerHTML = this.primerHtml(side);
+        }
     }
     /**
      * What just happened in a town, full-screen, until it is dismissed.
@@ -1620,9 +1671,9 @@ class Help {
         const won = rebels
             ? _('The Rebels won ${town}').replace('${town}', label)
             : _('The Empire won ${town}').replace('${town}', label);
-        const scored = result.points > 0
-            ? _('and scored ${points} presence').replace('${points}', String(result.points))
-            : _('and scored nothing: there is no prize for a location nobody contested');
+        const scored = this.withIcons(result.points > 0
+            ? _('and scored ${points} ${presence} presence').replace('${points}', String(result.points))
+            : _('and scored nothing: there is no prize for a ${town} location nobody contested'));
         const overlay = document.createElement('div');
         overlay.id = 'iaw-resolution';
         overlay.innerHTML = `
@@ -1685,34 +1736,34 @@ class Help {
             // First, because it is the one quantity in the game and every row
             // under it is either presence or a count of something else.
             [presenceHtml(2),
-                _('Presence, wherever it is shown. Cards carry it and troops carry it; a town goes to whoever has more of it. A plain number — the height of a stack, the size of a garrison — is a count of pieces, not presence.')],
+                _('${presence} Presence, wherever it is shown. ${agent} Cards carry it and ${troop} troops carry it; a ${town} town goes to whoever has more of it. A plain number — the height of a stack, the size of a ${troop} garrison — is a count of pieces, not ${presence} presence.')],
             [art(this.board.townSvg()),
-                _('A town. Adds its supply to whatever Empire network holds it.')],
+                _('A ${town} town. Adds its supply to whatever Empire network holds it.')],
             [art(this.board.citySvg()) + ' <span class="iaw-produce">&#128296;</span>',
-                _('A city, marked with a hammer. Also builds a troop a turn for whoever holds it.')],
+                _('A ${city} city, marked with a hammer. Also builds a ${troop} troop a turn for whoever holds it.')],
             [`<span class="iaw-troops">${this.board.pawnSvg()
                     ? `<span class="iaw-pawn">${this.board.pawnSvg()}</span>` : ''}${this.scenario.unit.presence === 1
                     ? presenceHtml(3)
                     : `<span class="iaw-troop-count">3</span>${presenceHtml(3 * this.scenario.unit.presence)}`}</span>`,
-                _('Empire troops standing here. Each is worth ${presence} presence at a resolution.')
-                    .replace('${presence}', String(this.scenario.unit.presence))],
+                _('Empire ${troop} troops standing here. Each is worth ${n} ${presence} presence at a resolution.')
+                    .replace('${n}', String(this.scenario.unit.presence))],
             [stack('face-down', 4, '?'),
-                _('Face-down agents: how many, and what they total. The Rebels see their own total; the Empire sees a question mark. Click either stack to see the pile in order.')],
+                _('Face-down ${agent} agents: how many, and what they total. The Rebels see their own total; the Empire sees a question mark. Click either stack to see the pile in order.')],
             [stack('face-up', 2, 3),
-                _('Face-up agents and their presence. A troop that does not march turns one card over each turn.')],
+                _('Face-up ${agent} agents and their ${presence} presence. A ${troop} troop that does not march turns one ${agent} card over each turn.')],
             [`<span class="iaw-supply">2/4</span>`,
-                _('Troops standing in this network, and the most it can supply.')],
+                _('${troop} Troops standing in this network, and the most it can supply.')],
             [`<span class="iaw-contribution">(2)</span>`,
-                _('What this location adds to that. A location the Rebels have won adds nothing, for ever.')],
+                _('What this ${town} location adds to that. A ${town} location the Rebels have won adds nothing, for ever.')],
             [`<span class="iaw-troops-doomed">&minus;1</span>`,
-                _('Starving. Lost at the end of the Empire\'s next turn unless the supply line is repaired first.')],
+                _('Starving ${troop} troops. Lost at the end of the Empire\'s next turn unless the supply line is repaired first.')],
             [`<span class="iaw-troop-delta">+1</span>
               <span class="iaw-card-delta">+2 ${_('cards')}</span>`,
                 _('What you are staging this turn, shown beside what is already there.')],
             [presenceHtml('+2', 'iaw-chip') + `<span class="iaw-chip face-down"></span>`,
-                _('Agents above a town: face up while you are placing them, and greyed afterwards to show what your opponent placed on their last turn.')],
+                _('${agent} Agents above a ${town} town: face up while you are placing them, and greyed afterwards to show what your opponent placed on their last turn.')],
         ];
-        return `<table class="iaw-legend">${rows.map(([icon, text]) => `<tr><td class="iaw-legend-icon">${icon}</td><td>${text}</td></tr>`).join('')}</table>`;
+        return `<table class="iaw-legend">${rows.map(([icon, text]) => `<tr><td class="iaw-legend-icon">${icon}</td><td>${this.withIcons(text)}</td></tr>`).join('')}</table>`;
     }
     // -- the reminder beside the board --------------------------------------
     /**
@@ -1737,7 +1788,7 @@ class Help {
                 index === current ? 'current' : '',
                 mine(index) ? 'mine' : 'theirs',
             ].filter(Boolean).join(' ');
-            return `<li class="${classes}">${step}</li>`;
+            return `<li class="${classes}">${this.withIcons(step)}</li>`;
         }).join('')}</ol>
         `;
     }
@@ -1755,14 +1806,14 @@ class Help {
      */
     steps() {
         return [
-            _('Rebels: resolve a location they have a card in'),
-            _('Rebels: place their entire hand'),
+            _('Rebels: resolve a ${town} location they have an ${agent} agent in'),
+            _('Rebels: place their entire hand of ${agent} agents'),
             _('Rebels: draw back up to ${hand}').replace('${hand}', String(this.scenario.handSize)),
-            _('Empire: resolve a location it has troops in'),
-            _('Empire: build in cities it holds'),
-            _('Empire: march along roads'),
-            _('Empire: troops that stayed put each read a card'),
-            _('Empire: troops over supply starve'),
+            _('Empire: resolve a ${town} location it has ${troop} troops in'),
+            _('Empire: build ${troop} troops in ${city} cities it holds'),
+            _('Empire: march ${troop} troops along roads'),
+            _('Empire: ${troop} troops that stayed put each read an ${agent} agent'),
+            _('Empire: ${troop} troops over supply starve'),
         ];
     }
     /**
@@ -1799,9 +1850,9 @@ class Help {
         // prose file; `*.md` is excluded from the deploy, so it is compiled in
         // rather than fetched, and the generated form keeps the literal inside
         // `_()` so BGA can still translate it.
-        const summary = rebel
+        const summary = this.withIcons(rebel
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
-            : primerEmpire();
+            : primerEmpire());
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
                 <div class="iaw-frame-title">${title}</div>
@@ -1831,9 +1882,9 @@ class Help {
             : _('A face-down agent')}</div>
                 <div class="iaw-detail-text">${known
             ? (value > 0
-                ? _('Adds ${n} presence to the Rebels in the location it is placed in.')
-                    .replace('${n}', String(value))
-                : _('Adds no presence. Use it as a decoy: face down it is indistinguishable from any other agent, and it makes a pile look dangerous.'))
+                ? this.withIcons(_('Adds ${n} ${presence} presence to the Rebels in the ${town} location it is placed in.')
+                    .replace('${n}', String(value)))
+                : this.withIcons(_('Adds no ${presence} presence. Use it as a decoy: face down it is indistinguishable from any other ${agent} agent, and it makes a pile look dangerous.')))
             : _('The Empire knows it is there and how deep in the pile it sits, but not what it is worth.')}</div>
             </div>
         `;
@@ -1848,11 +1899,11 @@ class Help {
             <div class="iaw-detail">
                 <div class="iaw-detail-art">${this.board.pawnSvg()}</div>
                 <div class="iaw-detail-name">${unit.label} ${presenceHtml(unit.presence)}</div>
-                <div class="iaw-detail-text">${_('Presence +${presence}. Moves ${movement} town per turn. Costs ${supply} supply to keep standing, and reads ${peek} card per turn when it holds still.')
-            .replace('${presence}', String(unit.presence))
+                <div class="iaw-detail-text">${this.withIcons(_('${presence} Presence +${n}. Moves ${movement} ${town} town per turn. Costs ${supply} supply to keep standing, and reads ${peek} ${agent} card per turn when it holds still.')
+            .replace('${n}', String(unit.presence))
             .replace('${movement}', String(unit.movement))
             .replace('${supply}', String(this.scenario.supplyPerTroop))
-            .replace('${peek}', String(unit.peek))}</div>
+            .replace('${peek}', String(unit.peek)))}</div>
             </div>
         `;
     }
@@ -1938,8 +1989,13 @@ class Game {
         this.board.setLastResolved(gamedatas.lastResolved);
         this.board.render();
         // The silhouettes are files, so they arrive after the first paint. The
-        // board is drawn and usable without them.
-        this.board.loadFrames();
+        // board is drawn and usable without them. The prose beside it draws
+        // them too, as icons, so that is redrawn once they land.
+        this.board.loadFrames().then(() => {
+            this.renderPrimer();
+            this.renderPhases();
+            this.help?.refreshStartOverlay(this.side);
+        });
         // The bot has no player record, so it gets a panel of its own rather
         // than a row in gamedatas.players.
         this.bot = gamedatas.bot;

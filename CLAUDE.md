@@ -322,6 +322,21 @@ Done:
   exists for. Both dialogs kept one instance and so opened exactly once, then silently did
   nothing. They are rebuilt on every open instead. Anything using `ebg.popindialog` needs
   this.
+- **Prose draws the pieces it names** (2026-09-28). Every mention of a troop, agent, location,
+  city or presence in the primers, the cheat sheet, the turn order, the card and troop details,
+  the resolution card and `rules.html` carries the mark beside the word — at every mention, by
+  choice, not just the first. In the client the text says `${troop} troops` and
+  `Help.withIcons` swaps the placeholder for the real pawn/silhouette markup or the board's own
+  CSS made small; placeholders rather than markup so translators see `${troop}` and the `_()`
+  literal survives extraction. The SVGs arrive after first paint, so `Game.setup` redraws the
+  primer, phase list and start card when `loadFrames` resolves. In the manual an icon is
+  `<svg class="ic ic-troop"><use href="#art-pawn"/></svg>` (or `<i class="ic ic-agent">`,
+  `ic-presence`), always followed by a word joiner; the `ic-` prefix is because `.town` was
+  already the board picture's class and swallowed the first attempt.
+  **`tools/sync-rules-art.mjs` regenerates the manual's `<symbol>`s from `img/*.svg` on every
+  build**, between `art:begin`/`art:end` markers — the hand-copied city had already drifted
+  from the file. `tests/test_icons.php` lints both halves. The town and city icons are hard to
+  tell apart at letter size; that is the real art, not a bug.
 - **`rules.html` is the player's manual** (2026-09-20, issue #6), split out of the old
   `ironandwhisper.md` along with `design.md`. One file was the rules *and* the design
   rationale, and the player-facing half could not carry sentences like "an earlier version

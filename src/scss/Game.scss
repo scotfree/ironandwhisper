@@ -307,6 +307,84 @@ $board: #e6e6e8;
     }
 }
 
+// The marks at the size of a letter, beside the word for them in running text:
+// the primers, the cheat sheet, the turn order, the card and troop details.
+// Sized in em so they follow whatever text they sit in. See Help.icon.
+.iaw-icon {
+    display: inline-block;
+    margin-right: 0.15em;
+    vertical-align: -0.12em;
+
+    svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+}
+
+// The pawn's stroke scales with it here, unlike on the board: at the size of a
+// letter a fixed 2px outline would swallow the piece.
+.iaw-icon-troop {
+    width: 0.72em;
+    height: 0.96em;
+    --art-fill: #{$empire};
+    --art-stroke: #{color.adjust($empire, $lightness: -25%)};
+}
+
+.iaw-icon-town,
+.iaw-icon-city {
+    width: 1.1em;
+    height: 0.95em;
+    --art-fill: #fff;
+    --art-stroke: #{$ink};
+
+    path, circle, polygon, polyline {
+        vector-effect: non-scaling-stroke;
+    }
+}
+
+.iaw-icon-agent {
+    position: relative;
+    box-sizing: border-box;
+    width: 0.72em;
+    height: 0.95em;
+    border: 1px solid color.adjust($insurgency, $lightness: -10%);
+    border-radius: 2px;
+    background: repeating-linear-gradient(45deg,
+        $insurgency, $insurgency 2px,
+        color.adjust($insurgency, $lightness: 8%) 2px,
+        color.adjust($insurgency, $lightness: 8%) 4px);
+
+    // The circled ? a face-down stack carries: presence, not yet known.
+    // Sized in its own, smaller em: 1.24em here is 0.62em of the text.
+    &::after {
+        content: '?';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 1.24em;
+        height: 1.24em;
+        border-radius: 50%;
+        background: $presence;
+        color: #000;
+        font-size: 0.5em;
+        font-weight: bold;
+        line-height: 1.24em;
+        text-align: center;
+    }
+}
+
+.iaw-icon-presence {
+    box-sizing: border-box;
+    width: 0.7em;
+    height: 0.7em;
+    border: 1px solid color.adjust($presence, $lightness: -28%);
+    border-radius: 50%;
+    background: $presence;
+    vertical-align: -0.02em;
+}
+
 .iaw-troop-count {
     font-variant-numeric: tabular-nums;
     font-weight: bold;

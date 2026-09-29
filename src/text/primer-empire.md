@@ -1,5 +1,6 @@
-You build troops in cities, march them along roads, and keep them supplied by networks of
-occupied locations. When you think a garrison outweighs the rebels' presence in a location,
-**resolve** it and find out: you score the presence you capture, if you win.
+You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied
+by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the
+rebels' ${presence} presence in a ${town} location, **resolve** it and find out: you score
+the ${presence} presence you capture, if you win.
 
-**You win ties.** A garrison only has to match the presence against it.
+**You win ties.** A ${troop} garrison only has to match the ${presence} presence against it.

@@ -188,6 +188,75 @@
   vector-effect: non-scaling-stroke;
 }
 
+.iaw-icon {
+  display: inline-block;
+  margin-right: 0.15em;
+  vertical-align: -0.12em;
+}
+.iaw-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.iaw-icon-troop {
+  width: 0.72em;
+  height: 0.96em;
+  --art-fill: #6b3fa0;
+  --art-stroke: rgb(17.9697529236%, 10.5803218148%, 26.8706585773%);
+}
+
+.iaw-icon-town,
+.iaw-icon-city {
+  width: 1.1em;
+  height: 0.95em;
+  --art-fill: #fff;
+  --art-stroke: #2b2b2b;
+}
+.iaw-icon-town path, .iaw-icon-town circle, .iaw-icon-town polygon, .iaw-icon-town polyline,
+.iaw-icon-city path,
+.iaw-icon-city circle,
+.iaw-icon-city polygon,
+.iaw-icon-city polyline {
+  vector-effect: non-scaling-stroke;
+}
+
+.iaw-icon-agent {
+  position: relative;
+  box-sizing: border-box;
+  width: 0.72em;
+  height: 0.95em;
+  border: 1px solid rgb(12.6590987272%, 34.3997248022%, 21.740626075%);
+  border-radius: 2px;
+  background: repeating-linear-gradient(45deg, #2e7d4f, #2e7d4f 2px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 2px, rgb(22.3433092535%, 60.7155142759%, 38.3722050224%) 4px);
+}
+.iaw-icon-agent::after {
+  content: "?";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.24em;
+  height: 1.24em;
+  border-radius: 50%;
+  background: #f2c230;
+  color: #000;
+  font-size: 0.5em;
+  font-weight: bold;
+  line-height: 1.24em;
+  text-align: center;
+}
+
+.iaw-icon-presence {
+  box-sizing: border-box;
+  width: 0.7em;
+  height: 0.7em;
+  border: 1px solid rgb(54.3144385027%, 41.7197860963%, 3.4110516934%);
+  border-radius: 50%;
+  background: #f2c230;
+  vertical-align: -0.02em;
+}
+
 .iaw-troop-count {
   font-variant-numeric: tabular-nums;
   font-weight: bold;

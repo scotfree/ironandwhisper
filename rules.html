@@ -327,8 +327,11 @@ figure {
     display: inline-block;
     width: 16px;
     height: 21px;
-    fill: var(--empire);
-    stroke: #4a2b70;
+    --art-fill: var(--empire);
+    --art-stroke: #4a2b70;
+    /* Inherited by the drawing wherever it does not name a colour itself. */
+    fill: var(--art-fill);
+    stroke: var(--art-stroke);
 }
 
 .starving {
@@ -343,6 +346,74 @@ figure {
 }
 
 .hammer { font-size: 11px; }
+
+/* ---- the marks, at the size of a letter, in the text -------------------- */
+/* Beside the word for the thing, everywhere the rules name it, so the prose and
+   the board share one vocabulary of shapes. The pawn, town and city are the
+   real drawings by <use>, not copies; the agent and the presence disc are the
+   same CSS as the board's, made small. Each is followed by a word joiner
+   (&#8288;) so a line never breaks between an icon and its word. */
+.ic {
+    display: inline-block;
+    margin-right: 0.15em;
+    vertical-align: -0.12em;
+}
+
+svg.ic {
+    fill: var(--art-fill);
+    stroke: var(--art-stroke);
+}
+
+svg.ic-troop {
+    width: 0.72em;
+    height: 0.96em;
+    --art-fill: var(--empire);
+    --art-stroke: #4a2b70;
+}
+
+svg.ic-town,
+svg.ic-city {
+    width: 1.1em;
+    height: 0.95em;
+    --art-fill: #fff;
+    --art-stroke: var(--ink);
+}
+
+.ic-agent {
+    position: relative;
+    width: 0.72em;
+    height: 0.95em;
+    border: 1px solid #1f5636;
+    border-radius: 2px;
+    background: repeating-linear-gradient(45deg,
+        var(--rebels), var(--rebels) 2px, #3a9a63 2px, #3a9a63 4px);
+}
+
+/* The circled ? a face-down stack carries: presence, not yet known. */
+.ic-agent::after {
+    content: '?';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* Sized in its own, smaller em: 1.24em here is 0.62em of the text. */
+    font: bold 0.5em/1.24em Georgia, serif;
+    width: 1.24em;
+    height: 1.24em;
+    border-radius: 50%;
+    background: var(--presence);
+    color: #000;
+    text-align: center;
+}
+
+.ic-presence {
+    width: 0.7em;
+    height: 0.7em;
+    border: 1px solid #ae8c17;
+    border-radius: 50%;
+    background: var(--presence);
+    vertical-align: -0.02em;
+}
 
 /* Symbols in the picture are links into the legend. On paper they are just
    marks, so the affordance is quiet: a dotted underline, no colour change. */
@@ -546,78 +617,87 @@ footer a { color: #6a6258; }
 </head>
 <body>
 
-<!-- The real silhouettes, inlined once. Nothing in here specifies a fill or a
-     stroke, so both are inherited from whatever <use>s it — which is how one
-     drawing serves an ordinary location, an Empire-held one and a rebel-held one. -->
+<!-- The real silhouettes, inlined once and regenerated from img/ on every build.
+     White and black in the files become var(--art-fill) and var(--art-stroke),
+     which inherit from whatever <use>s them — which is how one drawing serves an
+     ordinary location, an Empire-held one, a rebel-held one and an icon in the text. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<!-- art:begin — generated from img/*.svg by tools/sync-rules-art.mjs; edit the files, not this -->
   <symbol id="art-town" viewBox="0 0 120 104">
     <g transform="matrix(-1,0,0,1,121.073,0.889628)">
-      <path fill-rule="nonzero" stroke-width="2" stroke-linejoin="round"
-        d="M3,101L3.254,23.36L7.171,27.01L5.086,28.788L8.367,30.488L5.599,32.126L9.515,34.976L13.212,29.134L9.56,28.703L11.706,24.152L8.479,23.55L11.679,19.093L8.625,18.299L12.117,10.574L17.986,18.718L14.293,18.271L17.868,22.396L13.58,23.189L18.44,27.483L15.964,27.921L19.876,32.123L23.382,25.27L20.979,24.305L23.462,20.504L20.798,19.9L23.91,12.999L28.47,19.367L25.835,19.88L28.99,23.743L26.518,24.394L32.232,31.28L34.818,28.181L32.17,27.402L36.18,23.642L31.564,23.42L35.704,18.262L33.351,17.566L37.328,6.18L41.495,13.141L38.78,13.71L41.858,17.561L39.158,18.295L42.327,21.351L39.072,22.313L43.374,27.901L46.272,27.163L47.279,22.431L44.614,22.687L47,18.808L44.162,18.623L47.211,12.627L50.785,16.27L48.917,17.201L53.163,21.35L49.491,22.301L54.964,26.206L52.264,29.444L57.125,28.82L58.841,24.213L57.361,24.012L58.587,20.822L62.229,24.417L60.912,25.779L62.235,28.553L64.872,28.493L66.463,25.024L69.07,28.282L72.928,28.313L86.173,28.149L85.514,25.156L87.497,23.146L90.773,24.565L90.061,27.958L93.003,28.101L93.266,25.598L96.572,25.935L96.45,28.387L102.659,28.959L102.819,25.567L99.389,24.992L102.012,22.42L101.738,19.49L103.266,19.448L103.561,21.85L107.446,19.994L115.442,25.637L111.363,25.777L110.923,29.321L115.809,30.472L117,101L3,101Z"/>
+    <path vector-effect="non-scaling-stroke" d="M3,101L3.254,23.36L7.171,27.01L5.086,28.788L8.367,30.488L5.599,32.126L9.515,34.976L13.212,29.134L9.56,28.703L11.706,24.152L8.479,23.55L11.679,19.093L8.625,18.299L12.117,10.574L17.986,18.718L14.293,18.271L17.868,22.396L13.58,23.189L18.44,27.483L15.964,27.921L19.876,32.123L23.382,25.27L20.979,24.305L23.462,20.504L20.798,19.9L23.91,12.999L28.47,19.367L25.835,19.88L28.99,23.743L26.518,24.394L32.232,31.28L34.818,28.181L32.17,27.402L36.18,23.642L31.564,23.42L35.704,18.262L33.351,17.566L37.328,6.18L41.495,13.141L38.78,13.71L41.858,17.561L39.158,18.295L42.327,21.351L39.072,22.313L43.374,27.901L46.272,27.163L47.279,22.431L44.614,22.687L47,18.808L44.162,18.623L47.211,12.627L50.785,16.27L48.917,17.201L53.163,21.35L49.491,22.301L54.964,26.206L52.264,29.444L57.125,28.82L58.841,24.213L57.361,24.012L58.587,20.822L62.229,24.417L60.912,25.779L62.235,28.553L64.872,28.493L66.463,25.024L69.07,28.282L72.928,28.313L86.173,28.149L85.514,25.156L87.497,23.146L90.773,24.565L90.061,27.958L93.003,28.101L93.266,25.598L96.572,25.935L96.45,28.387L102.659,28.959L102.819,25.567L99.389,24.992L102.012,22.42L101.738,19.49L103.266,19.448L103.561,21.85L107.446,19.994L115.442,25.637L111.363,25.777L110.923,29.321L115.809,30.472L117,101L3,101Z" style="fill:var(--art-fill);fill-rule:nonzero;stroke:var(--art-stroke);stroke-width:2px;"/>
     </g>
   </symbol>
   <symbol id="art-city" viewBox="0 0 120 104">
     <g transform="matrix(1,0,0,1,0.13678,-0.0372239)">
-      <path fill-rule="nonzero" stroke-width="2" stroke-linejoin="round"
-        d="M3,101L3,26L9.156,26.103L9.195,19.057L18.139,18.941L17.746,28.568L23.4,28.206L23.807,12.704L30.351,12.446L29.937,19.319L35.31,19.173L35.554,6.446L37.072,6.389L37.152,8.151L39.566,8.096L39.613,6.48L41.406,6.286L41.613,8.218L43.554,8.34L43.76,6.469L45.962,6.364L45.93,8.382L48.332,8.384L48.473,6.413L50.946,6.309L50.893,8.39L53.474,8.396L53.414,5.969L56,6L55.622,24.093L60.968,24.236L61.438,16.641L69.924,16.542L69.532,22.346L75.727,22.679L75.495,26.174L97,26L96.931,21.816L93.914,21.815L101.535,16.306L107.755,21.036L104.344,21.915L104.73,25.429L117,26L117,101L3,101Z"/>
+    <path vector-effect="non-scaling-stroke" d="M3,101L3,26L9.156,26.103L9.195,19.057L18.139,18.941L17.746,28.568L23.4,28.206L23.807,12.704L30.351,12.446L29.937,19.319L35.31,19.173L35.554,6.446L37.072,6.389L37.152,8.151L39.566,8.096L39.613,6.48L41.406,6.286L41.613,8.218L43.554,8.34L43.76,6.469L45.962,6.364L45.93,8.382L48.332,8.384L48.473,6.413L50.946,6.309L50.893,8.39L53.474,8.396L53.414,5.969L56,6L55.622,24.093L60.968,24.236L61.438,16.641L69.924,16.542L69.532,22.346L75.727,22.679L75.495,26.174L97,26L96.931,21.816L93.914,21.815L101.535,16.306L107.755,21.036L104.344,21.915L104.73,25.429L117,26L117,101L3,101Z" style="fill:var(--art-fill);fill-rule:nonzero;stroke:var(--art-stroke);stroke-width:2px;"/>
     </g>
-    <path d="M73.583,22.55C73.974,8.456 74.025,9.463 74.025,9.463L84.665,12.591L75.876,13.868L75.708,10.053"
-          fill="none" stroke-width="1" stroke-linecap="round"/>
+    <path vector-effect="non-scaling-stroke" d="M74.22,14.355L75.709,14.012" style="fill:none;stroke:var(--art-stroke);stroke-width:1px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
+    <g transform="matrix(1,0,0,1,-0.270062,0.0874952)">
+    <path vector-effect="non-scaling-stroke" d="M73.853,22.462C74.244,8.368 74.295,9.375 74.295,9.375L84.935,12.503L76.146,13.78L75.978,9.965" style="fill:url(#city-_Linear1);stroke:var(--art-stroke);stroke-width:1px;stroke-linecap:round;stroke-miterlimit:1.5;"/>
+    </g>
+    <defs>
+    <linearGradient id="city-_Linear1" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(4.89499,-1.87207,1.87207,4.89499,74.275,13.8404)"><stop offset="0" style="stop-color:white;stop-opacity:1"/><stop offset="1" style="stop-color:rgb(166,166,166);stop-opacity:1"/></linearGradient>
+    </defs>
   </symbol>
   <symbol id="art-pawn" viewBox="0 0 24 32">
-    <circle cx="12" cy="7.5" r="4.6" stroke-width="2"/>
+    <circle cx="12" cy="7.5" r="4.6"
+    fill="var(--art-fill)" stroke="var(--art-stroke)" stroke-width="2" />
     <path d="M 8 12.5 L 16 12.5 L 14.8 15.5 C 14.8 20, 17.5 23, 19.5 28 L 4.5 28
-             C 6.5 23, 9.2 20, 9.2 15.5 Z" stroke-width="2" stroke-linejoin="round"/>
+    C 6.5 23, 9.2 20, 9.2 15.5 Z"
+    fill="var(--art-fill)" stroke="var(--art-stroke)" stroke-width="2"
+    stroke-linejoin="round" />
   </symbol>
+<!-- art:end -->
 </svg>
 
 <header>
   <h1>Iron and Whispers</h1>
   <p class="subtitle">A game of occupation and sedition, for two players</p>
-  <p class="printnote">A deck of Rebel Agent cards and a fistful of Imperial Troop
-    tokens struggle for control over road-connected Locations. </p>
+  <p class="printnote">A deck of Rebel <i class="ic ic-agent"></i>&#8288;Agent cards and a fistful of Imperial <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troop
+    tokens struggle for control over road-connected <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Locations. </p>
 </header>
 
 <section id="idea">
   <h2><span class="num">One</span>The Struggle</h2>
 
   <p class="lead">One player is an <b>Empire</b> and plays entirely in the open:
-    marching, recruiting, and garrisoning Troops.
-    The other is a <b>Rebel Conspiracy</b> working in secret to place Agents and Misinformation.
+    marching, recruiting, and garrisoning <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops.
+    The other is a <b>Rebel Conspiracy</b> working in secret to place <i class="ic ic-agent"></i>&#8288;Agents and Misinformation.
 </p>
-<p>Both seek to build their <b>Presence</b> in a location.
-  When the Place finally has to choose a side, it's the one with the most Presence.
+<p>Both seek to build their <b><i class="ic ic-presence"></i>&#8288;Presence</b> in a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location.
+  When the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Place finally has to choose a side, it's the one with the most <i class="ic ic-presence"></i>&#8288;Presence.
   The other side loses whatever resources it had there.
-  Losing Presence (as Agents or Troops) gives the other side Points.
-The game ends when all locations have chosen a side and the one with the most points wins.</p>
+  Losing <i class="ic ic-presence"></i>&#8288;Presence (as <i class="ic ic-agent"></i>&#8288;Agents or <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops) gives the other side Points.
+The game ends when all <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations have chosen a side and the one with the most points wins.</p>
 
 <h2><span class="num">Two</span>Playing as The Empire</h2>
 <p>As the Empire your turns look like:</p>
-<ol><li>Optionally force one location to Choose a Side</li>
-  <li>Build New Troops in any City</li>
-  <li>Move Troops</li>
-  <li>Stationary Troops reveal one Agent</li>
-  <li>Remove any Starving Troops.</li>
+<ol><li>Optionally force one <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location to Choose a Side</li>
+  <li>Build New <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops in any <svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;City</li>
+  <li>Move <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops</li>
+  <li>Stationary <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops reveal one <i class="ic ic-agent"></i>&#8288;Agent</li>
+  <li>Remove any Starving <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops.</li>
 </ol>
-<p>Note that you must supply and support your Troops or they will starve!
-Each Place you occupy (have at least one Troop in) will generate TWO supply points.
-The points for a connected network of Places are all pooled and available to any Troops in the network.
-If there's not enough, Troops must be removed starting with the highest troop concentrations.</p>
+<p>Note that you must supply and support your <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops or they will starve!
+Each <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Place you occupy (have at least one <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troop in) will generate TWO supply points.
+The points for a connected network of <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Places are all pooled and available to any <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops in the network.
+If there's not enough, <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops must be removed starting with the highest <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop concentrations.</p>
 
 <h2><span class="num">Three</span>Playing as The Rebels</h2>
 <p>As the Rebels your turns look like:</p>
-<ol><li>Force one Place to Choose a Side</li>
-  <li>Place Agent cards face down on any Place.</li>
+<ol><li>Force one <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Place to Choose a Side</li>
+  <li>Place <i class="ic ic-agent"></i>&#8288;Agent cards face down on any <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Place.</li>
 </ol>
 <p>You can examine your own decks any time, but they are hidden from the Empire player.
-When the Empire reveals an Agent in a place, you must turn the top card in that deck
-and leave it in a separate face-up deck in the same place. You can use your zero-presence
-agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
+When the Empire reveals an <i class="ic ic-agent"></i>&#8288;Agent in a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;place, you must turn the top <i class="ic ic-agent"></i>&#8288;card in that deck
+and leave it in a separate face-up deck in the same <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;place. You can use your zero-presence
+<i class="ic ic-agent"></i>&#8288;agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
 
 
   <div class="keystone">
-    <p><b>You only get points when the other side loses Presence.</b> The Empire must
-    capture locations with real Agents in them. The Rebels must destroy Troops by conquest or starvation.</p>
+    <p><b>You only get points when the other side loses <i class="ic ic-presence"></i>&#8288;Presence.</b> The Empire must
+    capture <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations with real <i class="ic ic-agent"></i>&#8288;Agents in them. The Rebels must destroy <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops by conquest or starvation.</p>
   </div>
 
 
@@ -828,12 +908,12 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     <div class="piecetext">
       <h4>A town</h4>
 
-      <p>A town can hold up to three things:
-        <UL><li>Face down rebel cards</li>
-        <li>Face up rebel cards</li>
-        <li>Imperial Troop tokens</li>
+      <p>A <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;town can hold up to three things:
+        <UL><li>Face down rebel <i class="ic ic-agent"></i>&#8288;cards</li>
+        <li>Face up rebel <i class="ic ic-agent"></i>&#8288;cards</li>
+        <li>Imperial <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troop tokens</li>
         </UL> Any of those may be empty.
-    Every town feeds troops by contributing <b>2
+    Every <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;town feeds <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops by contributing <b>2
         supply</b> — see
         <a href="#supply-line">supply lines</a>.</p>
     </div>
@@ -848,7 +928,7 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>A city</h4>
-      <p>A town that can build troops.</p>
+      <p>A <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;town that can build <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops.</p>
     </div>
   </div>
 
@@ -860,7 +940,7 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>A road</h4>
-      <p>The grey lines between locations. Troops and Supply move along roads.
+      <p>The grey lines between <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations. <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops and Supply move along roads.
       The Rebels ignore roads completely.</p>
     </div>
   </div>
@@ -873,8 +953,8 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>A supply line</h4>
-      <p>A network of occupied locations that connect. Connecting roads are drawn thick and purple.
-        <b>Supply</b> is pooled across all Troops in a Supply Network</p>
+      <p>A network of occupied <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations that connect. Connecting roads are drawn thick and purple.
+        <b>Supply</b> is pooled across all <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troops in a Supply Network</p>
     </div>
   </div>
 
@@ -887,7 +967,7 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>Troops</h4>
-      <p>The Empire's pieces. Each troop is <b>worth 1 presence</b>, <b>moves
+      <p>The Empire's pieces. Each <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop is <b>worth 1 <i class="ic ic-presence"></i>&#8288;presence</b>, <b>moves
         one road per turn</b>, and <b>costs 1 supply</b> to keep standing.</p>
     </div>
   </div>
@@ -899,12 +979,12 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     <div class="piecetext">
       <h4>Presence</h4>
       <p>The gold disc, and the main quantity in the game.</p>
-      <p>Presence from
-        cards and presence from troops are the same stuff. When a location resolves you compare
+      <p><i class="ic ic-presence"></i>&#8288;Presence from
+        <i class="ic ic-agent"></i>&#8288;cards and <i class="ic ic-presence"></i>&#8288;presence from <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops are the same stuff. When a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location resolves you compare
         two gold numbers and the larger wins. Nothing else about a piece matters at that
         moment.</p>
-      <p>At the current settings a troop is worth 1 and an agent is worth 0 or 1, so a
-        garrison's presence happens to equal the number of troops. That is a coincidence of
+      <p>At the current settings a <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop is worth 1 and an <i class="ic ic-agent"></i>&#8288;agent is worth 0 or 1, so a
+        <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison's <i class="ic ic-presence"></i>&#8288;presence happens to equal the number of <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops. That is a coincidence of
         the tuning, not a rule — the disc is what to read.</p>
     </div>
   </div>
@@ -915,9 +995,9 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>Face-down agents</h4>
-      <p>The Rebels' hidden agents in a location, drawn as a stack.
+      <p>The Rebels' hidden <i class="ic ic-agent"></i>&#8288;agents in a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location, drawn as a stack.
         The first number is how many are there; the second
-(in a gold disc) is their total Presence - a "?" for the Empire until they are revealed.</p>
+(in a gold disc) is their total <i class="ic ic-presence"></i>&#8288;Presence - a "?" for the Empire until they are revealed.</p>
     </div>
   </div>
 
@@ -927,7 +1007,7 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>Face-up agents</h4>
-      <p>Agents that have been turned over. Drawn as a stack showing both its number of cards and total Presence.</p>
+      <p><i class="ic ic-agent"></i>&#8288;Agents that have been turned over. Drawn as a stack showing both its number of <i class="ic ic-agent"></i>&#8288;cards and total <i class="ic ic-presence"></i>&#8288;Presence.</p>
     </div>
   </div>
 
@@ -937,8 +1017,8 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>Starving troops</h4>
-      <p>A red mark on a garrison in a network that cannot feed itself, saying how many
-        troops are forecast to die. It appears at the end of the Empire's turn and nothing
+      <p>A red mark on a <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison in a network that cannot feed itself, saying how many
+        <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops are forecast to die. It appears at the end of the Empire's turn and nothing
         happens immediately.</p>
     </div>
   </div>
@@ -959,14 +1039,14 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>A location the Empire has won</h4>
-      <p>Tinted purple. The resolution is over and the Empire had more presence, so the
-        agents in it were captured and scored, and the location can never be contested again.</p>
-      <p>The garrison <b>stays</b> — it is the loser's commitment that is taken, never the
-        winner's. So the location keeps feeding the network, keeps building if it is a city, and
-        is now permanently safe. An Empire that locks down a network of locations like this has
+      <p>Tinted purple. The resolution is over and the Empire had more <i class="ic ic-presence"></i>&#8288;presence, so the
+        <i class="ic ic-agent"></i>&#8288;agents in it were captured and scored, and the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location can never be contested again.</p>
+      <p>The <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison <b>stays</b> — it is the loser's commitment that is taken, never the
+        winner's. So the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location keeps feeding the network, keeps building if it is a <svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;city, and
+        is now permanently safe. An Empire that locks down a network of <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations like this has
         won the game; stopping that from happening is the Insurgency's entire job.</p>
-      <p>Those troops are free to march out again whenever the Empire likes. Winning the
-        location is what holds it, not standing there.</p>
+      <p>Those <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops are free to march out again whenever the Empire likes. Winning the
+        <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location is what holds it, not standing there.</p>
     </div>
   </div>
 
@@ -985,13 +1065,13 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     </div>
     <div class="piecetext">
       <h4>A location the rebels have taken</h4>
-      <p>Tinted green, with the winning agents left face up on it as a record. Any Empire
-        troops that were there have been removed and scored.</p>
-      <p>This location is now <b>dead ground for the Empire for the rest of the game</b>. It
+      <p>Tinted green, with the winning <i class="ic ic-agent"></i>&#8288;agents left face up on it as a record. Any Empire
+        <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops that were there have been removed and scored.</p>
+      <p>This <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location is now <b>dead ground for the Empire for the rest of the game</b>. It
         supplies nothing and builds nothing, ever. The Empire may still march through it
         and may even hold a line across it — but it will never feed one.</p>
       <p>That is how a side which cannot build a network of its own still wins: it does not
-        capture supply, it destroys it. Every location the rebels take is a permanent hole in
+        capture supply, it destroys it. Every <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location the rebels take is a permanent hole in
         the map the Empire has to route around.</p>
     </div>
   </div>
@@ -1003,20 +1083,20 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
   <h3>What you need</h3>
 
   <ul>
-    <li>The <b>board</b>: twelve locations joined by seventeen roads, in a three-by-four
-      lattice. Two of the locations — Everlan and Kirn — are <b>cities</b>, at opposite ends of
+    <li>The <b>board</b>: twelve <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations joined by seventeen roads, in a three-by-four
+      lattice. Two of the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations — Everlan and Kirn — are <b><svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;cities</b>, at opposite ends of
       the middle column.</li>
-    <li>A deck of <b>60 agent cards</b>: 36 worth <b>1 presence</b> and 24 worth
+    <li>A deck of <b>60 <i class="ic ic-agent"></i>&#8288;agent cards</b>: 36 worth <b>1 <i class="ic ic-presence"></i>&#8288;presence</b> and 24 worth
       <b>nothing</b>. The backs must be identical.</li>
-    <li>Around a dozen <b>troop tokens</b> in one colour.</li>
-    <li>Markers for a <b>resolved location</b> in each side's colour, and something to keep
+    <li>Around a dozen <b><svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop tokens</b> in one colour.</li>
+    <li>Markers for a <b>resolved <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location</b> in each side's colour, and something to keep
       <b>score</b> with.</li>
   </ul>
 
   <h3>Setting up</h3>
 
   <ol>
-    <li>Put <b>3 troops in Everlan</b> and <b>1 in Belmar</b>. No agents are on the board.</li>
+    <li>Put <b>3 <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops in Everlan</b> and <b>1 in Belmar</b>. No <i class="ic ic-agent"></i>&#8288;agents are on the board.</li>
     <li>Shuffle the deck. The Insurgency draws a hand of <b>3</b>.</li>
     <li>The <b>Insurgency takes the first turn.</b> Players then alternate.</li>
   </ol>
@@ -1031,8 +1111,8 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
 
   <div class="keystone">
     <p><b>Resolution comes first, and it is judged on the board as your opponent left
-      it.</b> You cannot march into a location and cash it in on arrival, and you cannot place
-      exactly enough agents and collect in the same breath. Whatever you commit has to
+      it.</b> You cannot march into a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location and cash it in on arrival, and you cannot place
+      exactly enough <i class="ic ic-agent"></i>&#8288;agents and collect in the same breath. Whatever you commit has to
       survive a reply before it pays.</p>
   </div>
 
@@ -1040,12 +1120,12 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     <div class="side rebels">
       <h4>The Rebels</h4>
       <ol>
-        <li>You may <b>declare a resolution</b> on one location where you have at least one
-          agent in the pile. It settles at once, on the pile as it already stands — this
-          turn's cards are not down yet and do not count.</li>
-        <li><b>Place your entire hand</b> face down, into any unresolved locations you like.
-          Any number into the same location, in whatever order you choose; the last one placed
-          goes on top. You may not hold a card back. A location you resolved in step 1 is
+        <li>You may <b>declare a resolution</b> on one <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location where you have at least one
+          <i class="ic ic-agent"></i>&#8288;agent in the pile. It settles at once, on the pile as it already stands — this
+          turn's <i class="ic ic-agent"></i>&#8288;cards are not down yet and do not count.</li>
+        <li><b>Place your entire hand</b> face down, into any unresolved <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations you like.
+          Any number into the same <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location, in whatever order you choose; the last one placed
+          goes on top. You may not hold a <i class="ic ic-agent"></i>&#8288;card back. A <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location you resolved in step 1 is
           closed and takes none of them.</li>
         <li><b>Draw</b> back up to three.</li>
       </ol>
@@ -1053,13 +1133,13 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
     <div class="side">
       <h4>The Empire</h4>
       <ol>
-        <li>You may <b>declare a resolution</b> on one location where you have at least one
-          troop, against the agents already standing there.</li>
-        <li><b>Build</b>: raise up to one troop in each city you hold. You may build past
+        <li>You may <b>declare a resolution</b> on one <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location where you have at least one
+          <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop, against the <i class="ic ic-agent"></i>&#8288;agents already standing there.</li>
+        <li><b>Build</b>: raise up to one <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop in each <svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;city you hold. You may build past
           your supply ceiling.</li>
-        <li><b>March</b>: any or all troops may move one road. Nobody has to move. A
-          garrison that just won its location in step 1 may march straight out of it.</li>
-        <li><b>Look</b>: every troop that did not move turns one agent in its location face up.</li>
+        <li><b>March</b>: any or all <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops may move one road. Nobody has to move. A
+          <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison that just won its <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location in step 1 may march straight out of it.</li>
+        <li><b>Look</b>: every <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop that did not move turns one <i class="ic ic-agent"></i>&#8288;agent in its <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location face up.</li>
         <li><b>Starve</b>: see below. This is the only step you do not choose.</li>
       </ol>
     </div>
@@ -1067,84 +1147,84 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
 
   <h3>Resolving a location</h3>
 
-  <p>Either player may resolve <b>one location per turn</b>, free of charge, and only a location
-    they are actually in — the Empire needs a troop there, the Insurgency needs an agent in
+  <p>Either player may resolve <b>one <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location per turn</b>, free of charge, and only a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location
+    they are actually in — the Empire needs a <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop there, the Insurgency needs an <i class="ic ic-agent"></i>&#8288;agent in
     the pile. You cannot force a confrontation somewhere you do not exist.</p>
 
   <ol>
-    <li>Turn the location's whole pile face up. It stays that way.</li>
-    <li>Add up the <b>Insurgency's presence</b>: the values of all its agents there, face
+    <li>Turn the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location's whole pile face up. It stays that way.</li>
+    <li>Add up the <b>Insurgency's <i class="ic ic-presence"></i>&#8288;presence</b>: the values of all its <i class="ic ic-agent"></i>&#8288;agents there, face
       up and face down alike. Blanks count nothing.</li>
-    <li>Add up the <b>Empire's presence</b>: 1 for each troop standing there.</li>
-    <li>The higher total takes the location. <b>The Empire wins ties.</b></li>
-    <li>Mark the location with the winner's colour. It is finished for the rest of the game.</li>
+    <li>Add up the <b>Empire's <i class="ic ic-presence"></i>&#8288;presence</b>: 1 for each <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop standing there.</li>
+    <li>The higher total takes the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location. <b>The Empire wins ties.</b></li>
+    <li>Mark the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location with the winner's colour. It is finished for the rest of the game.</li>
   </ol>
 
   <h3>Scoring</h3>
 
   <div class="keystone">
-    <p><b>The winner scores the presence the loser had committed, and nothing else.</b>
-      There are no points for the location itself.</p>
+    <p><b>The winner scores the <i class="ic ic-presence"></i>&#8288;presence the loser had committed, and nothing else.</b>
+      There are no points for the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location itself.</p>
   </div>
 
-  <p>So the Insurgency scores the troops it destroys, and the Empire scores the real agents
+  <p>So the Insurgency scores the <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops it destroys, and the Empire scores the real <i class="ic ic-agent"></i>&#8288;agents
     it captures. Three consequences are worth saying out loud, because they shape every
     decision in the game:</p>
 
   <ul>
-    <li><b>Walkovers pay nothing.</b> Taking an empty location scores zero. It may still be
+    <li><b>Walkovers pay nothing.</b> Taking an empty <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location scores zero. It may still be
       worth doing — it denies the ground — but it does not move the score.</li>
     <li><b>The bigger the enemy's commitment, the bigger your score.</b> The ideal
       resolution wins by one against everything the opponent has.</li>
-    <li><b>A pile of blanks has teeth.</b> Bait the Empire into marching an army at a location
+    <li><b>A pile of blanks has teeth.</b> Bait the Empire into marching an army at a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location
       worth nothing, and even winning the resolution pays it nothing at all — while the
-      troops it moved were needed somewhere else.</li>
+      <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops it moved were needed somewhere else.</li>
   </ul>
 
   <p>Afterwards, the loser's commitment leaves the board and the winner's stays. Captured
-    agents are removed; a losing garrison is removed. A winning garrison remains where it
-    is. The winner's agents stay face up on the location as a permanent record and do nothing
+    <i class="ic ic-agent"></i>&#8288;agents are removed; a losing <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison is removed. A winning <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison remains where it
+    is. The winner's <i class="ic ic-agent"></i>&#8288;agents stay face up on the <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location as a permanent record and do nothing
     further.</p>
 
   <h3>Supply, building and starvation</h3>
 
-  <p>Each location the Empire <b>occupies</b> contributes <b>2 supply</b>, and occupied locations
-    that touch pool theirs into one <b>network</b>. Each troop costs <b>1 supply</b> to
-    keep standing, so a network of four locations supports eight troops wherever in the chain
+  <p>Each <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location the Empire <b>occupies</b> contributes <b>2 supply</b>, and occupied <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations
+    that touch pool theirs into one <b>network</b>. Each <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop costs <b>1 supply</b> to
+    keep standing, so a network of four <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations supports eight <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops wherever in the chain
     they are.</p>
 
-  <p>Supply limits what the Empire can <b>keep</b>, not what it can build. Raising troops
-    past the ceiling is legal and often right — you may build in a city and march the new
-    troops out to the ground that will feed them in the same turn.</p>
+  <p>Supply limits what the Empire can <b>keep</b>, not what it can build. Raising <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops
+    past the ceiling is legal and often right — you may build in a <svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;city and march the new
+    <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops out to the ground that will feed them in the same turn.</p>
 
-  <p>At the end of the Empire's turn, any network holding more troops than it can feed is
+  <p>At the end of the Empire's turn, any network holding more <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops than it can feed is
     <b>marked</b> with the number that will die. If that network is still short at the end
-    of the Empire's <b>next</b> turn, those troops are removed and the Insurgency scores
-    them. The Empire may say which locations pay; otherwise the loss falls on the largest
-    garrisons first.</p>
+    of the Empire's <b>next</b> turn, those <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops are removed and the Insurgency scores
+    them. The Empire may say which <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;locations pay; otherwise the loss falls on the largest
+    <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrisons first.</p>
 
-  <p>A location the rebels have <b>won</b> contributes nothing to any network, for ever. That
-    is the Insurgency's second way of killing troops: not by beating them, but by cutting
+  <p>A <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location the rebels have <b>won</b> contributes nothing to any network, for ever. That
+    is the Insurgency's second way of killing <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops: not by beating them, but by cutting
     the ground out from under them.</p>
 
   <h3>How the game ends</h3>
 
-  <p>Four things end it, and all four do the same thing: <b>every location still open resolves
+  <p>Four things end it, and all four do the same thing: <b>every <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location still open resolves
     at once</b>, by the normal rules, and all the points are scored.</p>
 
   <ul>
     <li><b>The deck runs out</b> and the Insurgency cannot refill its hand. This is the
       clock, and it is exact.</li>
-    <li><b>Every location has been resolved.</b> There is nothing left to play for.</li>
-    <li><b>The Empire is eliminated</b> — no troops anywhere and no city left that will
+    <li><b>Every <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location has been resolved.</b> There is nothing left to play for.</li>
+    <li><b>The Empire is eliminated</b> — no <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops anywhere and no <svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;city left that will
       build it any. It can never act again.</li>
     <li><b>Both players offer to end.</b> Either may put up a standing offer and take it
       down again; when both are up, the game stops. This is not a pass — you cannot skip a
       turn, because that would stop the clock.</li>
   </ul>
 
-  <p>In the final sweep, a location <b>neither side ever set foot in</b> — no troops, no agents
-    — is simply left open. You may only resolve a location you are in, and that holds for the
+  <p>In the final sweep, a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location <b>neither side ever set foot in</b> — no <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops, no <i class="ic ic-agent"></i>&#8288;agents
+    — is simply left open. You may only resolve a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location you are in, and that holds for the
     sweep as much as for anything else.</p>
 
   <p><b>Whoever has the most points wins.</b></p>
@@ -1154,18 +1234,18 @@ agent cards as "Decoys" since the Empire gets no points for defeating them.</p>
   <table>
     <caption>Current settings. These are tuning knobs and they move; the rules above do not.</caption>
     <tr><th>Thing</th><th>Value</th><th></th></tr>
-    <tr><td>Locations</td><td>12</td><td>Seventeen roads, three-by-four lattice</td></tr>
-    <tr><td>Cities</td><td>2</td><td>Everlan and Kirn, one troop per turn each</td></tr>
-    <tr><td>Empire start</td><td>3 + 1</td><td>Three troops in Everlan, one in Belmar</td></tr>
-    <tr><td>Deck</td><td>60 agents</td><td>36 worth 1, 24 worth nothing. Never reshuffled</td></tr>
+    <tr><td><svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Locations</td><td>12</td><td>Seventeen roads, three-by-four lattice</td></tr>
+    <tr><td><svg class="ic ic-city"><use href="#art-city"/></svg>&#8288;Cities</td><td>2</td><td>Everlan and Kirn, one <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop per turn each</td></tr>
+    <tr><td>Empire start</td><td>3 + 1</td><td>Three <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops in Everlan, one in Belmar</td></tr>
+    <tr><td>Deck</td><td>60 <i class="ic ic-agent"></i>&#8288;agents</td><td>36 worth 1, 24 worth nothing. Never reshuffled</td></tr>
     <tr><td>Hand</td><td>3</td><td>Drawn and entirely placed every turn</td></tr>
     <tr><td>Game length</td><td>20 turns</td><td>Deck divided by hand size, exactly</td></tr>
-    <tr><td>Troop presence</td><td>1</td><td>What one troop is worth at a resolution</td></tr>
-    <tr><td>Troop movement</td><td>1 road</td><td>Per turn, and moving is optional</td></tr>
-    <tr><td>Troop look</td><td>1 card</td><td>Only if it did not move</td></tr>
-    <tr><td>Location supply</td><td>2</td><td>Every location, while the Empire occupies it</td></tr>
-    <tr><td>Supply per troop</td><td>1</td><td>So a location pays for two troops</td></tr>
-    <tr><td>Ties</td><td>Empire</td><td>The rebels must beat the garrison, not match it</td></tr>
+    <tr><td><svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troop <i class="ic ic-presence"></i>&#8288;presence</td><td>1</td><td>What one <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop is worth at a resolution</td></tr>
+    <tr><td><svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troop movement</td><td>1 road</td><td>Per turn, and moving is optional</td></tr>
+    <tr><td><svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;Troop look</td><td>1 <i class="ic ic-agent"></i>&#8288;card</td><td>Only if it did not move</td></tr>
+    <tr><td><svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;Location supply</td><td>2</td><td>Every <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location, while the Empire occupies it</td></tr>
+    <tr><td>Supply per <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troop</td><td>1</td><td>So a <svg class="ic ic-town"><use href="#art-town"/></svg>&#8288;location pays for two <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;troops</td></tr>
+    <tr><td>Ties</td><td>Empire</td><td>The rebels must beat the <svg class="ic ic-troop"><use href="#art-pawn"/></svg>&#8288;garrison, not match it</td></tr>
     <tr><td>First turn</td><td>Insurgency</td><td>The empty board gives the Empire nothing to do</td></tr>
   </table>
 </section>

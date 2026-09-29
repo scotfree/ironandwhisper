@@ -112,8 +112,13 @@ export class Game {
         this.board.setLastResolved(gamedatas.lastResolved);
         this.board.render();
         // The silhouettes are files, so they arrive after the first paint. The
-        // board is drawn and usable without them.
-        this.board.loadFrames();
+        // board is drawn and usable without them. The prose beside it draws
+        // them too, as icons, so that is redrawn once they land.
+        this.board.loadFrames().then(() => {
+            this.renderPrimer();
+            this.renderPhases();
+            this.help?.refreshStartOverlay(this.side);
+        });
 
         // The bot has no player record, so it gets a panel of its own rather
         // than a row in gamedatas.players.
