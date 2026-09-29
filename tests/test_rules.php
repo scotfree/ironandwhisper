@@ -324,6 +324,55 @@ function test_the_empire_chooses_where_attrition_falls(): void
     assertSame(['b' => 2], Rules::attritionPlan($towns, 1, ['b' => 2]));
 }
 
+function test_equal_garrisons_starve_in_town_order(): void
+{
+    // Mirrors the simulator's tie-break: by town id, whatever order the
+    // network was found in.
+    $towns = rulesBoard([
+        'a' => ['troops' => 2, 'supply' => 1],
+        'b' => ['troops' => 2, 'supply' => 1],
+    ]);
+
+    assertSame(['a' => 2], Rules::attritionPlan($towns, 1));
+}
+
+/** Four troops on two supply, under notice since last turn. */
+function warnedLine(): array
+{
+    return rulesBoard([
+        'a' => ['troops' => 2, 'supply' => 1, 'starving' => 2],
+        'b' => ['troops' => 2, 'supply' => 1],
+    ]);
+}
+
+function test_only_a_warned_network_is_required_to_lose_troops(): void
+{
+    assertSame([['towns' => ['a', 'b'], 'over' => 2]], Rules::requiredLosses(warnedLine(), 1));
+
+    $fresh = warnedLine();
+    $fresh['a']['starving'] = 0;
+    assertSame([], Rules::requiredLosses($fresh, 1), 'just gone short: marked, not starved');
+}
+
+function test_a_disband_must_be_exactly_each_starving_armys_shortfall(): void
+{
+    foreach ([[], ['a' => 1], ['a' => 2, 'b' => 1], ['c' => 2], ['a' => 3], ['a' => 0, 'b' => 2]] as $disband) {
+        assertThrows(IllegalMove::class,
+            fn() => Rules::validateDisband(warnedLine(), 1, $disband),
+            'refused: ' . json_encode($disband));
+    }
+
+    Rules::validateDisband(warnedLine(), 1, ['a' => 1, 'b' => 1]);
+    Rules::validateDisband(warnedLine(), 1, ['b' => 2]);
+}
+
+function test_a_disband_is_refused_when_nothing_starves(): void
+{
+    $towns = rulesBoard(['a' => ['troops' => 1, 'supply' => 1]]);
+    Rules::validateDisband($towns, 1, []);
+    assertThrows(IllegalMove::class, fn() => Rules::validateDisband($towns, 1, ['a' => 1]));
+}
+
 function test_severing_a_line_leaves_two_smaller_ceilings(): void
 {
     $held = ['troops' => 1, 'supply' => 1];

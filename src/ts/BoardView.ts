@@ -62,6 +62,14 @@ export class BoardView {
      */
     private buildDelta: Record<string, number> = {};
 
+    /**
+     * Town id => troops the Empire is choosing to lose there to starvation,
+     * while its turn's Starve step is open. Drawn as the red "−N" beside the
+     * garrison; outside that step nothing is ever drawn there, because where a
+     * loss falls is the player's choice and not the board's forecast.
+     */
+    private lossDelta: Record<string, number> = {};
+
     /** Cards drawn above a town: staged this turn, or placed on the last one. */
     private overlay: Record<string, OverlayCard[]> = {};
     private overlayGhost = false;
@@ -400,6 +408,35 @@ export class BoardView {
     }
 
     /**
+     * How many troops the army holding this town is under notice to lose: the
+     * sum of the server's forecast over the whole network. The forecast names
+     * towns, but only its total means anything once the Empire chooses where
+     * the loss falls, and the total is the same whichever towns it names.
+     */
+    armyStarving(townId: string): number {
+        const network = this.networks().find(n => n.includes(townId));
+        return network ? network.reduce((total, id) => total + (this.towns[id].starving ?? 0), 0) : 0;
+    }
+
+    /** @param losses town id => troops chosen to starve there this turn */
+    setLossDelta(losses: Record<string, number>): void {
+        this.lossDelta = losses;
+        this.updateAll();
+    }
+
+    /**
+     * Mark the towns a starvation loss may be taken from, in red rather than
+     * the blue every other choice uses: this is the one choice on the board
+     * that only costs. Pass an empty list to clear it.
+     */
+    setStarveChoices(townIds: string[]): void {
+        Object.keys(this.scenario.towns).forEach(townId => {
+            document.getElementById(this.townElementId(townId))
+                ?.classList.toggle('starve-choice', townIds.includes(townId));
+        });
+    }
+
+    /**
      * The ceiling and load of the network a town belongs to, if any.
      *
      * `troopsIn` lets a turn being staged ask the question of the board as it
@@ -568,13 +605,17 @@ export class BoardView {
         const marching = delta - built;
         const change = marching === 0 ? ''
             : `<span class="iaw-troop-delta">${marching > 0 ? '+' : '-'}${Math.abs(marching)}</span>`;
-        // A garrison under notice pulses and says how many of it are going,
-        // because the loss used to land between turns where nobody saw it.
-        const doomed = town.starving > 0
-            ? `<span class="iaw-troops-doomed" title="${_('Starving: these troops are lost at the end of the Empire\'s next turn unless the supply line is repaired')}">&minus;${town.starving}</span>`
+        // A garrison in an army under notice pulses, every garrison in it: the
+        // warning belongs to the army, since the Empire chooses where the loss
+        // falls. How many is on the army's entry in the list. The red "−N" is
+        // drawn only for a loss actually being chosen, during the Starve step.
+        const underNotice = this.armyStarving(townId) > 0;
+        const losing = this.lossDelta[townId] ?? 0;
+        const doomed = losing > 0
+            ? `<span class="iaw-troops-doomed" title="${_('Chosen to starve this turn')}">&minus;${losing}</span>`
             : '';
 
-        return `<div class="iaw-troops clickable${compact}${town.starving > 0 ? ' starving' : ''}"
+        return `<div class="iaw-troops clickable${compact}${underNotice ? ' starving' : ''}"
                  data-troop="${townId}"
                  >${pawn}<span class="iaw-garrison-row">${this.garrisonHtml(town.troops)}<span
                  class="iaw-troop-marks">${change}${raising}${doomed}</span></span></div>`;
@@ -749,6 +790,7 @@ export class BoardView {
                 supplyUsed: troops * this.scenario.supplyPerTroop,
                 supplyAvailable: supply,
                 supplyTowns: towns.filter(id => this.supplyOf(id) > 0).length,
+                starving: towns.reduce((total, id) => total + (this.towns[id].starving ?? 0), 0),
             };
         });
     }
@@ -938,8 +980,10 @@ export class BoardView {
         this.cardDelta = {};
         this.troopDelta = {};
         this.buildDelta = {};
+        this.lossDelta = {};
         this.setOverlay({});
         this.setMoveArrows([]);
+        this.setStarveChoices([]);
         this.setSelectable([]);
         this.setSelected([]);
         this.updateAll();

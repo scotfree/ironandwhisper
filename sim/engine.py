@@ -124,6 +124,9 @@ class EmpireTurn:
     moves: list[tuple[str, str, int]] = field(default_factory=list)
     resolve: str | None = None
     disband: dict[str, int] = field(default_factory=dict)
+    # A person's turn: `disband` must then name every troop a starving army
+    # loses, exactly (see validate_disband). A bot's disband is a preference.
+    choose_losses: bool = False
 
 
 @dataclass
@@ -545,6 +548,11 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
     for src, dst, quantity in turn.moves:
         state.towns[dst].troops += quantity
 
+    # A person chooses every troop a starving army loses, on the board as this
+    # turn leaves it.
+    if turn.choose_losses:
+        validate_disband(state, turn.disband)
+
     if turn.moves:
         summary = ", ".join(
             f"{n} {state.towns[a].label}->{state.towns[b].label}"
@@ -590,8 +598,11 @@ def attrition_plan(state: GameState, disband: dict[str, int]) -> dict[str, int]:
 
         # Take what the Empire asked for first, then the largest garrisons, so
         # a turn is always legal even if it names nowhere.
+        # Ties between equal garrisons go by town id, as in Rules.php. Sorting
+        # the set directly left them to Python's per-process hash order, so the
+        # same game could starve a different town on a different run.
         order = [tid for tid in sorted(component) if disband.get(tid)]
-        order += sorted(component, key=lambda tid: -state.towns[tid].troops)
+        order += sorted(sorted(component), key=lambda tid: -state.towns[tid].troops)
 
         taken = 0
         for town_id in order:
@@ -608,6 +619,49 @@ def attrition_plan(state: GameState, disband: dict[str, int]) -> dict[str, int]:
                 taken += take
 
     return plan
+
+
+def required_losses(state: GameState) -> list[tuple[set[str], int]]:
+    """The networks that lose troops at the end of this turn, and how many each.
+
+    Judged on the board after building and marching: a network carrying a
+    starvation mark from last turn (in any of its towns) that is *still* over its
+    ceiling. One that has only just gone short is marked, not starved.
+    """
+    required = []
+    for component in empire_components(state):
+        warned = any(state.towns[tid].starving for tid in component)
+        over = troops_in(state, component) - ceiling(state, component)
+        if warned and over > 0:
+            required.append((component, over))
+    return required
+
+
+def validate_disband(state: GameState, disband: dict[str, int]) -> None:
+    """A person's choice of where starvation falls, checked to be the whole of it.
+
+    Exactly the shortfall in every network that starves, from troops standing
+    in that network, and nowhere else. Mirrors Rules::validateDisband.
+    """
+    required = required_losses(state)
+    network_of = {tid: i for i, (component, _) in enumerate(required) for tid in component}
+    chosen = [0] * len(required)
+
+    for town_id, count in disband.items():
+        if count <= 0:
+            raise IllegalMove(f"a loss at {town_id} must be positive")
+        if town_id not in network_of:
+            raise IllegalMove(f"{town_id} is not in an army that starves this turn")
+        if count > state.towns[town_id].troops:
+            raise IllegalMove(
+                f"{town_id} has {state.towns[town_id].troops} troops, cannot lose {count}")
+        chosen[network_of[town_id]] += count
+
+    for i, (component, over) in enumerate(required):
+        if chosen[i] != over:
+            raise IllegalMove(
+                f"the army at {', '.join(sorted(component))} must lose {over} troops, "
+                f"{chosen[i]} chosen")
 
 
 def _attrition(state: GameState, disband: dict[str, int]) -> None:

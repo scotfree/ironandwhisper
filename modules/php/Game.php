@@ -497,6 +497,7 @@ class Game extends \Bga\GameFramework\Table
         ?string $resolve,
         array $disband,
         int $actorId,
+        bool $chooseLosses = false,
     ): void {
         // Resolution happens first (Decision 4): no marching in and cashing
         // out on arrival. What you commit has to survive a reply. A person has
@@ -536,6 +537,18 @@ class Game extends \Bga\GameFramework\Table
         foreach ($plan['arrivals'] as $townId => $count) {
             $delta[$townId] = ($delta[$townId] ?? 0) + $count;
             $towns[$townId]['troops'] += $count;
+        }
+
+        // A person chooses every troop a starving army loses, judged on the
+        // board as this turn leaves it. Checked before anything is written, so
+        // a refused turn changes nothing. A bot's disband is only a preference.
+        $disband = array_map('intval', $disband);
+        if ($chooseLosses) {
+            try {
+                Rules::validateDisband($towns, $this->scenario->supplyPerTroop, $disband);
+            } catch (IllegalMove $e) {
+                throw new UserException($e->getMessage());
+            }
         }
 
         $this->board->adjustTroops($delta);

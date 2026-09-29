@@ -44,8 +44,14 @@ supply comes from towns the Empire occupies, so concentrating an army destroys t
 that fed it, and the loss landed inside the commit where nobody was looking. The mark is a
 **forecast, recomputed when it falls**, so repairing the line clears it; do not turn it
 into a reservation of particular troops. There are no troop objects to reserve anyway —
-`iaw_town.troops` is an integer, and `attritionPlan` chooses only which *towns* pay,
-largest garrison first.
+`iaw_town.troops` is an integer. **A person chooses where the loss falls** (2026-09-29): the
+client's Empire turn gains a Starve step when a warned army is still short as staged, towns
+in that army outlined red, and `Rules::validateDisband` / `engine.validate_disband` refuse a
+turn whose `disband` is not exactly each starving army's shortfall. Bots and a zombie player
+still use `attritionPlan`'s default order — largest garrison first, ties by town id in both
+engines (the simulator used to break them in hash order, which the replay of table 975712
+caught). The warning is shown per army, not per town, because the towns it names are no
+longer where the loss will fall.
 
 **Supply is a ceiling on what a network can *keep*, not income and not a cap on building**
 (Decision 2). Networks of Empire-occupied towns pool their towns' supply; that divided by
@@ -453,12 +459,6 @@ Done:
 
 Not done, in rough order of how much it hurts:
 
-- **Attrition losses are chosen server-side.** The `disband` argument exists and the rules
-  honour it, but the client sends an empty one, so losses come off the largest garrisons.
-  Choosing badly can sever a second line, so this is a real decision going unmade. Now that
-  the forecast is *shown* a turn ahead, the case for letting a player redirect it is
-  stronger. `disband` names a per-town cap; the PHP's cap was unreachable dead code until
-  the grace turn made the plan visible, and is now fixed and matched to the simulator.
 - **The *heuristic* Empire bot does not understand supply when marching.** `empireMoves`
   marches toward attractive piles without checking what abandoning a town does to the
   ceiling, so it routinely walks itself into starvation and donates the points. `GlobEmpire`

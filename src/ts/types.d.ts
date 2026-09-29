@@ -132,6 +132,8 @@ interface ArmyView {
     supplyAvailable: number;
     /** How many of its towns actually feed it: a rebel-won town feeds nothing. */
     supplyTowns: number;
+    /** Troops it is under notice to lose at the end of the Empire's next turn. */
+    starving: number;
 }
 
 /** A move staged in the client, before it is sent. */

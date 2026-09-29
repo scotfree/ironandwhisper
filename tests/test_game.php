@@ -533,7 +533,8 @@ function test_a_starving_network_gets_a_turn_of_grace(): void
     enterNextTurn($game);
     insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
     enterNextTurn($game);
-    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+    // A person chooses where the loss falls, and has to choose all of it.
+    empireTurn($game)->actCommitTurn([], [], ['everlan' => $doomed], '0', $empire);
 
     $towns = $game->board->towns();
     assertSame($ceiling, $towns['everlan']['troops'], 'starved down to what supply can hold');
@@ -1033,7 +1034,7 @@ function test_the_starvation_notification_carries_troops_as_they_stand_afterward
     // First Empire turn marks them; the second one takes them.
     empireTurn($game)->actCommitTurn([], [], [], '0', $empireId);
     $game->bga->notify->clear();
-    empireTurn($game)->actCommitTurn([], [], [], '0', $empireId);
+    empireTurn($game)->actCommitTurn([], [], ['ashford' => 2], '0', $empireId);
 
     $sent = $game->bga->notify->of('troopsStarved');
     assertSame(1, count($sent), 'the grace turn expired, so somebody starved');
@@ -1061,4 +1062,74 @@ function test_a_page_load_knows_which_town_was_resolved_last(): void
     $game->resolveTown('fenn', null);
     $game->resolveTown('gallow', null);
     assertSame('gallow', datasFor($game, (int) $playerId)['lastResolved']);
+}
+
+// -- choosing where starvation falls -------------------------------------------
+
+/** A board where Everlan's garrison has been under notice for a turn. */
+function starvingEverlan(): array
+{
+    $game = newGame();
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
+    $game->board->adjustTroops(['everlan' => 5, 'belmar' => -1]);
+    enterNextTurn($game);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);   // marked, not yet starved
+
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(['ashford' => $game->board->handCardIds()], '0', $insurgency);
+    enterNextTurn($game);
+
+    $towns = $game->board->towns();
+    $ceiling = intdiv($game->scenario->towns['everlan']['supply'], $game->scenario->supplyPerTroop);
+    return [$game, $empire, $towns['everlan']['troops'] - $ceiling];
+}
+
+function test_a_person_must_choose_every_troop_a_starving_army_loses(): void
+{
+    [$game, $empire, $doomed] = starvingEverlan();
+    $before = $game->board->towns();
+
+    assertThrows(UserException::class,
+        fn() => empireTurn($game)->actCommitTurn([], [], [], '0', $empire),
+        'choosing nothing is refused');
+    assertThrows(UserException::class,
+        fn() => empireTurn($game)->actCommitTurn([], [], ['everlan' => $doomed - 1], '0', $empire),
+        'choosing too few is refused');
+    assertThrows(UserException::class,
+        fn() => empireTurn($game)->actCommitTurn([], [], ['everlan' => $doomed + 1], '0', $empire),
+        'choosing too many is refused');
+    assertThrows(UserException::class,
+        fn() => empireTurn($game)->actCommitTurn([], [], ['everlan' => $doomed - 1, 'kirn' => 1], '0', $empire),
+        'a loss outside the starving army is refused');
+
+    assertSame($before, $game->board->towns(), 'a refused turn changes nothing');
+}
+
+function test_a_starving_armys_losses_fall_where_the_person_put_them(): void
+{
+    [$game, $empire, $doomed] = starvingEverlan();
+    // March one out to Harrow first. Harrow's supply joins the army, which
+    // shrinks the shortfall, and the loss can now be split between the two.
+    $harrowFeeds = intdiv($game->scenario->towns['harrow']['supply'], $game->scenario->supplyPerTroop);
+    $over = $doomed - $harrowFeeds;
+    assertTrue($over > 1, 'the scenario still leaves this army short after the march');
+
+    empireTurn($game)->actCommitTurn([], [['from' => 'everlan', 'to' => 'harrow', 'count' => 1]],
+        ['harrow' => 1, 'everlan' => $over - 1], '0', $empire);
+
+    $towns = $game->board->towns();
+    assertSame(0, $towns['harrow']['troops'], 'the troop that marched was the one lost');
+}
+
+function test_a_bot_still_loses_troops_by_the_default_order(): void
+{
+    [$game, $empire, $doomed] = starvingEverlan();
+    // The same turn with no choice, through the method a bot uses.
+    $game->applyEmpireTurn([], [], null, [], Game::BOT_PLAYER_ID);
+    $ceiling = intdiv($game->scenario->towns['everlan']['supply'], $game->scenario->supplyPerTroop);
+    assertSame($ceiling, $game->board->towns()['everlan']['troops']);
 }

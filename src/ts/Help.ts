@@ -293,7 +293,7 @@ export class Help {
             [`<span class="iaw-contribution">(2)</span>`,
              _('What this ${town} location adds to that. A ${town} location the Rebels have won adds nothing, for ever.')],
             [`<span class="iaw-troops-doomed">&minus;1</span>`,
-             _('Starving ${troop} troops. Lost at the end of the Empire\'s next turn unless the supply line is repaired first.')],
+             _('${troop} Troops chosen to starve this turn. An army that cannot feed itself pulses red a turn ahead, and the army list says how many it will lose; if it is still short at the end of the Empire\'s next turn, the Empire chooses which ${troop} troops go.')],
             [`<span class="iaw-troop-delta">+1</span>
               <span class="iaw-card-delta">+2 ${_('cards')}</span>`,
              _('What you are staging this turn, shown beside what is already there.')],

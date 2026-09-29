@@ -215,7 +215,7 @@ export class Game {
         }
 
         element.innerHTML = armies.map(army => `
-            <div class="iaw-army${army.supplyUsed > army.supplyAvailable ? ' over' : ''}"
+            <div class="iaw-army${army.supplyUsed > army.supplyAvailable || army.starving > 0 ? ' over' : ''}"
                  data-army="${army.name}"
                  title="${_('Hover to find this army on the map')}">
                 <div class="iaw-army-pawn">${this.board.pawnSvg()}</div>
@@ -225,6 +225,9 @@ export class Game {
                               title="${_('Supply used, of supply available')}"
                             >(${army.supplyUsed}/${army.supplyAvailable})</span></div>
                     <div class="iaw-army-supply">${this.supplySentence(army)}</div>
+                    ${army.starving > 0 ? `<div class="iaw-army-starving">${
+                        _('${n} will starve at the end of the Empire\'s next turn unless its supply is restored. The Empire chooses which.')
+                            .replace('${n}', String(army.starving))}</div>` : ''}
                 </div>
             </div>
         `).join('');

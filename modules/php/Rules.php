@@ -343,6 +343,86 @@ final class Rules
     }
 
     /**
+     * The networks that lose troops at the end of this turn, and how many each.
+     *
+     * Judged on the board after building and marching: a network carrying a
+     * starvation mark from last turn (any of its towns) that is *still* over
+     * its ceiling. One that has only just gone short is marked, not starved,
+     * and appears nowhere here.
+     *
+     * @param array<string, array> $towns the board after this turn's moves
+     * @return array<int, array{towns: string[], over: int}>
+     */
+    public static function requiredLosses(array $towns, int $supplyPerTroop): array
+    {
+        $required = [];
+        foreach (self::components($towns) as $component) {
+            $warned = false;
+            foreach ($component as $townId) {
+                if (($towns[$townId]['starving'] ?? 0) > 0) {
+                    $warned = true;
+                    break;
+                }
+            }
+            $over = self::troopsIn($towns, $component)
+                - self::ceiling($towns, $component, $supplyPerTroop);
+            if ($warned && $over > 0) {
+                $required[] = ['towns' => $component, 'over' => $over];
+            }
+        }
+        return $required;
+    }
+
+    /**
+     * A person's choice of where starvation falls, checked to be the whole of it.
+     *
+     * The Empire chooses which troops a starving army loses, and has to choose
+     * all of them: exactly the shortfall in every network that starves, from
+     * troops standing in that network, and nowhere else. Bots are not held to
+     * this — their `disband` is a preference, with the largest garrisons
+     * making up any remainder — so it is checked by the state action rather
+     * than by `attritionPlan`.
+     *
+     * @param array<string, array> $towns the board after this turn's moves
+     * @param array<string, int> $disband town id => troops to lose there
+     */
+    public static function validateDisband(array $towns, int $supplyPerTroop, array $disband): void
+    {
+        $required = self::requiredLosses($towns, $supplyPerTroop);
+
+        $networkOf = [];
+        foreach ($required as $index => $network) {
+            foreach ($network['towns'] as $townId) {
+                $networkOf[$townId] = $index;
+            }
+        }
+
+        $chosen = array_fill(0, count($required), 0);
+        foreach ($disband as $townId => $count) {
+            $count = (int) $count;
+            if ($count <= 0) {
+                throw new IllegalMove("a loss at {$townId} must be positive");
+            }
+            if (!isset($networkOf[$townId])) {
+                throw new IllegalMove("{$townId} is not in an army that starves this turn");
+            }
+            if ($count > $towns[$townId]['troops']) {
+                throw new IllegalMove("{$townId} has {$towns[$townId]['troops']} troops, cannot lose {$count}");
+            }
+            $chosen[$networkOf[$townId]] += $count;
+        }
+
+        foreach ($required as $index => $network) {
+            if ($chosen[$index] !== $network['over']) {
+                $where = implode(', ', $network['towns']);
+                throw new IllegalMove(
+                    "the army at {$where} must lose {$network['over']} troops, {$chosen[$index]} chosen"
+                );
+            }
+        }
+    }
+
+    /**
      * The presence requirement (Decision 5): you may only resolve a town you
      * are actually in. Without it the Empire freezes empty towns from anywhere
      * for free.

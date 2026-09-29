@@ -17,13 +17,20 @@ import { endOfferHtml, endOfferLabel } from "../EndOffer";
  * Looking never appears here. Every troop that did not move peeks, there is no
  * decision in it, and the server does it when the turn is committed. The panel
  * says so, because a player who does not know that will go hunting for a button.
+ *
+ * Starving does, as a last step, when an army that was warned last turn is
+ * still over its ceiling on the board as staged. The Empire chooses every troop
+ * it loses — the server refuses a turn that does not — and the step exists so
+ * that nobody ever loses troops without having looked at which.
  */
 export class EmpireTurn {
     /** Town id => troops being built there this turn. */
     private produce: Record<string, number> = {};
     private moves: StagedMove[] = [];
     private source: string | null = null;
-    private step: 'build' | 'move' = 'build';
+    private step: 'build' | 'move' | 'starve' = 'build';
+    /** Town id => troops chosen to starve there, in the Starve step. */
+    private disband: Record<string, number> = {};
     /** Standing offer to end the game, sent with the turn. */
     private offerEnd = false;
     private args: EmpireTurnArgs;
@@ -79,6 +86,7 @@ export class EmpireTurn {
     private reset(): void {
         this.produce = {};
         this.moves = [];
+        this.disband = {};
         this.source = null;
         this.step = this.buildable().length > 0 ? 'build' : 'move';
         // An offer stands until it is withdrawn, so it starts where it was left.
@@ -106,6 +114,12 @@ export class EmpireTurn {
     // -- staging ------------------------------------------------------------
 
     private onTownClick(townId: string): void {
+        if (this.step === 'starve') {
+            this.chooseLoss(townId);
+            this.refresh();
+            return;
+        }
+
         if (this.step === 'build') {
             // Click again to build another, while supply and the town allow it.
             if (this.buildRoom(townId) > 0) {
@@ -196,6 +210,60 @@ export class EmpireTurn {
         return troops;
     }
 
+    // -- starving -------------------------------------------------------------
+
+    /**
+     * The armies that lose troops when this turn is committed, as staged.
+     *
+     * The same test the server applies (`Rules::requiredLosses`): an army with
+     * a mark on it from last turn, still over its ceiling once this turn's
+     * building and marching are done. An army only now going short is marked
+     * at the end of the turn and does not appear here.
+     */
+    private starving(): { towns: string[]; over: number }[] {
+        return this.game.board.overSupplied(townId => this.projected(townId))
+            .filter(network => network.warned)
+            .map(network => ({ towns: network.towns, over: network.over }));
+    }
+
+    private chosenIn(towns: string[]): number {
+        return towns.reduce((total, id) => total + (this.disband[id] ?? 0), 0);
+    }
+
+    /** The first starving army that still needs losses chosen, if any. */
+    private unchosen(): { towns: string[]; over: number } | undefined {
+        return this.starving().find(army => this.chosenIn(army.towns) < army.over);
+    }
+
+    /**
+     * A click takes one more troop from this town, while its army still owes
+     * any. Once the army's losses are all placed, clicking a town that is
+     * losing troops gives one back, so a choice can be moved without starting
+     * the step again.
+     */
+    private chooseLoss(townId: string): void {
+        const army = this.starving().find(candidate => candidate.towns.includes(townId));
+        if (!army) {
+            return;
+        }
+        const chosen = this.disband[townId] ?? 0;
+        if (this.chosenIn(army.towns) < army.over && chosen < this.projected(townId)) {
+            this.disband[townId] = chosen + 1;
+        } else if (chosen > 0) {
+            this.disband[townId] = chosen - 1;
+            if (this.disband[townId] === 0) {
+                delete this.disband[townId];
+            }
+        }
+    }
+
+    /** The army named the way the army list names it: after its largest garrison. */
+    private armyLabel(towns: string[]): string {
+        const largest = [...towns].sort((a, b) =>
+            this.projected(b) - this.projected(a) || a.localeCompare(b))[0];
+        return this.townLabel(largest);
+    }
+
     /** Towns that will hold a stationary troop, and so will read a card. */
     private willLook(): string[] {
         return Object.keys(this.game.board.allTowns()).filter(townId => {
@@ -215,8 +283,8 @@ export class EmpireTurn {
     private refresh(): void {
         const title = this.title();
         this.bga.statusBar.setTitle(title.text, title.args);
-        // Building is step 2 of the Empire's turn, marching step 3.
-        this.game.setPhase(this.step === 'build' ? 4 : 5);
+        // Building, marching and starving are steps 4, 5 and 7 of the round.
+        this.game.setPhase(this.step === 'build' ? 4 : this.step === 'move' ? 5 : 7);
 
         // Show the change, not the result: a town with two troops that is
         // raising reads "2+1", and the marches are drawn on the roads.
@@ -230,6 +298,8 @@ export class EmpireTurn {
         this.game.board.setTroopDelta(delta);
         this.game.board.setBuildDelta({ ...this.produce });
         this.game.board.setMoveArrows(this.moves);
+        this.game.board.setLossDelta(this.step === 'starve' ? { ...this.disband } : {});
+        this.game.board.setStarveChoices(this.step === 'starve' ? this.lossChoices() : []);
 
         this.game.board.setSelectable(this.selectableTowns());
         this.game.board.setSelected(this.source ? [this.source] : []);
@@ -244,6 +314,16 @@ export class EmpireTurn {
      * waiting for, and from where.
      */
     private title(): { text: string; args?: any } {
+        if (this.step === 'starve') {
+            const army = this.unchosen();
+            if (!army) {
+                return { text: _('${you} must confirm the turn: the chosen troops starve') };
+            }
+            return {
+                text: _('${you} must choose ${n} more troops to starve from the ${army} Army'),
+                args: { n: army.over - this.chosenIn(army.towns), army: this.armyLabel(army.towns) },
+            };
+        }
         if (this.step === 'build') {
             return { text: _('${you} may build: click a highlighted town, again for another troop') };
         }
@@ -256,7 +336,17 @@ export class EmpireTurn {
         };
     }
 
+    /** Where a loss may be taken from: any town with troops in a starving army. */
+    private lossChoices(): string[] {
+        return this.starving()
+            .flatMap(army => army.towns)
+            .filter(townId => this.projected(townId) > 0);
+    }
+
     private selectableTowns(): string[] {
+        if (this.step === 'starve') {
+            return [];   // drawn red by setStarveChoices instead
+        }
         if (this.step === 'build') {
             return this.buildable().filter(id => this.buildRoom(id) > 0);
         }
@@ -300,6 +390,19 @@ export class EmpireTurn {
                         ? _('This turn they will read in') + ': ' + looking.map(id => this.townLabel(id)).join(', ')
                         : _('None of them are standing over a pile this turn.')}</div>`);
 
+        if (this.step === 'starve') {
+            this.starving().forEach(army => {
+                const chosen = Object.entries(this.disband)
+                    .filter(([townId, count]) => count > 0 && army.towns.includes(townId))
+                    .map(([townId, count]) => `${count} ${_('at')} <b>${this.townLabel(townId)}</b>`);
+                lines.push(`<div class="iaw-warning"><b>${this.armyLabel(army.towns)} ${_('Army')}</b>:
+                    ${_('${chosen} of ${over} troops chosen to starve')
+                        .replace('${chosen}', String(this.chosenIn(army.towns)))
+                        .replace('${over}', String(army.over))}${chosen.length ? ' — ' + chosen.join(', ') : ''}</div>`);
+            });
+            lines.push(`<div class="iaw-hint">${_('Click a red town to lose a troop there. Once an army\'s losses are all chosen, click a town again to give one back.')}</div>`);
+        }
+
         if (this.step === 'move') {
             lines.push(this.source === null
                 ? `<div class="iaw-hint">${_('Click a town with troops to march from. Highlighted towns are the ones that have any.')}</div>`
@@ -329,7 +432,7 @@ export class EmpireTurn {
             const where = network.towns.map(id => this.townLabel(id)).join(', ');
             return network.warned
                 ? `<div class="iaw-warning"><b>${network.over} ${_('troops starve at the end of this turn')}</b>
-                   — ${where} ${_('cannot feed them. Take ground or spread out to stop it.')}</div>`
+                   — ${where} ${_('cannot feed them. Take ground or spread out to stop it, or you will choose which go when you confirm.')}</div>`
                 : `<div class="iaw-warning">${network.over} ${_('troops are short of supply')}
                    — ${where}. ${_('They starve at the end of your next turn unless the line is repaired.')}</div>`;
         }).join('');
@@ -350,7 +453,30 @@ export class EmpireTurn {
             return;
         }
 
-        this.bga.statusBar.addActionButton(_('Confirm turn'), () => this.commit());
+        if (this.step === 'starve') {
+            if (!this.unchosen()) {
+                this.bga.statusBar.addActionButton(_('Confirm turn'), () => this.commit());
+            }
+            this.bga.statusBar.addActionButton(_('Back to marching'), () => {
+                this.step = 'move';
+                this.disband = {};
+                this.refresh();
+            }, { color: 'secondary' });
+            return;
+        }
+
+        // An army already under notice and still short means the Empire has to
+        // say where the loss falls before the turn can go.
+        this.bga.statusBar.addActionButton(_('Confirm turn'), () => {
+            if (this.starving().length) {
+                this.step = 'starve';
+                this.source = null;
+                this.disband = {};
+                this.refresh();
+                return;
+            }
+            this.commit();
+        });
 
         if (this.buildable().length) {
             this.bga.statusBar.addActionButton(_('Build…'), () => {
@@ -382,9 +508,9 @@ export class EmpireTurn {
             produce: JSON.stringify(this.produce),
             moves: JSON.stringify(this.moves),
             offerEnd: this.offerEnd ? '1' : '0',
-            // Attrition falls where the server decides unless told otherwise;
-            // choosing which garrison starves is not yet exposed here.
-            disband: JSON.stringify({}),
+            // Every troop a starving army loses, chosen in the Starve step. The
+            // server refuses a turn whose choice is not the whole shortfall.
+            disband: JSON.stringify(this.step === 'starve' ? this.disband : {}),
         });
     }
 }

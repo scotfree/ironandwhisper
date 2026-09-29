@@ -67,7 +67,7 @@ class EmpireTurn extends GameState
         // the offer cannot be made or withdrawn out of turn. BGA action
         // parameters travel as strings, hence the comparison rather than a bool.
         $this->game->setOfferEnd(Rules::EMPIRE, $offerEnd === '1', $activePlayerId);
-        $this->game->applyEmpireTurn($produce, $moves, null, $disband, $activePlayerId);
+        $this->game->applyEmpireTurn($produce, $moves, null, $disband, $activePlayerId, chooseLosses: true);
 
         return NextTurn::class;
     }
@@ -119,6 +119,11 @@ class EmpireTurn extends GameState
      */
     public function zombie(int $playerId)
     {
-        return $this->actCommitTurn([], [], [], '0', $playerId);
+        // Nobody is there to choose where starvation falls, so it falls where
+        // the rules put it by default: largest garrisons first.
+        $this->game->setOfferEnd(Rules::EMPIRE, false, $playerId);
+        $this->game->applyEmpireTurn([], [], null, [], $playerId);
+
+        return NextTurn::class;
     }
 }

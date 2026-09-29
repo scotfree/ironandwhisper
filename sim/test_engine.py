@@ -21,6 +21,7 @@ from .engine import (
     InsurgencyTurn,
     Side,
     apply_empire_turn,
+    attrition_plan,
     apply_insurgency_turn,
     ceiling,
     component_of,
@@ -564,6 +565,54 @@ def test_attrition_takes_the_empires_choice_first():
 
     assert st.towns["a"].troops == 2
     assert st.towns["b"].troops == 0
+
+
+def test_equal_garrisons_starve_in_town_order_on_every_run():
+    """Ties go by town id, as in Rules.php, not by Python's hash order."""
+    st = state(map=line_map(supply=1))
+    st.towns["a"].troops = 2
+    st.towns["b"].troops = 2          # four troops, two supply: two starve
+
+    assert attrition_plan(st, {}) == {"a": 2}
+
+
+def _warned_line():
+    """A line whose A-B army has been under notice for a turn: 4 troops, 2 supply."""
+    st = state(map=line_map(supply=1))
+    st.towns["a"].troops = 2
+    st.towns["b"].troops = 2
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn())       # marked, not yet starved
+    st.to_move = Side.EMPIRE
+    return st
+
+
+def test_a_person_must_choose_every_troop_a_starving_army_loses():
+    for disband in ({}, {"a": 1}, {"a": 2, "b": 1}, {"c": 2}, {"a": 3}):
+        st = _warned_line()
+        with pytest.raises(IllegalMove):
+            apply_empire_turn(st, EmpireTurn(disband=disband, choose_losses=True))
+
+
+def test_a_starving_armys_losses_fall_where_the_person_put_them():
+    st = _warned_line()
+    apply_empire_turn(st, EmpireTurn(disband={"a": 1, "b": 1}, choose_losses=True))
+
+    assert (st.towns["a"].troops, st.towns["b"].troops) == (1, 1)
+    assert st.scores[Side.INSURGENCY] == 2 * INFANTRY.presence
+
+
+def test_no_choice_is_needed_when_nothing_starves():
+    st = state(map=line_map(supply=1))
+    st.towns["a"].troops = 1
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn(choose_losses=True))
+
+    st = state(map=line_map(supply=1))
+    st.towns["a"].troops = 1
+    st.to_move = Side.EMPIRE
+    with pytest.raises(IllegalMove):
+        apply_empire_turn(st, EmpireTurn(disband={"a": 1}, choose_losses=True))
 
 
 def test_severing_a_line_halves_two_ceilings_rather_than_one():

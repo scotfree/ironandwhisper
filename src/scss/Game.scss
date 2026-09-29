@@ -155,6 +155,17 @@ $board: #e6e6e8;
                 drop-shadow(0 0 9px rgba(10, 132, 255, 0.8));
     }
 
+    // Where a starvation loss may be taken from. Red, not the blue of every
+    // other choice: this is the one pick on the board that only costs.
+    &.starve-choice {
+        --art-fill: #{color.mix(#d8443c, #fff, 18%)};
+        --art-stroke: #a01b13;
+        cursor: pointer;
+        filter: drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.35))
+                drop-shadow(0 0 9px rgba(216, 68, 60, 0.95))
+                drop-shadow(0 0 9px rgba(216, 68, 60, 0.8));
+    }
+
     // The one you have picked, distinct from the ones you could pick.
     &.selected {
         --art-fill: #{color.mix($ui, #fff, 34%)};
@@ -1058,6 +1069,13 @@ $board: #e6e6e8;
 // of the same title line and reads as one thing.
 .iaw-army-load {
     color: #555;
+}
+
+.iaw-army-starving {
+    margin-top: 2px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #b3261e;
 }
 
 .iaw-army.over .iaw-army-load {
