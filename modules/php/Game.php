@@ -245,6 +245,30 @@ class Game extends \Bga\GameFramework\Table
         return (int) $this->bga->globals->get(self::G_BOT_SCORE, 0);
     }
 
+    /** The table statistics recorder. See Stats and stats.jsonc. */
+    public function stats(): Stats
+    {
+        return new Stats($this->bga->tableStats, $this->scenario);
+    }
+
+    public function scoreForSide(string $side): int
+    {
+        $playerId = $this->playerIdForSide($side);
+        return $this->isBot($playerId) ? $this->botScore() : (int) $this->bga->playerScore->get($playerId);
+    }
+
+    /** The last thing a game does: record how it ended. See NextTurn::endGame. */
+    public function recordGameEnd(string $reason): void
+    {
+        $this->stats()->gameEnded(
+            $reason,
+            $this->round(),
+            $this->scoreForSide(Rules::EMPIRE),
+            $this->scoreForSide(Rules::INSURGENCY),
+            $this->board->towns(),
+        );
+    }
+
     public function addScore(int $playerId, int $points): void
     {
         if ($this->isBot($playerId)) {
@@ -368,6 +392,17 @@ class Game extends \Bga\GameFramework\Table
         $winnerPlayerId = $this->playerIdForSide($outcome['winner']);
         $this->addScore($winnerPlayerId, $outcome['points']);
 
+        $this->stats()->resolution(
+            $this->round(),
+            $declaredBy,
+            $outcome['winner'],
+            $outcome['cardPresence'],
+            $outcome['troopPresence'],
+            $outcome['points'],
+            $outcome['winner'] === Rules::EMPIRE ? 0 : (int) $town['troops'],
+            array_merge($town['revealed'], $town['pile']),
+        );
+
         $this->bga->notify->all(
             'townResolved',
             clienttranslate('T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}'),
@@ -428,6 +463,7 @@ class Game extends \Bga\GameFramework\Table
 
         $towns = $this->board->towns();
         $hand = $this->board->handCardIds();
+        $handCards = $this->board->hand();
 
         // Resolving may have closed the last open town, in which case there is
         // nowhere legal to place and the game is about to end anyway.
@@ -451,6 +487,12 @@ class Game extends \Bga\GameFramework\Table
             $this->board->placeOnPile($townId, $cardIds);
             $placed[$townId] = $cardIds;
         }
+
+        $placedIds = array_merge([], ...array_values($placed));
+        $this->stats()->placement(array_values(array_filter(
+            $handCards,
+            static fn(array $card) => in_array((int) $card['id'], $placedIds, true),
+        )));
 
         // Pile heights are public — that is the whole point of forcing the
         // entire hand out every turn — and so is which card sits where, since
@@ -597,12 +639,14 @@ class Game extends \Bga\GameFramework\Table
             'troops' => array_map(fn(array $town) => $town['troops'], $towns),
         ]);
 
-        $this->empireLooks($towns, $plan['arrivals'], $actorId);
+        $looked = $this->empireLooks($towns, $plan['arrivals'], $actorId);
 
         // Starve anything the networks can no longer supply. End of turn, not
         // start, so a line cut by the Insurgency can be answered: the Empire
         // gets one turn to march it back together or accept the loss.
-        $this->applyAttrition($disband);
+        [$starved, $underNotice] = $this->applyAttrition($disband);
+
+        $this->stats()->empireTurn($this->board->towns(), array_sum($produce), $looked, $starved, $underNotice);
 
         $this->incRound();
         $this->setToMove(Rules::INSURGENCY);
@@ -634,8 +678,9 @@ class Game extends \Bga\GameFramework\Table
      * a supply line is a way of taking troops, so it pays like one.
      *
      * @param array<string, int> $disband the Empire's choice of where to lose from
+     * @return array{0: int, 1: bool} troops starved, and whether an army is now under notice
      */
-    private function applyAttrition(array $disband): void
+    private function applyAttrition(array $disband): array
     {
         $towns = $this->board->towns();
         $plan = Rules::attritionPlan($towns, $this->scenario->supplyPerTroop, $disband);
@@ -676,6 +721,8 @@ class Game extends \Bga\GameFramework\Table
         $this->board->setStarving($forecast);
 
         $this->bga->notify->all('starvationWarning', '', ['starving' => $forecast]);
+
+        return [array_sum($losses), array_sum($forecast) > 0];
     }
 
     /**
@@ -719,11 +766,11 @@ class Game extends \Bga\GameFramework\Table
      * @param array<string, array> $towns    board after generation and movement
      * @param array<string, int> $arrivals
      */
-    private function empireLooks(array $towns, array $arrivals, int $actorId): void
+    private function empireLooks(array $towns, array $arrivals, int $actorId): int
     {
         $looks = Rules::peekPlan($towns, $arrivals, $this->scenario->unitPeek());
         if (!$looks) {
-            return;
+            return 0;
         }
 
         $revealed = [];
@@ -750,7 +797,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         if (!$revealed) {
-            return;
+            return 0;
         }
 
         $this->bga->notify->all(
@@ -766,6 +813,8 @@ class Game extends \Bga\GameFramework\Table
                 'revealed' => $revealed,
             ],
         );
+
+        return array_sum(array_map('count', $revealed));
     }
 
     public function townLabel(string $townId): string
@@ -926,6 +975,14 @@ class Game extends \Bga\GameFramework\Table
         // Must exist before anything increments it: BGA refuses to inc a global
         // that was never set, rather than treating it as zero.
         $this->bga->globals->set(self::G_BOT_SCORE, 0);
+
+        // Which bot, if any, plays each side: 0 for a person, else the game
+        // option's value + 1, so a bot game can be told from a human one.
+        $botSide = $this->isSolo() ? ($this->sides()[self::BOT_PLAYER_ID] ?? null) : null;
+        $this->stats()->setup(
+            $botSide === Rules::EMPIRE ? $this->empireBot() + 1 : 0,
+            $botSide === Rules::INSURGENCY ? $this->insurgencyBot() + 1 : 0,
+        );
 
         // Seat order does not decide who starts: the scenario does, and NextTurn
         // activates whoever is to move. BGA still wants an active player to

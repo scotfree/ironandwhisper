@@ -1,28 +1,57 @@
-{    
-    // Statistics for the table
-    "table": {},
-    
-    // Statistics for each player
-    "player": {
-      /* 
-      EXAMPLE:
+{
+    // Statistics for the table.
+    //
+    // All table statistics, named by side, because the bot has no player row:
+    // a player statistic could not record the bot's side of a solo game. The
+    // same names are counted by the simulator (sim/stats.py), so a number from
+    // real games can be read beside a number from bot-against-bot runs — see
+    // `python -m sim.run`, which prints them. tests/test_stats.php holds the
+    // PHP recorder, the simulator and this file to one list.
+    //
+    // "limited" statistics are for developers only: they answer the balance and
+    // bot-design questions in issue #18 and are not shown to players.
+    "table": {
+        // -- the game, shown to players -----------------------------------
+        "rounds_played": { "id": 10, "name": "Rounds played", "type": "int" },
+        "ended_by_deck": { "id": 11, "name": "Ended because the deck ran out", "type": "bool" },
+        "ended_by_board": { "id": 12, "name": "Ended because every location was resolved", "type": "bool" },
+        "ended_by_elimination": { "id": 13, "name": "Ended because the Empire was eliminated", "type": "bool" },
+        "ended_by_agreement": { "id": 14, "name": "Ended by agreement", "type": "bool" },
+        "empire_score": { "id": 15, "name": "Empire score", "type": "int" },
+        "rebels_score": { "id": 16, "name": "Rebels score", "type": "int" },
+        "empire_locations": { "id": 17, "name": "Locations won by the Empire", "type": "int" },
+        "rebels_locations": { "id": 18, "name": "Locations won by the Rebels", "type": "int" },
+        "open_locations": { "id": 19, "name": "Locations left open", "type": "int" },
+        "rebels_points_battle": { "id": 20, "name": "Rebel points from defeating troops", "type": "int" },
+        "rebels_points_starvation": { "id": 21, "name": "Rebel points from starving troops", "type": "int" },
+        "troops_built": { "id": 22, "name": "Troops built", "type": "int" },
+        "troops_lost_battle": { "id": 23, "name": "Troops lost in battle", "type": "int" },
+        "troops_starved": { "id": 24, "name": "Troops starved", "type": "int" },
+        "agents_placed": { "id": 25, "name": "Agents placed", "type": "int" },
+        "bluffs_placed": { "id": 26, "name": "Decoys placed", "type": "int" },
 
-      "turns_number": {
-        "id": 10,
-        "name": "Number of turns",
-        "type": "int"
-      },
-      "player_teststat1": {
-        "id": 11,
-        "name": "player test stat 1",
-        "type": "int"
-      },
-      "player_teststat2": {
-        "id": 12,
-        "name": "player test stat 2",
-        "type": "float"
-      }
-      */
+        // -- balance and bot design, developers only ----------------------
+        "empire_tie_wins": { "id": 40, "name": "Empire wins that were ties", "type": "int", "display": "limited" },
+        "empire_zero_wins": { "id": 41, "name": "Empire wins worth 0", "type": "int", "display": "limited" },
+        "rebels_zero_wins": { "id": 42, "name": "Rebel wins worth 0", "type": "int", "display": "limited" },
+        "empire_presence_overcome_pct": { "id": 43, "name": "Rebel score as % of the most troop presence the map can feed", "type": "float", "display": "limited" },
+        "rebel_presence_captured_pct": { "id": 44, "name": "Empire score as % of the deck's presence", "type": "float", "display": "limited" },
+        "empire_garrisons_mean": { "id": 45, "name": "Empire garrisons after its turn, mean", "type": "float", "display": "limited" },
+        "empire_turns": { "id": 46, "name": "Empire turns played", "type": "int", "display": "limited" },
+        "empire_garrisons_total": { "id": 47, "name": "Empire garrisons after its turn, summed", "type": "int", "display": "limited" },
+        "largest_garrison": { "id": 48, "name": "Largest garrison after an Empire turn", "type": "int", "display": "limited" },
+        "lone_garrisons_lost": { "id": 49, "name": "Single-troop garrisons lost", "type": "int", "display": "limited" },
+        "empire_resolutions": { "id": 50, "name": "Resolutions declared by the Empire", "type": "int", "display": "limited" },
+        "rebels_resolutions": { "id": 51, "name": "Resolutions declared by the Rebels", "type": "int", "display": "limited" },
+        "first_battle_round": { "id": 52, "name": "Round of the first contested resolution (0 if none)", "type": "int", "display": "limited" },
+        "cards_looked": { "id": 53, "name": "Cards turned over by looking", "type": "int", "display": "limited" },
+        "bluffs_captured": { "id": 54, "name": "Decoys captured by the Empire", "type": "int", "display": "limited" },
+        "starvation_warnings": { "id": 55, "name": "Empire turns ending with an army under notice", "type": "int", "display": "limited" },
+        "starvation_losses": { "id": 56, "name": "Empire turns in which troops starved", "type": "int", "display": "limited" },
+        "empire_bot": { "id": 57, "name": "Empire bot (0 a person; else option 101 value + 1)", "type": "int", "display": "limited" },
+        "rebels_bot": { "id": 58, "name": "Rebel bot (0 a person; else option 102 value + 1)", "type": "int", "display": "limited" }
+    },
 
-    }
+    // Statistics for each player: none for now. See the note at the top.
+    "player": {}
 }

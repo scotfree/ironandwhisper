@@ -146,11 +146,75 @@ namespace Bga\GameFramework {
         }
     }
 
+    /**
+     * BGA's table statistics, held to stats.jsonc: a name the file does not
+     * define, or one that was never initialised, throws — as BGA does, where it
+     * would otherwise surface only as a failure on the Studio.
+     */
+    class TableStats
+    {
+        /** @var array<string, int|float|bool> */
+        public array $values = [];
+        /** @var array<string, string> name => type */
+        private array $defined;
+
+        public function __construct()
+        {
+            $json = preg_replace('#^\s*//.*$#m', '', (string) file_get_contents(dirname(__DIR__, 2) . '/stats.jsonc'));
+            $this->defined = array_map(
+                static fn(array $stat) => $stat['type'],
+                json_decode((string) $json, true, flags: JSON_THROW_ON_ERROR)['table'],
+            );
+        }
+
+        public function init(string|array $nameOrNames, int|float|bool $value): void
+        {
+            foreach ((array) $nameOrNames as $name) {
+                $this->known($name);
+                $this->values[$name] = $value;
+            }
+        }
+
+        public function set(string $name, int|float|bool $value): void
+        {
+            $this->initialised($name);
+            $this->values[$name] = $value;
+        }
+
+        public function inc(string $name, int|float $delta): void
+        {
+            $this->initialised($name);
+            $this->values[$name] += $delta;
+        }
+
+        public function get(string $name): int|float|bool
+        {
+            $this->initialised($name);
+            return $this->values[$name];
+        }
+
+        private function known(string $name): void
+        {
+            if (!isset($this->defined[$name])) {
+                throw new \RuntimeException("statistic {$name} is not in stats.jsonc");
+            }
+        }
+
+        private function initialised(string $name): void
+        {
+            $this->known($name);
+            if (!array_key_exists($name, $this->values)) {
+                throw new \RuntimeException("statistic {$name} was never initialised");
+            }
+        }
+    }
+
     class Bga
     {
         public Globals $globals;
         public Notify $notify;
         public TableOptions $tableOptions;
+        public TableStats $tableStats;
         public PlayerCounter $playerScore;
         public PlayerCounter $playerScoreAux;
 
@@ -159,6 +223,7 @@ namespace Bga\GameFramework {
             $this->globals = new Globals();
             $this->notify = new Notify();
             $this->tableOptions = new TableOptions();
+            $this->tableStats = new TableStats();
             $this->playerScore = new PlayerCounter('player_score');
             $this->playerScoreAux = new PlayerCounter('player_score_aux');
         }

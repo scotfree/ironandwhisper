@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from .bots import EMPIRE_BOTS, INSURGENCY_BOTS
 from .config import Scenario, load_scenario
+from . import stats
 from .engine import Side, play_game, winner
 
 # `--bots X` is shorthand for "X on both sides where X exists". The sides are
@@ -37,6 +38,8 @@ class Result:
     # that scored. Low numbers mean the game is mostly walkovers.
     presence_captured: int
     presence_overcome: int
+    # Every table statistic BGA collects, counted the same way (sim/stats.py).
+    stats: dict
 
 
 def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result:
@@ -57,6 +60,7 @@ def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result
         ),
         presence_captured=state.scores[Side.EMPIRE],
         presence_overcome=state.scores[Side.INSURGENCY],
+        stats=dict(state.stats),
     )
 
 
@@ -104,6 +108,20 @@ def summarise(results: list[Result], scenario: Scenario) -> str:
     ])
 
 
+def stats_table(results: list[Result]) -> str:
+    """The mean of every table statistic, in stats.jsonc's order.
+
+    tests/selfplay.php prints the same table from real game code, so a
+    statistic that disagrees between the two is a port or definition bug, and
+    either can be read beside what BGA reports from real games.
+    """
+    lines = ["", "  table statistics, mean per game"]
+    for name in stats.definitions():
+        values = [float(r.stats[name]) for r in results]
+        lines.append(f"    {name:<32} {statistics.mean(values):8.3f}")
+    return "\n".join(lines)
+
+
 def parse_override(text: str):
     key, _, raw = text.partition("=")
     try:
@@ -136,13 +154,14 @@ def main() -> None:
 
     print(f"bots: Empire {args.bots} vs Insurgency {insurgency}")
     print(summarise(results, scenario))
+    print(stats_table(results))
 
     if args.csv:
         with open(args.csv, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=list(vars(results[0])))
+            rows = [{**{k: v for k, v in vars(r).items() if k != "stats"}, **r.stats} for r in results]
+            writer = csv.DictWriter(f, fieldnames=list(rows[0]))
             writer.writeheader()
-            for r in results:
-                writer.writerow(vars(r))
+            writer.writerows(rows)
         print(f"\nwrote {len(results)} rows to {args.csv}")
 
 

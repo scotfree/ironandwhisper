@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from itertools import count
 
+from . import stats
 from .config import Scenario
 
 
@@ -143,6 +144,11 @@ class GameState:
     # Human-readable record of what happened, for notebooks and debugging.
     log: list[str] = field(default_factory=list)
 
+    # The table statistics BGA collects, counted the same way (sim/stats.py).
+    # Empty on a clone(), deliberately: bots plan on clones, and nothing they
+    # try there should count.
+    stats: dict = field(default_factory=dict)
+
     def clone(self) -> "GameState":
         return GameState(
             scenario=self.scenario,
@@ -212,7 +218,7 @@ def new_game(scenario: Scenario, rng: random.Random | None = None) -> GameState:
             raise ValueError(f"empire_start names unknown town {town_id!r}")
         towns[town_id].troops = quantity
 
-    return GameState(
+    state = GameState(
         scenario=scenario,
         towns=towns,
         deck=deck,
@@ -220,6 +226,8 @@ def new_game(scenario: Scenario, rng: random.Random | None = None) -> GameState:
         scores={Side.EMPIRE: 0, Side.INSURGENCY: 0},
         to_move=scenario.first_player,
     )
+    stats.setup(state)
+    return state
 
 
 # ---------------------------------------------------------------------------
@@ -252,6 +260,13 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
         state.scores[Side.EMPIRE] += card_presence
     else:
         state.scores[Side.INSURGENCY] += troop_presence
+
+    stats.resolution(
+        state, declared_by, winner, card_presence, troop_presence,
+        card_presence if winner is Side.EMPIRE else troop_presence,
+        0 if winner is Side.EMPIRE else town.troops,
+        list(town.cards),
+    )
 
     town.resolved = True
     town.winner = winner
@@ -469,6 +484,8 @@ def apply_insurgency_turn(state: GameState, turn: InsurgencyTurn) -> None:
             f"hand has {len(state.hand)} cards"
         )
 
+    stats.placement(state, [state.hand[i] for i in placed_indices])
+
     # Place onto the top of each pile.
     for town_id, indices in turn.placements.items():
         town = state.towns[town_id]
@@ -561,6 +578,7 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         state.log.append(f"R{state.round_number}: Empire moves {summary}")
 
     # 4. Look. Every troop that did not move peeks; peeks stack per town.
+    looked = 0
     for town in state.towns.values():
         if town.resolved or not town.pile:  # nothing left face down to read
             continue
@@ -571,11 +589,12 @@ def apply_empire_turn(state: GameState, turn: EmpireTurn) -> None:
         stationary = town.troops - arrived
         if stationary <= 0:
             continue
-        _peek(state, town, stationary * scenario.unit.peek)
+        looked += _peek(state, town, stationary * scenario.unit.peek)
 
     # 5. Starve anything the networks could not supply as of last turn, and
     #    warn about anything they cannot supply now.
-    _attrition(state, turn.disband)
+    starved, under_notice = _attrition(state, turn.disband)
+    stats.empire_turn(state, sum(turn.produce.values()), looked, starved, under_notice)
 
     state.to_move = Side.INSURGENCY
     state.round_number += 1
@@ -664,7 +683,7 @@ def validate_disband(state: GameState, disband: dict[str, int]) -> None:
                 f"{chosen[i]} chosen")
 
 
-def _attrition(state: GameState, disband: dict[str, int]) -> None:
+def _attrition(state: GameState, disband: dict[str, int]) -> tuple[int, bool]:
     """Starve what was already warned about, then warn about the rest.
 
     A network that cannot feed its troops does not starve them at once. It is
@@ -714,8 +733,10 @@ def _attrition(state: GameState, disband: dict[str, int]) -> None:
     for town in state.towns.values():
         town.starving = forecast.get(town.id, 0)
 
+    return starved, sum(forecast.values()) > 0
 
-def _peek(state: GameState, town: Town, look_count: int) -> None:
+
+def _peek(state: GameState, town: Town, look_count: int) -> int:
     """Flip the top card of the face-down pile face up (Decision 8).
 
     The card leaves the pile and sits beside it, so a look never lands on a
@@ -724,8 +745,10 @@ def _peek(state: GameState, town: Town, look_count: int) -> None:
     garrison has read the town, and further looks do nothing until the
     Insurgency adds more.
     """
-    for _ in range(min(look_count, len(town.pile))):
+    turned = min(look_count, len(town.pile))
+    for _ in range(turned):
         town.revealed.append(town.pile.pop(0))
+    return turned
 
 
 # ---------------------------------------------------------------------------
@@ -742,13 +765,13 @@ def prepare_turn(state: GameState) -> None:
 
     # The board can run out before the deck does.
     if not state.unresolved:
-        _end_game(state, "every town resolved")
+        _end_game(state, "every town resolved", stats.END_BOARD)
         return
 
     # So can the Empire. Once it has no troops and nothing that will build any,
     # the rest of the game is the Insurgency placing cards nobody will contest.
     if empire_is_eliminated(state):
-        _end_game(state, "the Empire is eliminated")
+        _end_game(state, "the Empire is eliminated", stats.END_ELIMINATION)
         return
 
     if state.to_move is Side.INSURGENCY:
@@ -760,7 +783,7 @@ def prepare_turn(state: GameState) -> None:
         # Deck exhausted and nothing left to place: the game ends and every
         # remaining town resolves at once (Decision 1).
         if not state.hand:
-            _end_game(state, "deck exhausted")
+            _end_game(state, "deck exhausted", stats.END_DECK)
             return
 
 
@@ -769,7 +792,7 @@ def town_is_uncontested(town: Town) -> bool:
     return town.troops == 0 and town.card_count == 0
 
 
-def _end_game(state: GameState, reason: str) -> None:
+def _end_game(state: GameState, reason: str, code: str = stats.END_BOARD) -> None:
     """Resolve everything anybody committed to, all at once.
 
     A town neither side ever set foot in is left open. Presence is required to
@@ -783,6 +806,7 @@ def _end_game(state: GameState, reason: str) -> None:
             continue
         resolve_town(state, town.id, declared_by=None)
     state.game_over = True
+    stats.game_ended(state, code)
 
 
 def winner(state: GameState) -> Side | None:

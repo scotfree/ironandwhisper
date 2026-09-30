@@ -296,8 +296,10 @@ authoritative answer belongs to them and this is only the expected shape.
 
 ### Alpha — on the live site, playable by invited BGA accounts
 
-- **Fill in `stats.jsonc`.** It is still the skeleton: both the table and player blocks are
-  empty. **[verified]**
+- ~~**Fill in `stats.jsonc`.**~~ Done 2026-09-30: 36 table statistics, 17 shown and 19
+  developer-only, recorded by `modules/php/Stats.php` and counted identically by the
+  simulator (`sim/stats.py`). Table-only because the bot has no player row. Not yet seen on
+  the Studio's end-of-game screen. **[verified]**
 - **Choose and implement a tie-breaker.** `tie_breaker_description` is empty and nothing
   writes `player_score_aux`, and roughly one game in five ends level because scores are small
   integers — this is the only item on the list that is a design decision rather than data

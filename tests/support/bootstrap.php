@@ -14,6 +14,7 @@ require_once $root . '/modules/php/Rules.php';
 require_once $root . '/modules/php/Board.php';
 require_once $root . '/modules/php/Bots.php';
 require_once $root . '/modules/php/View.php';
+require_once $root . '/modules/php/Stats.php';
 require_once $root . '/modules/php/Game.php';
 require_once $root . '/modules/php/States/EndScore.php';
 require_once $root . '/modules/php/States/NextTurn.php';

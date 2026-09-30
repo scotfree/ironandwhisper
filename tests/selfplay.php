@@ -43,6 +43,7 @@ $rebel = match ($rebelName) {
 };
 
 $wins = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0, 'draw' => 0];
+$statTotals = [];
 $towns = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
 $rounds = 0;
 $scores = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
@@ -79,6 +80,10 @@ for ($seed = 1; $seed <= $games; $seed++) {
         $wins['draw']++;
     }
 
+    foreach ($game->bga->tableStats->values as $name => $value) {
+        $statTotals[$name] = ($statTotals[$name] ?? 0) + (float) $value;
+    }
+
     if ($seed % 25 === 0) {
         fwrite(STDERR, ".");
     }
@@ -99,3 +104,11 @@ printf("  rounds            mean %.2f\n", $rounds / $games);
 printf("  towns to Empire   mean %.2f\n", $towns[Rules::EMPIRE] / $games);
 printf("  towns to rebels   mean %.2f\n", $towns[Rules::INSURGENCY] / $games);
 printf("\n  %.1fs\n", microtime(true) - $started);
+
+// The mean of every table statistic, in stats.jsonc's order — the same table
+// `python -m sim.run` prints, so the two engines can be read side by side.
+$statsJson = preg_replace('#^\s*//.*$#m', '', (string) file_get_contents(__DIR__ . '/../stats.jsonc'));
+printf("\n  table statistics, mean per game\n");
+foreach (array_keys(json_decode((string) $statsJson, true)['table']) as $name) {
+    printf("    %-32s %8.3f\n", $name, ($statTotals[$name] ?? 0) / $games);
+}

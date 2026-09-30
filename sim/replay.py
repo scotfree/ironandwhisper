@@ -40,6 +40,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import stats
 from .bots import EMPIRE_BOTS, INSURGENCY_BOTS
 from .config import Scenario, load_scenario
 from .engine import (
@@ -317,10 +318,19 @@ class _Replayer:
                 raise ReplayMismatch(
                     f'R{round_number}: starvation marks: sim {simulated}, log {self.starving_after}')
 
+    def _end_code(self) -> str:
+        """The statistics' name for how the game ended, from the log's reason."""
+        reason = (self.end_reason or '').lower()
+        for words, code in (('deck', stats.END_DECK), ('eliminated', stats.END_ELIMINATION),
+                            ('agreed', stats.END_AGREEMENT)):
+            if words in reason:
+                return code
+        return stats.END_BOARD
+
     def _finish_game(self) -> None:
         sweep = [n['args'] for n in self.notes
                  if n['type'] == 'townResolved' and (n.get('args') or {}).get('declaredBy') is None]
-        _end_game(self.state, self.end_reason or 'end of log')
+        _end_game(self.state, self.end_reason or 'end of log', self._end_code())
         for args in sweep:
             town = self.state.towns[args['town_id']]
             if (town.winner.value if town.winner else None) != args['winner']:

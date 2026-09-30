@@ -480,7 +480,7 @@ Not done, in rough order of how much it hurts:
   where cards are 0 or 1 and useless at `graded36`, where every face-down card is assumed to
   be a 3 and almost nothing is ever certain. It plays legally there and wins 0%. Putting
   graded cards back means giving it a quantile or expected-value test instead.
-- No stats in `stats.jsonc`, no tie-breaker, no animations, no art.
+- No tie-breaker, no animations, no art.
 
 **The turn counter was frozen at page load** until 2026-09-12. The round advances at the
 end of the Empire's turn (`Game::incRound`) and nothing told the client; `notif_deckCount`
@@ -910,6 +910,26 @@ gives it something real to aim at.
 
 `tests/test_mist2.php` and the `test_mist2_*` cases in `sim/test_bots.py` pin the richness-
 first ordering against boards where the two rules disagree. No parity fixture yet.
+
+## Statistics (2026-09-30)
+
+`stats.jsonc` defines 36 **table** statistics — none per player, because the bot has no player
+row and a player statistic could not record its side of a solo game. 17 are shown to players
+(length, how it ended, scores, territory, where points came from, the Empire's economy, agents
+and decoys placed); 19 are `"display": "limited"`, for developers, and answer the balance and
+bot questions in issue #18 (ties, 0-point wins, dispersal, the largest garrison, single troops
+lost, first battle round, looks, decoys captured, warnings and losses, which bot played).
+
+**One list, two recorders, held together by tests.** `modules/php/Stats.php` is the only place
+the game writes a statistic, at five moments — setup, a resolution, a placement, the end of an
+Empire turn, the end of the game. `sim/stats.py` counts the same names at the same moments into
+`GameState.stats` (empty on a `clone()`, so bot planning never counts). `python -m sim.run` and
+`php tests/selfplay.php` both end with the same table of per-game means, so the two engines can
+be read side by side — they agree within noise at 1000 games — and either can be read beside
+what BGA reports from real games. The test stub's `TableStats` loads `stats.jsonc` and throws on
+an undefined or uninitialised name, so every PHP test also checks nothing is misspelt.
+`tests/test_stats.php` and `sim/test_stats.py` pin the identities (scores, territory adding to
+12, rebel points = battle + starvation, exactly one ending).
 
 ## Testing the PHP
 

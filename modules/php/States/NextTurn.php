@@ -15,6 +15,7 @@ use Bga\GameFramework\StateType;
 use Bga\GameFramework\States\GameState;
 use Bga\Games\IronAndWhisper\Game;
 use Bga\Games\IronAndWhisper\Rules;
+use Bga\Games\IronAndWhisper\Stats;
 
 class NextTurn extends GameState
 {
@@ -41,26 +42,26 @@ class NextTurn extends GameState
             // resolution settles every outstanding fight at today's presence —
             // so an agreement to end is a real decision, not just a shortcut.
             if ($this->game->endAgreed()) {
-                return $this->endGame(clienttranslate('both sides agreed to end'));
+                return $this->endGame(clienttranslate('both sides agreed to end'), Stats::END_AGREEMENT);
             }
 
             // The board can run out before the deck does.
             if (!Rules::unresolvedTownIds($board->towns())) {
-                return $this->endGame(clienttranslate('every town has been resolved'));
+                return $this->endGame(clienttranslate('every town has been resolved'), Stats::END_BOARD);
             }
 
             // So can the Empire. Once it has no troops and no town that will
             // build any, the rest of the game is the Insurgency placing cards
             // nobody will contest.
             if (Rules::empireIsEliminated($board->towns(), $this->game->scenario->productionCost)) {
-                return $this->endGame(clienttranslate('the Empire is eliminated'));
+                return $this->endGame(clienttranslate('the Empire is eliminated'), Stats::END_ELIMINATION);
             }
 
             $side = $this->game->toMove();
             $playerId = $this->game->playerIdForSide($side);
 
             if ($side === Rules::INSURGENCY && !$this->refillHand($playerId)) {
-                return $this->endGame(clienttranslate('the deck is exhausted'));
+                return $this->endGame(clienttranslate('the deck is exhausted'), Stats::END_DECK);
             }
 
             if (!$this->game->isBot($playerId)) {
@@ -123,7 +124,7 @@ class NextTurn extends GameState
     /**
      * Resolve everything still standing, all at once, and stop.
      */
-    private function endGame(string $reason)
+    private function endGame(string $reason, string $code)
     {
         $this->notify->all('gameEnding', clienttranslate('T${turn}: The game ends: ${reason}'), [
             'turn' => $this->game->round(),
@@ -142,6 +143,8 @@ class NextTurn extends GameState
             }
             $this->game->resolveTown($townId, null);
         }
+
+        $this->game->recordGameEnd($code);
 
         return EndScore::class;
     }
