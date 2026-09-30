@@ -40,7 +40,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .bots import Glob2Empire, Mist2Insurgency
+from .bots import EMPIRE_BOTS, INSURGENCY_BOTS
 from .config import Scenario, load_scenario
 from .engine import (
     Card,
@@ -350,12 +350,16 @@ def load(path: str | Path, scenario: Scenario | None = None) -> Replay:
 
 # -- asking the bots --------------------------------------------------------
 
-def bot_turn(decision: Decision):
-    """What the advanced bot for this side would have played from here."""
+def bot_turn(decision: Decision, empire: str = 'glob2', insurgency: str = 'mist2'):
+    """What the named bot for this side would have played from here.
+
+    The defaults are the bots the Studio runs, which is what the parity check
+    on a bot's own turns needs; name another to ask a candidate instead.
+    """
     state = copy.deepcopy(decision.before)
     if decision.side is Side.EMPIRE:
-        return Glob2Empire().choose(state)
-    return Mist2Insurgency().choose(state)
+        return EMPIRE_BOTS[empire]().choose(state)
+    return INSURGENCY_BOTS[insurgency]().choose(state)
 
 
 def describe(decision: Decision, turn) -> str:
@@ -394,7 +398,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     parser.add_argument('logs', nargs='+')
     parser.add_argument('--compare', action='store_true',
-                        help='print what Glob2 / Mist2 would have done at every turn')
+                        help='print what the bots would have done at every turn')
+    parser.add_argument('--empire-bot', default='glob2', choices=sorted(EMPIRE_BOTS))
+    parser.add_argument('--insurgency-bot', default='mist2', choices=sorted(INSURGENCY_BOTS))
     args = parser.parse_args()
 
     for path in args.logs:
@@ -407,7 +413,7 @@ def main() -> None:
 
         agree = Counter()
         for decision in result.decisions:
-            bot = bot_turn(decision)
+            bot = bot_turn(decision, args.empire_bot, args.insurgency_bot)
             who = 'bot ' if decision.by_bot else 'human'
             match = same(decision, decision.turn, bot)
             agree[(who, match)] += 1

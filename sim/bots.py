@@ -820,6 +820,275 @@ class Glob2Empire(GlobEmpire):
                     commit(helper, town.id, spare(helper))
 
 
+class ImperialMonolithBot(GlobEmpire):
+    """One army, never beaten where it stands: the Empire as humans win with it.
+
+    Written from the logged human games in issue #18. The three human wins as
+    Empire (5-0, 6-0, 6-0) were all the same game: every troop in one body,
+    every factory building every turn, the army walking onto a pile it could
+    certainly beat and resolving it the turn after, and nothing ever left
+    standing where a visible pile could take it. The loss (2-7) and the draw
+    (2-2) were the same Empire scattered into single troops. So were both of
+    Glob2's logged losses: its main-army retreat margin of 5 let single troops
+    beside Everlan sit in front of piles two and three ahead, and a person
+    stacking real cards took each one for a point (table 975612).
+
+    The rules, in the order the turn applies them:
+
+    1. **Resolve a certain win**, richest first — GlobEmpire's rule unchanged,
+       ties and empty towns included. An empty town taken this way is ground
+       the rebels can never contest again, which is what makes it a safe
+       place to leave a picket.
+    2. **Nothing stands where it could lose.** Any garrison the worst case of
+       its pile could beat by more than `retreat_margin` (default 0) is pulled
+       back to safe ground. The army included: it would rather walk away from
+       a pile than stake itself on the pile being a bluff.
+    3. **The army walks onto the richest pile it is certain to beat** —
+       richest by expected presence, from the cards it has seen and the deck's
+       make-up — to resolve it next turn. It leaves one troop behind on ground
+       it has won, as a picket that keeps the old town in the supply line and
+       can never be attacked. With nothing worth taking in reach it heads for
+       the nearest seeded town.
+    4. **Everyone else walks toward the army**, one road a turn, keeping a
+       single picket on safe ground.
+    5. **Pickets for supply, on quiet ground only.** While the army's network
+       cannot feed what the factories could build next turn, spare troops step
+       out into neighbouring towns nobody has put a card in.
+    6. **Build to the ceiling the march leaves behind**, then name losses that
+       do not cut the line — both GlobEmpire's.
+
+    retreat_margin  how far behind a garrison may fall before it withdraws.
+                    0 is "never stand where you could be beaten". GlobEmpire's
+                    5 assumed MistBot's bluff rate; people stack real cards.
+    """
+
+    def __init__(self, rng: random.Random | None = None, retreat_margin: int = 0):
+        super().__init__(rng, retreat_margin=retreat_margin)
+
+    # -- the army ------------------------------------------------------------
+
+    @staticmethod
+    def _army_town(board: GameState) -> str | None:
+        """Where the army stands: the largest garrison, ties by town id."""
+        held = [t for t in board.towns.values() if t.troops > 0]
+        if not held:
+            return None
+        return min(held, key=lambda t: (-t.troops, t.id)).id
+
+    def _safe_with(self, board: GameState, town_id: str, troops: int) -> bool:
+        """Whether this many troops standing here could not lose it."""
+        town = board.towns[town_id]
+        if town.resolved:
+            return True
+        return troops * board.scenario.unit.presence >= self.worst_case(board, town) - self.retreat_margin
+
+    @staticmethod
+    def _passable(board: GameState, town_id: str) -> bool:
+        """Ground worth walking over: anything the rebels have not taken."""
+        town = board.towns[town_id]
+        return not (town.resolved and town.winner is Side.INSURGENCY)
+
+    def _step_toward(self, board: GameState, start: str, goals: set[str]) -> str | None:
+        """The first road on a shortest walk from `start` to any of `goals`."""
+        if not goals or start in goals:
+            return None
+        first: dict[str, str] = {}
+        frontier = [start]
+        seen = {start}
+        while frontier:
+            current = frontier.pop(0)
+            for neighbor in board.towns[current].neighbors:
+                if neighbor in seen or not self._passable(board, neighbor):
+                    continue
+                seen.add(neighbor)
+                first[neighbor] = first.get(current, neighbor)
+                if neighbor in goals:
+                    return first[neighbor]
+                frontier.append(neighbor)
+        return None
+
+    def _retreat_to(self, board: GameState, town) -> str | None:
+        """GlobEmpire's retreat, with ground the rebels have won as a last resort.
+
+        A town the rebels won feeds nothing, which is why GlobEmpire never
+        falls back into one. But it can never be contested again either, so a
+        troop standing in it cannot be beaten — and a troop that starves there
+        a turn later scores the rebels exactly what a lost fight would have,
+        while one that walks on first scores them nothing.
+        """
+        retreat = super()._retreat_to(board, town)
+        if retreat is not None:
+            return retreat
+        refuges = sorted(n for n in town.neighbors
+                         if board.towns[n].resolved and board.towns[n].winner is Side.INSURGENCY)
+        return refuges[0] if refuges else None
+
+    # -- phase 3: build ------------------------------------------------------
+
+    def _production(self, standing: GameState, board: GameState) -> dict[str, int]:
+        """GlobEmpire's build, never onto a pile the new troops could lose to.
+
+        A factory is a garrison like any other. Raising one troop onto a pile
+        of two hands the rebels a point on their next turn, which is the
+        offer this bot exists not to make.
+        """
+        produce = super()._production(standing, board)
+        for site in list(produce):
+            if not self._safe_with(board, site, board.towns[site].troops + produce[site]):
+                del produce[site]
+        return produce
+
+    # -- phase 2: march ------------------------------------------------------
+
+    def _moves(self, board: GameState) -> list[tuple[str, str, int]]:
+        origin = {tid: t.troops for tid, t in board.towns.items()}
+        departed: dict[str, int] = {}
+        moves: list[tuple[str, str, int]] = []
+
+        def available(town_id: str) -> int:
+            return origin[town_id] - departed.get(town_id, 0)
+
+        def commit(src: str, dst: str, quantity: int, check_supply: bool = True) -> bool:
+            if quantity <= 0 or quantity > available(src):
+                return False
+            before = _overage(board)
+            board.towns[src].troops -= quantity
+            board.towns[dst].troops += quantity
+            if check_supply and _overage(board) > before:
+                board.towns[src].troops += quantity
+                board.towns[dst].troops -= quantity
+                return False
+            departed[src] = departed.get(src, 0) + quantity
+            moves.append((src, dst, quantity))
+            return True
+
+        army = self._army_town(board)
+        if army is None:
+            return moves
+
+        self._withdraw_the_exposed(board, army, available, commit)
+        army = self._march_the_army(board, army, available, commit)
+        self._gather(board, army, available, commit)
+        self._picket(board, army, available, commit)
+        return moves
+
+    def _withdraw_the_exposed(self, board, army, available, commit) -> None:
+        """Pull back every garrison but the army that could lose where it is."""
+        for town in sorted(board.unresolved, key=lambda t: t.id):
+            if town.id == army or town.troops <= 0:
+                continue
+            if self._safe_with(board, town.id, town.troops):
+                continue
+            retreat = self._retreat_to(board, town)
+            if retreat is not None:
+                commit(town.id, retreat, available(town.id), check_supply=False)
+
+    def _march_the_army(self, board, army, available, commit) -> str:
+        """Move the army onto the best pile it is certain to beat; return where it is."""
+        belief = EmpireBelief(board)
+        here = board.towns[army]
+
+        # One troop stays behind on ground the Empire has won: it keeps that
+        # town in the supply line and nothing can ever attack it.
+        keep = 1 if (here.resolved and here.winner is Side.EMPIRE) else 0
+        moving = available(army) - keep
+
+        def arriving_safe(target_id: str) -> bool:
+            return self._safe_with(board, target_id, board.towns[target_id].troops + moving)
+
+        best, best_key = None, None
+        for target_id in here.neighbors:
+            target = board.towns[target_id]
+            if target.resolved or not arriving_safe(target_id):
+                continue
+            value = belief.estimated_presence(target_id)
+            if value <= 0:
+                continue
+            key = (value, town_production(board, target_id), town_supply(board, target_id), target_id)
+            if best_key is None or key > best_key:
+                best, best_key = target_id, key
+
+        staying_safe = self._safe_with(board, army, here.troops)
+        if best is None:
+            # Nothing worth taking next door. Head for the nearest seeded town
+            # if the step is safe; otherwise stay, unless staying is what is
+            # unsafe, in which case fall back like any other garrison.
+            seeded = {t.id for t in board.unresolved if t.card_count > 0 and t.id != army}
+            step = self._step_toward(board, army, seeded)
+            if step is not None and arriving_safe(step) and moving > 0:
+                best = step
+            elif not staying_safe:
+                retreat = self._retreat_to(board, here)
+                if retreat is not None and commit(army, retreat, available(army), check_supply=False):
+                    return retreat
+                return army
+            else:
+                return army
+
+        if moving > 0 and commit(army, best, moving, check_supply=False):
+            return best
+        return army
+
+    def _gather(self, board, army, available, commit) -> None:
+        """Walk everything that is not a picket toward the army, a road a turn."""
+        for town in sorted(board.towns.values(), key=lambda t: t.id):
+            if town.id == army or available(town.id) <= 0:
+                continue
+            # A picket stays on safe ground; everything above it marches.
+            keep = 1 if self._safe_with(board, town.id, 1) else 0
+            surplus = available(town.id) - keep
+            if surplus <= 0:
+                continue
+            step = self._step_toward(board, town.id, {army})
+            if step is None:
+                continue
+            if self._safe_with(board, step, board.towns[step].troops + surplus):
+                commit(town.id, step, surplus, check_supply=False)
+
+    def _picket(self, board, army, available, commit) -> None:
+        """Step pickets onto quiet ground while the army's network is short.
+
+        "Short" means it could not feed what the factories will raise next
+        turn. Only a town with no cards in it and not won by the rebels is
+        quiet: a single troop anywhere else is exactly the offer this bot
+        exists not to make.
+        """
+        capacity = sum(production_capacity(board, site) for site in production_sites(board))
+        while True:
+            component = component_of(board, army)
+            if not component:
+                return
+            room = ceiling(board, component) - troops_in(board, component)
+            if room >= capacity:
+                return
+            quiet = sorted(
+                (n for tid in component for n in board.towns[tid].neighbors
+                 if n not in component and board.towns[n].troops == 0
+                 and board.towns[n].card_count == 0 and self._passable(board, n)
+                 and not (board.towns[n].resolved and board.towns[n].winner is Side.INSURGENCY)),
+                key=lambda n: (-town_supply(board, n), n),
+            )
+            placed = False
+            for target in quiet:
+                sources = sorted(
+                    (tid for tid in component if target in board.towns[tid].neighbors
+                     and available(tid) > 1),
+                    key=lambda tid: (-available(tid), tid),
+                )
+                for source in sources:
+                    # The army keeps enough to stay certain where it stands.
+                    town = board.towns[source]
+                    if not self._safe_with(board, source, town.troops - 1):
+                        continue
+                    if commit(source, target, 1, check_supply=False):
+                        placed = True
+                        break
+                if placed:
+                    break
+            if not placed:
+                return
+
+
 # ---------------------------------------------------------------------------
 # The Insurgency that plays the map
 # ---------------------------------------------------------------------------
@@ -1170,6 +1439,7 @@ EMPIRE_BOTS = {
     "heuristic": HeuristicEmpire,
     "glob": GlobEmpire,
     "glob2": Glob2Empire,
+    "monolith": ImperialMonolithBot,
 }
 
 INSURGENCY_BOTS = {

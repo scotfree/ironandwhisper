@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import random
 
-from .bots import Glob2Empire, GlobEmpire, HeuristicInsurgency, Mist2Insurgency, MistBot
+from .bots import Glob2Empire, GlobEmpire, HeuristicInsurgency, ImperialMonolithBot, Mist2Insurgency, MistBot
 from .config import CardType, GameMap, Scenario, TownDef, Unit
 from .engine import (
     Card,
@@ -625,3 +625,71 @@ def test_glob2_and_mist2_play_legal_games_together():
         assert st.game_over
         for town in st.towns.values():
             assert town.resolved or town_is_uncontested(town)
+
+
+# ---------------------------------------------------------------------------
+# ImperialMonolithBot: one army, never beaten where it stands
+# ---------------------------------------------------------------------------
+
+def monolith_turn(st, **kwargs):
+    return ImperialMonolithBot(random.Random(0), **kwargs).choose(st)
+
+
+def won_by(st, town_id: str, side: Side) -> None:
+    st.towns[town_id].resolved = True
+    st.towns[town_id].winner = side
+
+
+def test_monolith_pulls_back_a_single_troop_glob2_leaves_in_front_of_a_pile():
+    """Table 975612 in miniature: one troop beside the army, a pile that could
+    beat it by two. Inside Glob2's main-army margin, so Glob2 holds and pays."""
+    st = board()
+    st.towns["a"].troops = 4
+    st.towns["b"].troops = 1
+    seed(st, "b", 3)
+
+    assert all(src != "b" for src, _, _ in glob2_turn(st).moves)
+    assert ("b", "a", 1) in monolith_turn(st).moves
+
+
+def test_the_army_walks_onto_the_richest_pile_it_is_certain_to_beat():
+    """And leaves one troop behind on the ground it has already won."""
+    st = board()
+    st.towns["a"].troops = 5
+    won_by(st, "a", Side.EMPIRE)
+    seed(st, "b", 2)
+    seed(st, "c", 4)      # the richest the four marching troops can be sure of
+    seed(st, "d", 6)      # richer, but it could beat them
+
+    assert ("a", "c", 4) in monolith_turn(st).moves
+
+
+def test_a_factory_does_not_build_onto_a_pile_it_could_lose_to():
+    st = board(map=fan_map(producers=("b",)))
+    st.towns["a"].troops = 3
+    st.towns["b"].troops = 1
+    seed(st, "b", 3)
+
+    plan = monolith_turn(st)
+    assert "b" not in plan.produce
+    assert ("b", "a", 1) in plan.moves
+
+
+def test_with_nowhere_safe_a_troop_falls_back_onto_ground_the_rebels_won():
+    """Rebel-won ground feeds nothing, but nothing can beat a troop standing on it."""
+    st = board()
+    st.towns["c"].troops = 2      # the army, elsewhere
+    st.towns["b"].troops = 1
+    seed(st, "b", 3)
+    won_by(st, "a", Side.INSURGENCY)   # b's only neighbour
+
+    assert ("b", "a", 1) in monolith_turn(st).moves
+
+
+def test_monolith_plays_whole_games_legally():
+    scenario_ = load_scenario("baseline")
+    for seed_ in range(10):
+        for rebels in (Mist2Insurgency, HeuristicInsurgency):
+            state = play_game(scenario_, ImperialMonolithBot(),
+                              rebels(random.Random(seed_)), random.Random(seed_))
+            assert state.game_over

@@ -65,3 +65,26 @@ def test_both_sides_of_a_game_are_labelled_by_who_played_them():
     result = load(next(p for p in LOGS if p.stem == '975612'))
     sides = {(d.side, d.by_bot) for d in result.decisions}
     assert sides == {(Side.INSURGENCY, False), (Side.EMPIRE, True)}
+
+
+@pytest.mark.parametrize('path', LOGS, ids=lambda p: p.stem)
+def test_monolith_leaves_no_garrison_where_a_visible_pile_could_beat_it(path):
+    """Every Empire position people reached, put to the Monolith.
+
+    Glob2 fails this in 7 of the 17 positions in the first two logs, and four
+    of those are the garrisons it actually lost in table 975612.
+    """
+    from .bots import GlobEmpire
+    from .engine import apply_empire_turn
+
+    for decision in load(path).decisions:
+        if decision.side is not Side.EMPIRE:
+            continue
+        state = copy.deepcopy(decision.before)
+        state.to_move = Side.EMPIRE
+        apply_empire_turn(state, bot_turn(decision, empire='monolith'))
+        exposed = [town.id for town in state.unresolved
+                   if town.troops > 0
+                   and town.troops * state.scenario.unit.presence
+                   < GlobEmpire.worst_case(state, town)]
+        assert not exposed, f'R{decision.round}: exposed {exposed}'
