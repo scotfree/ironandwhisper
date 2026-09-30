@@ -32,6 +32,7 @@ $botName = (string) ($argv[2] ?? 'glob');
 $bot = match ($botName) {
     'heuristic' => Game::BOT_HEURISTIC,
     'glob2' => Game::BOT_GLOB2,
+    'monolith' => Game::BOT_MONOLITH,
     default => Game::BOT_GLOB,
 };
 $rebelName = (string) ($argv[3] ?? 'mist');

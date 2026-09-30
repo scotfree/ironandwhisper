@@ -897,7 +897,9 @@ class ImperialMonolithBot(GlobEmpire):
         seen = {start}
         while frontier:
             current = frontier.pop(0)
-            for neighbor in board.towns[current].neighbors:
+            # Sorted, so the road taken between two equally short walks does
+            # not depend on the order a map file happens to list edges in.
+            for neighbor in sorted(board.towns[current].neighbors):
                 if neighbor in seen or not self._passable(board, neighbor):
                     continue
                 seen.add(neighbor)
@@ -948,16 +950,14 @@ class ImperialMonolithBot(GlobEmpire):
         def available(town_id: str) -> int:
             return origin[town_id] - departed.get(town_id, 0)
 
-        def commit(src: str, dst: str, quantity: int, check_supply: bool = True) -> bool:
+        def commit(src: str, dst: str, quantity: int) -> bool:
+            # No supply check, unlike GlobEmpire's: an army that concentrates
+            # goes over its ceiling on purpose, and the turn of grace plus the
+            # pickets below are what pay for it.
             if quantity <= 0 or quantity > available(src):
                 return False
-            before = _overage(board)
             board.towns[src].troops -= quantity
             board.towns[dst].troops += quantity
-            if check_supply and _overage(board) > before:
-                board.towns[src].troops += quantity
-                board.towns[dst].troops -= quantity
-                return False
             departed[src] = departed.get(src, 0) + quantity
             moves.append((src, dst, quantity))
             return True
@@ -981,7 +981,7 @@ class ImperialMonolithBot(GlobEmpire):
                 continue
             retreat = self._retreat_to(board, town)
             if retreat is not None:
-                commit(town.id, retreat, available(town.id), check_supply=False)
+                commit(town.id, retreat, available(town.id))
 
     def _march_the_army(self, board, army, available, commit) -> str:
         """Move the army onto the best pile it is certain to beat; return where it is."""
@@ -1019,13 +1019,13 @@ class ImperialMonolithBot(GlobEmpire):
                 best = step
             elif not staying_safe:
                 retreat = self._retreat_to(board, here)
-                if retreat is not None and commit(army, retreat, available(army), check_supply=False):
+                if retreat is not None and commit(army, retreat, available(army)):
                     return retreat
                 return army
             else:
                 return army
 
-        if moving > 0 and commit(army, best, moving, check_supply=False):
+        if moving > 0 and commit(army, best, moving):
             return best
         return army
 
@@ -1043,7 +1043,7 @@ class ImperialMonolithBot(GlobEmpire):
             if step is None:
                 continue
             if self._safe_with(board, step, board.towns[step].troops + surplus):
-                commit(town.id, step, surplus, check_supply=False)
+                commit(town.id, step, surplus)
 
     def _picket(self, board, army, available, commit) -> None:
         """Step pickets onto quiet ground while the army's network is short.
@@ -1062,10 +1062,9 @@ class ImperialMonolithBot(GlobEmpire):
             if room >= capacity:
                 return
             quiet = sorted(
-                (n for tid in component for n in board.towns[tid].neighbors
+                {n for tid in component for n in board.towns[tid].neighbors
                  if n not in component and board.towns[n].troops == 0
-                 and board.towns[n].card_count == 0 and self._passable(board, n)
-                 and not (board.towns[n].resolved and board.towns[n].winner is Side.INSURGENCY)),
+                 and board.towns[n].card_count == 0 and self._passable(board, n)},
                 key=lambda n: (-town_supply(board, n), n),
             )
             placed = False
@@ -1080,7 +1079,7 @@ class ImperialMonolithBot(GlobEmpire):
                     town = board.towns[source]
                     if not self._safe_with(board, source, town.troops - 1):
                         continue
-                    if commit(source, target, 1, check_supply=False):
+                    if commit(source, target, 1):
                         placed = True
                         break
                 if placed:

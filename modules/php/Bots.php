@@ -1746,4 +1746,356 @@ final class Bots
             }
         }
     }
+
+    // -- ImperialMonolithBot -------------------------------------------------
+    //
+    // Ported from ImperialMonolithBot in sim/bots.py, which is the
+    // specification: one army, never beaten where it stands. The rules and the
+    // reasoning are in that class's docstring; each function below names the
+    // Python method it mirrors. Parity is pinned by tests/test_monolith.php
+    // against tests/fixtures/monolith_parity.jsonl.
+
+    /** GlobEmpire's retreat margin is 5; the Monolith never stands where it could lose. */
+    private const MONOLITH_RETREAT_MARGIN = 0;
+
+    /**
+     * @param array<string, array> $towns
+     * @return array{produce: array<string, int>, moves: array<int, array{from: string, to: string, count: int}>, resolve: ?string, disband: array<string, int>}
+     */
+    public static function monolithEmpireTurn(Scenario $scenario, array $towns): array
+    {
+        // GlobEmpire.choose: resolve, plan the march, then build to what the
+        // march leaves behind, then name losses.
+        $board = $towns;
+
+        $resolve = self::globResolution($scenario, $board);
+        if ($resolve !== null) {
+            $board = self::globApplyResolution($board, $resolve);
+        }
+
+        $standing = $board;
+        $moves = self::monolithMoves($scenario, $board);
+        $produce = self::monolithProduction($scenario, $standing, $board);
+        foreach ($produce as $townId => $count) {
+            $board[$townId]['troops'] += $count;
+        }
+
+        return [
+            'produce' => $produce,
+            'moves' => $moves,
+            'resolve' => $resolve,
+            'disband' => self::globDisband($scenario, $board),
+        ];
+    }
+
+    /** _army_town: the largest garrison, ties by town id. */
+    private static function monolithArmyTown(array $board): ?string
+    {
+        $best = null;
+        foreach ($board as $townId => $town) {
+            $troops = (int) $town['troops'];
+            if ($troops <= 0) {
+                continue;
+            }
+            $bestTroops = $best === null ? 0 : (int) $board[$best]['troops'];
+            if ($best === null
+                || $troops > $bestTroops
+                || ($troops === $bestTroops && strcmp((string) $townId, $best) < 0)) {
+                $best = (string) $townId;
+            }
+        }
+        return $best;
+    }
+
+    /** _safe_with: whether this many troops standing here could not lose it. */
+    private static function monolithSafeWith(Scenario $scenario, array $board, string $townId, int $troops): bool
+    {
+        $town = $board[$townId];
+        if ($town['resolved']) {
+            return true;
+        }
+        return Rules::troopPresence($troops, $scenario->unitPresence())
+            >= self::globWorstCase($scenario, $town) - self::MONOLITH_RETREAT_MARGIN;
+    }
+
+    /** _passable: anything the rebels have not taken. */
+    private static function monolithPassable(array $board, string $townId): bool
+    {
+        $town = $board[$townId];
+        return !($town['resolved'] && $town['winner'] === Rules::INSURGENCY);
+    }
+
+    /**
+     * _step_toward: the first road on a shortest walk to any of `$goals`.
+     *
+     * @param string[] $goals
+     */
+    private static function monolithStepToward(array $board, string $start, array $goals): ?string
+    {
+        if (!$goals || in_array($start, $goals, true)) {
+            return null;
+        }
+        $first = [];
+        $frontier = [$start];
+        $seen = [$start => true];
+        while ($frontier) {
+            $current = array_shift($frontier);
+            $neighbors = $board[$current]['neighbors'];
+            sort($neighbors);
+            foreach ($neighbors as $neighbor) {
+                if (isset($seen[$neighbor]) || !self::monolithPassable($board, $neighbor)) {
+                    continue;
+                }
+                $seen[$neighbor] = true;
+                $first[$neighbor] = $first[$current] ?? $neighbor;
+                if (in_array($neighbor, $goals, true)) {
+                    return $first[$neighbor];
+                }
+                $frontier[] = $neighbor;
+            }
+        }
+        return null;
+    }
+
+    /** _retreat_to: GlobEmpire's retreat, with rebel-won ground as a last resort. */
+    private static function monolithRetreatTo(Scenario $scenario, array $board, string $townId): ?string
+    {
+        $retreat = self::globRetreatTo($scenario, $board, $townId);
+        if ($retreat !== null) {
+            return $retreat;
+        }
+        $refuges = [];
+        foreach ($board[$townId]['neighbors'] as $neighbor) {
+            if ($board[$neighbor]['resolved'] && $board[$neighbor]['winner'] === Rules::INSURGENCY) {
+                $refuges[] = $neighbor;
+            }
+        }
+        sort($refuges);
+        return $refuges[0] ?? null;
+    }
+
+    /** _production: GlobEmpire's build, never onto a pile the new troops could lose to. */
+    private static function monolithProduction(Scenario $scenario, array $standing, array $board): array
+    {
+        $produce = self::globProduction($scenario, $standing, $board);
+        foreach ($produce as $site => $count) {
+            if (!self::monolithSafeWith($scenario, $board, $site, (int) $board[$site]['troops'] + $count)) {
+                unset($produce[$site]);
+            }
+        }
+        return $produce;
+    }
+
+    /**
+     * _moves: withdraw the exposed, march the army, gather, picket.
+     *
+     * @param array<string, array> $board mutated as moves are committed
+     * @return array<int, array{from: string, to: string, count: int}>
+     */
+    private static function monolithMoves(Scenario $scenario, array &$board): array
+    {
+        $origin = [];
+        foreach ($board as $townId => $town) {
+            $origin[$townId] = (int) $town['troops'];
+        }
+        $departed = [];
+        $moves = [];
+
+        $available = static function (string $townId) use (&$origin, &$departed): int {
+            return $origin[$townId] - ($departed[$townId] ?? 0);
+        };
+        $commit = static function (string $src, string $dst, int $quantity)
+            use (&$board, &$departed, &$moves, $available): bool {
+            if ($quantity <= 0 || $quantity > $available($src)) {
+                return false;
+            }
+            $board[$src]['troops'] -= $quantity;
+            $board[$dst]['troops'] += $quantity;
+            $departed[$src] = ($departed[$src] ?? 0) + $quantity;
+            $moves[] = ['from' => $src, 'to' => $dst, 'count' => $quantity];
+            return true;
+        };
+
+        $army = self::monolithArmyTown($board);
+        if ($army === null) {
+            return $moves;
+        }
+
+        self::monolithWithdrawTheExposed($scenario, $board, $army, $available, $commit);
+        $army = self::monolithMarchTheArmy($scenario, $board, $army, $available, $commit);
+        self::monolithGather($scenario, $board, $army, $available, $commit);
+        self::monolithPicket($scenario, $board, $army, $available, $commit);
+        return $moves;
+    }
+
+    /** _withdraw_the_exposed */
+    private static function monolithWithdrawTheExposed(
+        Scenario $scenario, array &$board, string $army, callable $available, callable $commit,
+    ): void {
+        $ids = array_keys($board);
+        sort($ids);
+        foreach ($ids as $townId) {
+            $town = $board[$townId];
+            if ($town['resolved'] || $townId === $army || $town['troops'] <= 0) {
+                continue;
+            }
+            if (self::monolithSafeWith($scenario, $board, $townId, (int) $town['troops'])) {
+                continue;
+            }
+            $retreat = self::monolithRetreatTo($scenario, $board, $townId);
+            if ($retreat !== null) {
+                $commit($townId, $retreat, $available($townId));
+            }
+        }
+    }
+
+    /** _march_the_army: returns where the army ends the turn. */
+    private static function monolithMarchTheArmy(
+        Scenario $scenario, array &$board, string $army, callable $available, callable $commit,
+    ): string {
+        $belief = self::belief($scenario, $board);
+        $here = $board[$army];
+
+        $keep = ($here['resolved'] && $here['winner'] === Rules::EMPIRE) ? 1 : 0;
+        $moving = $available($army) - $keep;
+
+        $arrivingSafe = static fn(string $targetId): bool => self::monolithSafeWith(
+            $scenario, $board, $targetId, (int) $board[$targetId]['troops'] + $moving,
+        );
+
+        $best = null;
+        $bestKey = null;
+        foreach ($here['neighbors'] as $targetId) {
+            $target = $board[$targetId];
+            if ($target['resolved'] || !$arrivingSafe($targetId)) {
+                continue;
+            }
+            $value = self::estimate($belief, $target);
+            if ($value <= 0) {
+                continue;
+            }
+            $key = [$value, Rules::townProduction($target), Rules::townSupply($target), $targetId];
+            if ($bestKey === null || $key > $bestKey) {
+                $best = $targetId;
+                $bestKey = $key;
+            }
+        }
+
+        $stayingSafe = self::monolithSafeWith($scenario, $board, $army, (int) $here['troops']);
+        if ($best === null) {
+            $seeded = [];
+            foreach ($board as $townId => $town) {
+                if (!$town['resolved'] && (count($town['pile']) + count($town['revealed'])) > 0
+                    && $townId !== $army) {
+                    $seeded[] = (string) $townId;
+                }
+            }
+            $step = self::monolithStepToward($board, $army, $seeded);
+            if ($step !== null && $arrivingSafe($step) && $moving > 0) {
+                $best = $step;
+            } elseif (!$stayingSafe) {
+                $retreat = self::monolithRetreatTo($scenario, $board, $army);
+                if ($retreat !== null && $commit($army, $retreat, $available($army))) {
+                    return $retreat;
+                }
+                return $army;
+            } else {
+                return $army;
+            }
+        }
+
+        if ($moving > 0 && $commit($army, $best, $moving)) {
+            return $best;
+        }
+        return $army;
+    }
+
+    /** _gather: everything that is not a picket walks toward the army. */
+    private static function monolithGather(
+        Scenario $scenario, array &$board, string $army, callable $available, callable $commit,
+    ): void {
+        $ids = array_keys($board);
+        sort($ids);
+        foreach ($ids as $townId) {
+            if ($townId === $army || $available($townId) <= 0) {
+                continue;
+            }
+            $keep = self::monolithSafeWith($scenario, $board, $townId, 1) ? 1 : 0;
+            $surplus = $available($townId) - $keep;
+            if ($surplus <= 0) {
+                continue;
+            }
+            $step = self::monolithStepToward($board, $townId, [$army]);
+            if ($step === null) {
+                continue;
+            }
+            if (self::monolithSafeWith($scenario, $board, $step, (int) $board[$step]['troops'] + $surplus)) {
+                $commit($townId, $step, $surplus);
+            }
+        }
+    }
+
+    /** _picket: single troops onto quiet ground while the army's network is short. */
+    private static function monolithPicket(
+        Scenario $scenario, array &$board, string $army, callable $available, callable $commit,
+    ): void {
+        $capacity = 0;
+        foreach (Rules::productionSites($board, $scenario->productionCost) as $site) {
+            $capacity += Rules::productionCapacity($board, $site, $scenario->productionCost);
+        }
+
+        while (true) {
+            $component = Rules::componentOf($board, $army);
+            if (!$component) {
+                return;
+            }
+            $room = Rules::ceiling($board, $component, $scenario->supplyPerTroop)
+                - Rules::troopsIn($board, $component);
+            if ($room >= $capacity) {
+                return;
+            }
+
+            $quiet = [];
+            foreach ($component as $townId) {
+                foreach ($board[$townId]['neighbors'] as $neighbor) {
+                    $town = $board[$neighbor];
+                    if (!in_array($neighbor, $component, true) && (int) $town['troops'] === 0
+                        && count($town['pile']) + count($town['revealed']) === 0
+                        && self::monolithPassable($board, $neighbor)) {
+                        $quiet[$neighbor] = true;
+                    }
+                }
+            }
+            $quiet = array_keys($quiet);
+            usort($quiet, static fn(string $a, string $b) =>
+                [-Rules::townSupply($board[$a]), $a] <=> [-Rules::townSupply($board[$b]), $b]);
+
+            $placed = false;
+            foreach ($quiet as $target) {
+                $sources = [];
+                foreach ($component as $townId) {
+                    if (in_array($target, $board[$townId]['neighbors'], true) && $available($townId) > 1) {
+                        $sources[] = $townId;
+                    }
+                }
+                usort($sources, static fn(string $a, string $b) =>
+                    [-$available($a), $a] <=> [-$available($b), $b]);
+                foreach ($sources as $source) {
+                    if (!self::monolithSafeWith($scenario, $board, $source, (int) $board[$source]['troops'] - 1)) {
+                        continue;
+                    }
+                    if ($commit($source, $target, 1)) {
+                        $placed = true;
+                        break;
+                    }
+                }
+                if ($placed) {
+                    break;
+                }
+            }
+            if (!$placed) {
+                return;
+            }
+        }
+    }
 }

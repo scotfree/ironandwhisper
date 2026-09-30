@@ -803,6 +803,38 @@ needs a probabilistic certainty test (issue #13) to actually close, not a margin
 margin behaviour against the same board with and without the tighter leash. No parity
 fixture yet — regenerate one with `sim/parity.py` if this bot is tuned further.
 
+### ImperialMonolithBot: one army, never beaten where it stands (2026-09-29)
+
+`ImperialMonolithBot` in `sim/bots.py`, ported to `Bots::monolithEmpireTurn`, game option 101
+value 3. Written from the logged human games in issue #18 rather than from a sweep: the three
+human Empire wins were one body of troops walking onto piles it could certainly beat, every
+factory building every turn, nothing ever left where a visible pile could take it; the loss and
+the draw, and both of Glob2's logged losses, were single troops held in front of real piles.
+Glob2's main-army retreat margin of 5 assumes MistBot's bluff rate, and a person stacking real
+cards takes each such troop for a point (table 975612, where four of Glob2's seven exposed
+positions are the four garrisons it lost).
+
+Rules, in order: resolve a certain win (Glob's rule); pull back anything a visible pile could
+beat, **retreat margin 0**, falling back onto rebel-won ground if nothing else is safe; march
+the army — the largest garrison — onto the richest pile it is certain to beat, leaving one
+troop on ground already won; walk everything else toward the army; put single-troop pickets
+only on towns with no cards, while the army's network could not feed the factories' output;
+build to the ceiling (Glob's), but never onto a pile the new troops could lose to.
+
+**Against Mist it takes 37%, loses 37%, draws 26% (3000 games, both engines agree to a
+point), where Glob2 takes 0%. Against the heuristic rebels, 90%.** Read the scores as well:
+both sides average under one point a game. It wins by not losing — Mist denies the ground
+and never feeds the army a pile, and the board shrinks to a standoff around round 11. That is
+issue #1's parked concern showing up in the bots rather than a bot defect.
+
+Checked three ways, which is the template for the next bot: win rate in the simulator; the
+exposure test in `sim/test_replay.py`, run on every Empire position in `logs/` (zero exposed,
+Glob2 seven of seventeen); and parity — `tests/test_monolith.php` against 300 random boards
+from `sim.parity --bot monolith`, plus a one-off check on 609 positions from simulated games,
+all identical. Agreement with human Empire turns in the logs is not yet a useful measure: the
+only human Empire log is the dispersed 2-2 game, and the three wins it was written from were
+never kept raw.
+
 ## The rebel bot that works
 
 `MistBot` in `sim/bots.py`, ported to `Bots::mistInsurgencyTurn`, chosen in a solo game by

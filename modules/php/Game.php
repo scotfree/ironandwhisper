@@ -46,12 +46,15 @@ class Game extends \Bga\GameFramework\Table
      * Heuristic is kept as the port's reference implementation. Glob2 is Glob
      * with a much tighter leash on any garrison outside its main army — see
      * issue #18 and Bots::glob2EmpireTurn — and does not yet beat Mist2 either,
-     * but suppresses how much it loses by.
+     * but suppresses how much it loses by. Monolith keeps one army and never
+     * stands where a visible pile could beat it (Bots::monolithEmpireTurn); it
+     * is the first Empire bot to take games off Mist2, about a third of them.
      */
     public const OPT_BOT = 101;
     public const BOT_GLOB = 0;
     public const BOT_HEURISTIC = 1;
     public const BOT_GLOB2 = 2;
+    public const BOT_MONOLITH = 3;
 
     /**
      * Which Insurgency bot a solo game plays against.
@@ -820,6 +823,7 @@ class Game extends \Bga\GameFramework\Table
         $turn = match ($this->empireBot()) {
             self::BOT_HEURISTIC => Bots::empireTurn($this->scenario, $towns),
             self::BOT_GLOB2 => Bots::glob2EmpireTurn($this->scenario, $towns),
+            self::BOT_MONOLITH => Bots::monolithEmpireTurn($this->scenario, $towns),
             default => Bots::globEmpireTurn($this->scenario, $towns),
         };
 

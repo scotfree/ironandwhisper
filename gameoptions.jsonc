@@ -47,6 +47,11 @@
         "name": "Glob2",
         "description": "Glob, with a much tighter leash on any garrison standing apart from its main army.",
         "tmdisplay": "Glob2 bot"
+      },
+      "3": {
+        "name": "Imperial Monolith",
+        "description": "Keeps every troop in one army, walks it onto piles it is certain to beat, and never leaves a garrison where a visible pile could take it. The strongest Empire bot.",
+        "tmdisplay": "Imperial Monolith bot"
       }
     },
     "default": 0,
