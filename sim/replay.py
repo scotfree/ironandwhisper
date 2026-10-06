@@ -53,6 +53,7 @@ from .engine import (
     apply_empire_turn,
     apply_insurgency_turn,
     new_game,
+    resolve_town,
 )
 
 BOT_PLAYER_ID = 0
@@ -121,7 +122,7 @@ def logged_scores(notes: list[dict]) -> dict[Side, int]:
     for note in notes:
         args = note.get('args') or {}
         if note['type'] == 'townResolved':
-            scores[Side(args['winner'])] += int(args['points'])
+            scores[Side(args['winner'])] += int(args['points']) + int(args.get('locationPoints', 0))
         elif note['type'] == 'troopsStarved':
             scores[Side.INSURGENCY] += int(args['points'])
     return scores
@@ -228,10 +229,16 @@ class _Replayer:
             elif kind == 'gameEnding':
                 self.end_reason = args.get('reason')
                 if self.started:
-                    # A resolution that closed the last open town ends the
-                    # turn before anything else is sent.
+                    # A resolution that closed the last open town. The rebels
+                    # have nothing left to place, so their turn ends there.
                     if self.side is Side.INSURGENCY:
                         self._finish_insurgency_turn()
+                    elif self.troops_after is None:
+                        # The Empire's turn stopped at the resolution: logs from
+                        # before 2026-10-06, when the PHP ended the game mid-turn
+                        # and skipped attrition. Replay what happened, not what
+                        # the rules now say.
+                        self._finish_truncated_empire_turn()
                     else:
                         self._finish_empire_turn()
                 self._finish_game()
@@ -255,6 +262,11 @@ class _Replayer:
             resolve=self.resolve,
         )
         self._apply(Side.INSURGENCY, turn)
+
+    def _finish_truncated_empire_turn(self) -> None:
+        round_number = self.state.round_number
+        resolve_town(self.state, self.resolve, Side.EMPIRE)
+        self._check_resolution(round_number)
 
     def _finish_empire_turn(self) -> None:
         turn = EmpireTurn(produce=self.produce, moves=self.moves,
@@ -338,8 +350,20 @@ class _Replayer:
                     f"sweep: simulator gives {args['town_id']} to {town.winner}, log to {args['winner']}")
 
 
+def scores_locations(notes: list[dict]) -> bool:
+    """Whether the table played with location value (game option 103).
+
+    The option is not in the log, but its effect is: a resolution that scored
+    the location carries `locationPoints`, and every resolution under the
+    option scores at least 1.
+    """
+    return any(int((n.get('args') or {}).get('locationPoints', 0)) > 0
+               for n in notes if n['type'] == 'townResolved')
+
+
 def replay(log: dict, scenario: Scenario | None = None) -> Replay:
-    scenario = scenario or load_scenario('baseline')
+    scenario = scenario or load_scenario(
+        'baseline', location_value=scores_locations(notifications(log)))
     replayer = _Replayer(log, scenario)
     replayer.run()
 

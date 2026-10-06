@@ -691,7 +691,11 @@ framework's services injected — it does not have to, because nothing hand-cons
 - `Resolve` (12) — `actResolve(town)` or `actSkipResolve()`. Entered from `NextTurn` before
   either turn state, and only when `Rules::legalResolutions` finds something: a state whose
   only legal answer is "no" is a click for nothing. It applies the resolution at once and
-  returns the mover's turn state — or `NextTurn`, if that was the last open town.
+  returns the mover's turn state — **even when that was the last open town**: the final turn
+  plays out (2026-10-06), so warned troops still starve. Only the rebels go straight to
+  `NextTurn`, since they have nothing left to place. It used to end the game mid-turn, which
+  skipped a starvation the simulator applies in tables 974986 and 976296; `sim/replay.py`
+  replays those two as they happened.
   The Empire is offered this phase nearly every turn, because a garrison can always close
   the town it stands in, empty or not; that is board-shrinking, and it is a real move.
 - `InsurgencyTurn` (10) — `actCommitTurn(placements)`. The whole hand in one action,

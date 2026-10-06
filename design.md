@@ -152,6 +152,8 @@ Settled rules and the reasoning behind them. Recorded so they aren't silently re
 
 **Why:** resolution is optional and there is no pass rule, so two cautious players could otherwise stall forever. Mass resolution at exhaustion fixes this by making refusal-to-resolve useless — the pot gets cashed regardless, so declining only surrenders the timing. It also reframes resolution from "how I score" into "how I lock in a win before it can be reversed," which is a better decision to put in front of a player.
 
+**The turn that resolves the last open location is played out** (2026-10-06). The game ends after it, not in the middle: an Empire that closes the board still builds, marches and takes attrition, so troops already under notice starve and score for the rebels. The simulator always worked this way, because it applies a turn in one call; the PHP's Resolve phase ended the game on the spot and skipped two such starvations in the first games played with location scoring, where board-shrinking ends games inside the Empire's turn routinely.
+
 ### 2. Supply is a ceiling on troops; production builds them
 
 Two numbers per town, independent of each other:

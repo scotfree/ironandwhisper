@@ -592,6 +592,25 @@ def test_repairing_the_line_during_the_grace_turn_cancels_the_starve():
     assert all(t.starving == 0 for t in st.towns.values()), "and the warning is gone"
 
 
+def test_troops_under_notice_still_starve_on_the_final_turn():
+    """2026-10-06: resolving the last open town does not cut the Empire's turn
+    short. The PHP once ended the game mid-turn and skipped this starvation."""
+    st = state(map=line_map(supply=2))
+    st.towns["a"].troops = 3          # one town, supply 2, three troops
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn())
+    assert st.towns["a"].starving == 1
+
+    resolve_town(st, "b", None)       # close everything but A
+    resolve_town(st, "c", None)
+    st.to_move = Side.EMPIRE
+    apply_empire_turn(st, EmpireTurn(resolve="a"))
+
+    assert not st.unresolved
+    assert st.towns["a"].troops == 2, "the warned troop starved anyway"
+    assert st.scores[Side.INSURGENCY] == st.scenario.unit.presence
+
+
 def test_attrition_takes_the_empires_choice_first():
     st = state(map=line_map(supply=1))
     st.towns["a"].troops = 2

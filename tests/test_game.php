@@ -257,11 +257,63 @@ function test_a_garrison_that_wins_its_town_may_still_march_out_of_it(): void
     assertSame(1, $towns['draymoor']['troops'], 'it marched out of the town it just won');
 }
 
+/** Every town but Everlan closed, Everlan seeded and garrisoned, the Empire to resolve. */
+function lastTownGame(): Game
+{
+    $game = newGame();
+    seedTown($game, 'everlan');
+    foreach ($game->board->towns() as $townId => $town) {
+        if ($townId !== 'everlan') {
+            $game->resolveTown($townId, null);
+        }
+    }
+    return $game;
+}
+
+function test_the_final_turn_plays_out_after_the_last_town_is_resolved(): void
+{
+    // Decision 1 still ends the game when the board runs out, but at the end
+    // of the turn that closed it, not in the middle (2026-10-06).
+    $game = lastTownGame();
+    assertSame(Resolve::class, enterNextTurn($game));
+    assertSame(EmpireTurn::class, resolvePhase($game)->actResolve('everlan'));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
+    assertSame(EndScore::class, enterNextTurn($game), 'and then nothing is left to play for');
+}
+
+function test_troops_under_notice_still_starve_on_the_final_turn(): void
+{
+    // Tables 974986 and 976296: a garrison warned the turn before, the Empire
+    // resolved the last town, and the game ended before attrition — the rebels
+    // never scored troops the simulator starves.
+    $game = lastTownGame();
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $game->board->adjustTroops(['everlan' => 3]);
+    $shortfall = Rules::attritionPlan($game->board->towns(), $game->scenario->supplyPerTroop, []);
+    $over = array_sum($shortfall);
+    assertTrue($over > 0, 'the army is over its ceiling');
+    $game->board->setStarving($shortfall);
+    $troopsBefore = array_sum(array_column($game->board->towns(), 'troops'));
+
+    enterNextTurn($game);
+    resolvePhase($game)->actResolve('everlan');
+    // Seeded with the opening hand, which the bigger garrison beats.
+    assertSame(Rules::EMPIRE, $game->board->towns()['everlan']['winner']);
+    $rebelsBefore = $game->scoreForSide(Rules::INSURGENCY);
+
+    empireTurn($game)->actCommitTurn([], [], $shortfall, '0', $empire);
+
+    assertSame($troopsBefore - $over, array_sum(array_column($game->board->towns(), 'troops')),
+        'the shortfall starved');
+    assertSame($rebelsBefore + $over * $game->scenario->unitPresence(),
+        $game->scoreForSide(Rules::INSURGENCY), 'and the rebels scored it');
+    assertSame(EndScore::class, enterNextTurn($game));
+}
+
 function test_resolving_the_last_open_town_ends_the_game(): void
 {
-    // Decision 1 in miniature: the board can run out before the deck does, and
-    // the phase has to hand back to NextTurn rather than ask for a turn that
-    // has nowhere to happen.
+    // Decision 1 in miniature: the board can run out before the deck does.
+    // When the Empire closes it, its final turn plays out first (above).
     $game = newGame();
     seedTown($game, 'everlan');
 
@@ -274,7 +326,8 @@ function test_resolving_the_last_open_town_ends_the_game(): void
     }
 
     assertSame(Resolve::class, enterNextTurn($game));
-    assertSame(NextTurn::class, resolvePhase($game)->actResolve('everlan'));
+    assertSame(EmpireTurn::class, resolvePhase($game)->actResolve('everlan'));
+    empireTurn($game)->actCommitTurn([], [], [], '0', $game->playerIdForSide(Rules::EMPIRE));
     assertSame(EndScore::class, enterNextTurn($game), 'nothing left to play for');
 }
 

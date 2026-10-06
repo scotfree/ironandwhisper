@@ -65,12 +65,22 @@ class Resolve extends GameState
     }
 
     /**
-     * The rest of the mover's turn — or the end of the game, if that
-     * resolution closed the last open town.
+     * The rest of the mover's turn, even when that resolution closed the last
+     * open town: the final turn plays out (2026-10-06). For the Empire that
+     * means building, marching and attrition — troops already under notice
+     * still starve, and the rebels score them. It used to hand straight to
+     * NextTurn, which ended the game and let two games in a row (tables 974986
+     * and 976296) skip a starvation the simulator applies. The simulator
+     * always played the turn out, since it applies a turn in one call.
+     *
+     * The rebels have nothing left to place once no town is open, so their
+     * turn is over and NextTurn ends the game — as in the simulator.
      */
     private function rest(): string
     {
-        if (!Rules::unresolvedTownIds($this->game->board->towns())) {
+        $noneOpen = !Rules::unresolvedTownIds($this->game->board->towns());
+        if ($noneOpen && $this->game->toMove() === Rules::INSURGENCY) {
+            $this->game->setToMove(Rules::EMPIRE);
             return NextTurn::class;
         }
 
