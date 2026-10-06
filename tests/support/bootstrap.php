@@ -41,7 +41,8 @@ const P_TWO = 2345002;
  */
 function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
                  int $botOption = Game::BOT_GLOB,
-                 int $rebelOption = Game::REBEL_MIST): Game
+                 int $rebelOption = Game::REBEL_MIST,
+                 int $locationValue = Game::LOCATION_VALUE_OFF): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -51,6 +52,7 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
     $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
     $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
     $game->bga->tableOptions->values[Game::OPT_REBEL_BOT] = $rebelOption;
+    $game->bga->tableOptions->values[Game::OPT_LOCATION_VALUE] = $locationValue;
 
     $players = [
         P_ONE => ['player_name' => 'One'],

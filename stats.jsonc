@@ -29,6 +29,8 @@
         "troops_starved": { "id": 24, "name": "Troops starved", "type": "int" },
         "agents_placed": { "id": 25, "name": "Agents placed", "type": "int" },
         "bluffs_placed": { "id": 26, "name": "Decoys placed", "type": "int" },
+        "empire_points_locations": { "id": 27, "name": "Empire points from location value", "type": "int" },
+        "rebels_points_locations": { "id": 28, "name": "Rebel points from location value", "type": "int" },
 
         // -- balance and bot design, developers only ----------------------
         "empire_tie_wins": { "id": 40, "name": "Empire wins that were ties", "type": "int", "display": "limited" },
@@ -49,7 +51,8 @@
         "starvation_warnings": { "id": 55, "name": "Empire turns ending with an army under notice", "type": "int", "display": "limited" },
         "starvation_losses": { "id": 56, "name": "Empire turns in which troops starved", "type": "int", "display": "limited" },
         "empire_bot": { "id": 57, "name": "Empire bot (0 a person; else option 101 value + 1)", "type": "int", "display": "limited" },
-        "rebels_bot": { "id": 58, "name": "Rebel bot (0 a person; else option 102 value + 1)", "type": "int", "display": "limited" }
+        "rebels_bot": { "id": 58, "name": "Rebel bot (0 a person; else option 102 value + 1)", "type": "int", "display": "limited" },
+        "location_value": { "id": 59, "name": "Locations scored their value (option 103)", "type": "bool", "display": "limited" }
     },
 
     // Statistics for each player: none for now. See the note at the top.

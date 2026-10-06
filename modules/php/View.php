@@ -146,6 +146,7 @@ final class View
                 // Empire's networks itself rather than have them synced.
                 'supply' => $town['supply'],
                 'production' => $town['production'],
+                'value' => $town['value'],
             ];
         }
 

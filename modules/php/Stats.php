@@ -24,6 +24,7 @@ class Stats
         'rebels_points_battle', 'rebels_points_starvation',
         'troops_built', 'troops_lost_battle', 'troops_starved',
         'agents_placed', 'bluffs_placed',
+        'empire_points_locations', 'rebels_points_locations',
         'empire_tie_wins', 'empire_zero_wins', 'rebels_zero_wins',
         'empire_turns', 'empire_garrisons_total', 'largest_garrison',
         'lone_garrisons_lost', 'empire_resolutions', 'rebels_resolutions',
@@ -36,6 +37,7 @@ class Stats
     ];
     public const BOOLS = [
         'ended_by_deck', 'ended_by_board', 'ended_by_elimination', 'ended_by_agreement',
+        'location_value',
     ];
 
     /** How a game ended, as the codes `gameEnded` takes. */
@@ -54,13 +56,18 @@ class Stats
      * @param int $empireBot  0 for a person, else option 101's value + 1
      * @param int $rebelsBot  0 for a person, else option 102's value + 1
      */
-    public function setup(int $empireBot, int $rebelsBot): void
+    public function setup(int $empireBot, int $rebelsBot, bool $locationValue = false): void
     {
         $this->table->init(self::INTS, 0);
         $this->table->init(self::FLOATS, 0.0);
         $this->table->init(self::BOOLS, false);
         $this->table->set('empire_bot', $empireBot);
         $this->table->set('rebels_bot', $rebelsBot);
+        // Only ever set a bool to true: BGA's `set` turns false into '' in SQL
+        // and the table fails to create. `init` above has already made it false.
+        if ($locationValue) {
+            $this->table->set('location_value', true);
+        }
     }
 
     /**
@@ -77,6 +84,7 @@ class Stats
         int $points,
         int $troopsLost,
         array $cards,
+        int $locationPoints = 0,
     ): void {
         if ($declaredBy === Rules::EMPIRE) {
             $this->table->inc('empire_resolutions', 1);
@@ -89,6 +97,7 @@ class Stats
 
         if ($winner === Rules::EMPIRE) {
             $this->table->inc('empire_locations', 1);
+            $this->table->inc('empire_points_locations', $locationPoints);
             if ($points === 0) {
                 $this->table->inc('empire_zero_wins', 1);
             }
@@ -101,6 +110,7 @@ class Stats
         }
 
         $this->table->inc('rebels_locations', 1);
+        $this->table->inc('rebels_points_locations', $locationPoints);
         if ($points === 0) {
             $this->table->inc('rebels_zero_wins', 1);
         }

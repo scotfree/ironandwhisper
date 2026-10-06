@@ -506,6 +506,14 @@ cards spent on it were unrecallable anyway, so the exchange is a trade rather th
 end. Whether it is a trade worth playing is a table question. **Graded cards and troop
 presence above 1 (issue #2) stay the sanctioned levers**, because they are parameter edits.
 
+**Location value is an experiment behind game option 103** (2026-10-03, Decision 11 in
+`design.md`, plan on issue #1). With it on, the winner of a resolution also banks the
+location's `value` from `maps/` — 1 everywhere for now, deliberately separate from supply —
+symmetric, and the end-of-game sweep pays it too. Off is capture-only scoring exactly as
+before, and `scenarios/baseline.json` keeps `location_value: false`; simulate it with
+`--set location_value=true`. Rescoring old bot games says no Empire bot plays for ground,
+so a value-aware Monolith is the next instrument — as a *new* bot, keeping Monolith as is.
+
 **`design.md` carries the release plan and the deferred-ideas list.** *Path to Release* has
 one line per thing needed for alpha, beta and full release, each marked whether it was verified
 against the code and BGA's own docs or whether the authoritative answer is BGA's. *Next Steps*

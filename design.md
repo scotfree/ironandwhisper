@@ -273,6 +273,16 @@ The significant side effect: **face-up resolved piles make the finite deck count
 
 **Why:** with an empty board, an Empire first turn is nearly a null turn — nothing to look at, nowhere meaningful to move. Giving the Insurgency the opening seed also matches the theme: the insurgency has the initiative, the empire reacts.
 
+### 11. Location value — an experiment, behind game option 103 (2026-10-03)
+
+When the table scores locations, whoever wins a resolution also banks the location's **value**, on top of the presence it took. Symmetric: either side, the same value. Starvation is not conquest — a location the Empire stops garrisoning because its troops starved changes nobody's score. The end-of-game sweep resolves through the same code, so it pays the value too. Off by default (`location_value: false` in `scenarios/baseline.json`), which is capture-only scoring exactly as before; on BGA, game option 103 chooses per table.
+
+**Value and supply are separate fields in `maps/`**, so a rich-but-poor location stays possible — the same reason supply and production were made independent. In the interface they are meant to read as one number while they agree. They do not agree yet: every location has value 1 and supply 2, so for now the value is stated in the primer and on the resolution card rather than drawn on the board.
+
+**Why:** capture-only scoring made the game hinge on one pivot. A concentrated Empire that declines every contest holds the rebels' score near zero, and their only counterplay is denial (issue #1). Location value makes standing still cost ground. **Why 1 rather than supply (2):** presence scoring is so small in practice that any value dominates it — 12 points on the board at 1 against games that average under one point a side — so 1 is the gentler first step, not a way to keep presence primary.
+
+**Rescoring 500 existing bot games per pairing** with value added after the fact (nobody playing for it): Monolith against Mist goes from 34% / 41% / 25% (Empire / rebels / draw) to 1% / 99% / 0% at value 1, with locations 91% of all points. Mist already plays for ground — it takes 0-point wins for denial — and claims about 9 of 12 locations in 11 rounds, close to the one-resolution-per-turn cap; Monolith claims about 3. So the measurement says no Empire bot plays for territory, not that the Empire loses: a value-aware Empire bot is the next instrument. Draws all but vanish, which takes most of the urgency out of the tie-breaker. Reasoning and plan on issue #1.
+
 ---
 
 ## Implementation Notes

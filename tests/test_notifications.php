@@ -20,6 +20,8 @@
  */
 declare(strict_types=1);
 
+use Bga\Games\IronAndWhisper\Game;
+
 /** Notification names the PHP sends, from every `notify->all`/`notify->player`. */
 function serverNotifications(): array
 {
@@ -95,4 +97,50 @@ function test_no_handler_listens_for_a_notification_nobody_sends(): void
         array_values($orphans),
         'client handlers for notifications the server never sends: ' . implode(', ', $orphans),
     );
+}
+
+/** The body of one client handler, from `notif_<name>(` to the end of its method. */
+function clientHandlerBody(string $name): string
+{
+    foreach (glob(dirname(__DIR__) . '/src/ts/*.ts') as $file) {
+        if (preg_match('/notif_' . $name . '\s*\(.*?\n    }\n/s', file_get_contents($file), $match)) {
+            return $match[0];
+        }
+    }
+    return '';
+}
+
+function test_every_notification_that_scores_for_the_bot_moves_its_panel(): void
+{
+    // A person's score counter moves by itself; the bot's lives in a global the
+    // client keeps by hand. `troopsStarved` scored for the bot and forgot to
+    // move its panel, so a solo Empire saw the rebels' score stand still when
+    // it starved. Play solo games and collect every notification that actually
+    // scored for the bot, then require each handler to move the panel.
+    $scoring = [];
+    foreach ([Game::SIDES_FIRST_IS_EMPIRE, Game::SIDES_FIRST_IS_INSURGENCY] as $sides) {
+        for ($seed = 1; $seed <= 6; $seed++) {
+            $game = newSoloGame($sides, seed: $seed, botOption: Game::BOT_GLOB);
+            for ($guard = 0; $guard < 200; $guard++) {
+                if (enterNextTurn($game) === Bga\Games\IronAndWhisper\States\EndScore::class) {
+                    break;
+                }
+                $game->playBotTurn($game->toMove());
+            }
+            foreach ($game->bga->notify->sent as $sent) {
+                if (($sent['args']['player_id'] ?? null) === Game::BOT_PLAYER_ID
+                    && ($sent['args']['points'] ?? 0) > 0) {
+                    $scoring[$sent['name']] = true;
+                }
+            }
+        }
+    }
+
+    assertTrue(isset($scoring['townResolved']), 'no solo game scored a resolution for the bot — the search has rotted');
+    foreach (array_keys($scoring) as $name) {
+        assertTrue(
+            str_contains(clientHandlerBody($name), 'getScoreCounter(this.bot.id)'),
+            "notif_{$name} scores for the bot but never moves its score panel",
+        );
+    }
 }

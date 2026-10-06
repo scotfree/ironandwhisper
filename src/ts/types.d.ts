@@ -55,6 +55,8 @@ interface TownDef {
     supply: number;
     /** Troops it can build per turn, if the Empire stands there. */
     production: number;
+    /** Points to whoever wins it, when the table scores locations (option 103). */
+    value: number;
 }
 
 interface ScenarioView {
@@ -90,6 +92,8 @@ interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
     you: Side | null;
     sides: Record<string, Side>;
     scenario: ScenarioView;
+    /** Whether this table scores location value (game option 103). */
+    locationValue: boolean;
     towns: Record<string, TownView>;
     /** The Insurgency's hand. Null for the Empire — it is not entitled to it. */
     hand: CardView[] | null;

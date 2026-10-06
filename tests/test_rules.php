@@ -57,6 +57,34 @@ function rulesBoard(array $overrides = []): array
 
 // -- scoring ----------------------------------------------------------------
 
+function test_location_value_is_off_unless_the_table_scores_it(): void
+{
+    $towns = rulesBoard(['a' => ['troops' => 2]]);
+    $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true);
+    assertSame(0, $outcome['points'] + $outcome['locationPoints'], 'a walkover scores nothing by default');
+}
+
+function test_a_walkover_scores_the_location_when_locations_are_scored(): void
+{
+    $towns = rulesBoard(['a' => ['troops' => 2]]);
+    $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true, 1);
+    assertSame(0, $outcome['points']);
+    assertSame(1, $outcome['locationPoints'], 'issue #1: the town is worth its value even uncontested');
+}
+
+function test_location_value_is_symmetric_and_adds_to_presence(): void
+{
+    $towns = rulesBoard(['a' => ['troops' => 1, 'pile' => rulesPile(array_fill(0, 5, 'influence1'))]]);
+    $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true, 1);
+    assertSame(Rules::INSURGENCY, $outcome['winner']);
+    assertSame([3, 1], [$outcome['points'], $outcome['locationPoints']], 'the rebels bank both');
+
+    $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence1', 'influence1'])]]);
+    $outcome = Rules::resolveTown($towns, 'a', STRENGTH, true, 1);
+    assertSame(Rules::EMPIRE, $outcome['winner']);
+    assertSame([2, 1], [$outcome['points'], $outcome['locationPoints']], 'and so does the Empire');
+}
+
 function test_empire_wins_and_scores_the_presence_it_captured(): void
 {
     $towns = rulesBoard(['a' => ['troops' => 2, 'pile' => rulesPile(['influence1', 'influence1'])]]);

@@ -39,6 +39,7 @@ def setup(state, empire_bot: int = 0, rebels_bot: int = 0) -> None:
     state.stats = {name: _DEFAULTS[d["type"]] for name, d in definitions().items()}
     state.stats["empire_bot"] = empire_bot
     state.stats["rebels_bot"] = rebels_bot
+    state.stats["location_value"] = bool(state.scenario.location_value)
 
 
 def _inc(state, name: str, delta) -> None:
@@ -54,8 +55,12 @@ def _set(state, name: str, value) -> None:
 
 
 def resolution(state, declared_by, winner, card_presence: int, troop_presence: int,
-               points: int, troops_lost: int, cards) -> None:
-    """One location resolved, declared or in the end-of-game sweep."""
+               points: int, troops_lost: int, cards, location_points: int = 0) -> None:
+    """One location resolved, declared or in the end-of-game sweep.
+
+    `points` is the presence taken off the loser; `location_points` is the
+    town's own value, nonzero only when the table scores locations.
+    """
     from .engine import Side  # the engine imports this module
 
     if declared_by is Side.EMPIRE:
@@ -67,6 +72,7 @@ def resolution(state, declared_by, winner, card_presence: int, troop_presence: i
 
     if winner is Side.EMPIRE:
         _inc(state, "empire_locations", 1)
+        _inc(state, "empire_points_locations", location_points)
         if points == 0:
             _inc(state, "empire_zero_wins", 1)
         if card_presence > 0 and card_presence == troop_presence:
@@ -75,6 +81,7 @@ def resolution(state, declared_by, winner, card_presence: int, troop_presence: i
         return
 
     _inc(state, "rebels_locations", 1)
+    _inc(state, "rebels_points_locations", location_points)
     if points == 0:
         _inc(state, "rebels_zero_wins", 1)
     _inc(state, "rebels_points_battle", points)

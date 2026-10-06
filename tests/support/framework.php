@@ -178,6 +178,13 @@ namespace Bga\GameFramework {
         public function set(string $name, int|float|bool $value): void
         {
             $this->initialised($name);
+            // BGA writes the value into its SQL as a string, and PHP makes
+            // `false` into '', which MySQL refuses for the numeric column — so
+            // every table failed at setup. `init` copes with false; `set` does
+            // not. Only ever set a bool statistic to true.
+            if ($value === false) {
+                throw new \RuntimeException("statistic {$name} set to false: BGA fails on that; leave it at its init value");
+            }
             $this->values[$name] = $value;
         }
 
@@ -435,6 +442,28 @@ namespace Bga\GameFramework {
         public function getActivePlayerId(): string
         {
             return (string) $this->gamestate->activePlayerId;
+        }
+    }
+}
+
+namespace Bga\GameFramework\GameResult {
+
+    /**
+     * How a game's outcome is handed to BGA from its end state. Only the solo
+     * form is stubbed: a two-player game ranks itself from `player_score`.
+     */
+    class GameResult
+    {
+        private function __construct(
+            public readonly string $kind,
+            public readonly int $score,
+            public readonly bool $win,
+        ) {
+        }
+
+        public static function solo(int $score, bool $win): self
+        {
+            return new self('solo', $score, $win);
         }
     }
 }

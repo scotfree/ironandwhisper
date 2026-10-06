@@ -74,6 +74,18 @@ class Game extends \Bga\GameFramework\Table
     public const REBEL_HEURISTIC = 1;
     public const REBEL_MIST2 = 2;
 
+    /**
+     * Whether winning a resolution also scores the town's value (issue #1).
+     *
+     * Off is capture-only scoring, the game as it has always been; on, the
+     * winner of a resolution banks the town's value as well as the presence it
+     * took. An option rather than a rule change so both can be played side by
+     * side while the experiment runs. Absent, the scenario decides.
+     */
+    public const OPT_LOCATION_VALUE = 103;
+    public const LOCATION_VALUE_OFF = 0;
+    public const LOCATION_VALUE_ON = 1;
+
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
@@ -269,6 +281,50 @@ class Game extends \Bga\GameFramework\Table
         );
     }
 
+    /**
+     * Who won, by score: a side, or null for a level game.
+     *
+     * Needed because BGA ranks a game from `player_score` alone, and in a solo
+     * game only the person has a row — the bot's score is a global. Left to
+     * the framework, every solo game ended as a win for the person, whatever
+     * the bot had scored (table 974986: the Rebels won 14-12 and BGA reported
+     * the Empire). EndScore uses this to tell BGA the truth.
+     */
+    public function winningSide(): ?string
+    {
+        $empire = $this->scoreForSide(Rules::EMPIRE);
+        $rebels = $this->scoreForSide(Rules::INSURGENCY);
+        if ($empire === $rebels) {
+            return null;
+        }
+        return $empire > $rebels ? Rules::EMPIRE : Rules::INSURGENCY;
+    }
+
+    /**
+     * Say who won, with both scores, as the last line of the log. In a solo
+     * game this is also the only authoritative statement of the bot's score.
+     */
+    public function announceResult(): void
+    {
+        $winner = $this->winningSide();
+        $args = [
+            'empire_score' => $this->scoreForSide(Rules::EMPIRE),
+            'rebels_score' => $this->scoreForSide(Rules::INSURGENCY),
+            'winner' => $winner,
+            'bot_score' => $this->isSolo() ? $this->botScore() : null,
+        ];
+        if ($winner === null) {
+            $this->bga->notify->all('finalScore',
+                clienttranslate('Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — a draw'), $args);
+            return;
+        }
+        $this->bga->notify->all('finalScore',
+            $winner === Rules::EMPIRE
+                ? clienttranslate('Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — the Empire wins')
+                : clienttranslate('Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — the Rebels win'),
+            $args);
+    }
+
     public function addScore(int $playerId, int $points): void
     {
         if ($this->isBot($playerId)) {
@@ -384,13 +440,14 @@ class Game extends \Bga\GameFramework\Table
             $townId,
             $this->scenario->unitPresence(),
             $this->scenario->empireWinsTies,
+            $this->scoresLocations() ? (int) $this->scenario->towns[$townId]['value'] : 0,
         );
 
         $this->board->markResolved($townId, $outcome);
         $this->bga->globals->set(self::G_LAST_RESOLVED, $townId);
 
         $winnerPlayerId = $this->playerIdForSide($outcome['winner']);
-        $this->addScore($winnerPlayerId, $outcome['points']);
+        $this->addScore($winnerPlayerId, $outcome['points'] + $outcome['locationPoints']);
 
         $this->stats()->resolution(
             $this->round(),
@@ -401,11 +458,14 @@ class Game extends \Bga\GameFramework\Table
             $outcome['points'],
             $outcome['winner'] === Rules::EMPIRE ? 0 : (int) $town['troops'],
             array_merge($town['revealed'], $town['pile']),
+            $outcome['locationPoints'],
         );
 
         $this->bga->notify->all(
             'townResolved',
-            clienttranslate('T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}'),
+            $outcome['locationPoints'] > 0
+                ? clienttranslate('T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location')
+                : clienttranslate('T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire\'s ${troopPresence} — ${player_name} takes it for ${points}'),
             [
                 'turn' => $this->round(),
                 'town_id' => $townId,
@@ -414,6 +474,7 @@ class Game extends \Bga\GameFramework\Table
                 'cardPresence' => $outcome['cardPresence'],
                 'troopPresence' => $outcome['troopPresence'],
                 'points' => $outcome['points'],
+                'locationPoints' => $outcome['locationPoints'],
                 'winner' => $outcome['winner'],
                 'declaredBy' => $declaredBy,
                 'player_id' => $winnerPlayerId,
@@ -885,6 +946,16 @@ class Game extends \Bga\GameFramework\Table
         );
     }
 
+    /** Whether this table scores location value, from game option 103 or else the scenario. */
+    public function scoresLocations(): bool
+    {
+        $option = $this->bga->tableOptions->get(self::OPT_LOCATION_VALUE);
+        if ($option === null) {
+            return $this->scenario->locationValue;
+        }
+        return (int) $option === self::LOCATION_VALUE_ON;
+    }
+
     /** Which Empire bot this table chose, from game option 101. */
     private function empireBot(): int
     {
@@ -932,6 +1003,9 @@ class Game extends \Bga\GameFramework\Table
         ] : null;
 
         $result['lastResolved'] = (string) $this->bga->globals->get(self::G_LAST_RESOLVED, '');
+        // Per table rather than per scenario, so it rides beside the scenario
+        // rather than inside it.
+        $result['locationValue'] = $this->scoresLocations();
 
         return $result;
     }
@@ -982,6 +1056,7 @@ class Game extends \Bga\GameFramework\Table
         $this->stats()->setup(
             $botSide === Rules::EMPIRE ? $this->empireBot() + 1 : 0,
             $botSide === Rules::INSURGENCY ? $this->insurgencyBot() + 1 : 0,
+            $this->scoresLocations(),
         );
 
         // Seat order does not decide who starts: the scenario does, and NextTurn

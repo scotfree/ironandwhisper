@@ -30,21 +30,31 @@ def test_a_planning_copy_counts_nothing():
     assert state.clone().stats == {}
 
 
-GAMES = [(empire, rebels, seed)
+GAMES = [(empire, rebels, seed, location_value)
          for empire in (ImperialMonolithBot, GlobEmpire)
          for rebels in (Mist2Insurgency, HeuristicInsurgency)
-         for seed in range(5)]
+         for seed in range(5)
+         for location_value in (False, True)]
 
 
-@pytest.mark.parametrize("empire,rebels,seed", GAMES)
-def test_whole_games_satisfy_the_identities_the_definitions_imply(empire, rebels, seed):
-    scenario = load_scenario("baseline")
+@pytest.mark.parametrize("empire,rebels,seed,location_value", GAMES)
+def test_whole_games_satisfy_the_identities_the_definitions_imply(empire, rebels, seed, location_value):
+    scenario = load_scenario("baseline", location_value=location_value)
     state = play_game(scenario, empire(), rebels(random.Random(seed)), random.Random(seed))
     s = state.stats
 
     assert s["empire_score"] == state.scores[Side.EMPIRE]
     assert s["rebels_score"] == state.scores[Side.INSURGENCY]
-    assert s["rebels_score"] == s["rebels_points_battle"] + s["rebels_points_starvation"]
+    assert s["rebels_score"] == (s["rebels_points_battle"] + s["rebels_points_starvation"]
+                                 + s["rebels_points_locations"])
+    assert s["location_value"] == location_value
+    if location_value:
+        value = scenario.town_value
+        won = {side: [t for t in state.towns.values() if t.winner is side] for side in Side}
+        assert s["empire_points_locations"] == sum(value[t.id] for t in won[Side.EMPIRE])
+        assert s["rebels_points_locations"] == sum(value[t.id] for t in won[Side.INSURGENCY])
+    else:
+        assert s["empire_points_locations"] == s["rebels_points_locations"] == 0
     assert s["troops_starved"] * scenario.unit.presence == s["rebels_points_starvation"]
     assert s["troops_lost_battle"] * scenario.unit.presence == s["rebels_points_battle"]
     assert s["empire_locations"] + s["rebels_locations"] + s["open_locations"] == len(state.towns)

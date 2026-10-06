@@ -8,6 +8,8 @@
  */
 declare(strict_types=1);
 
+use Bga\GameFramework\GameResult\GameResult;
+
 use Bga\GameFramework\UserException;
 use Bga\Games\IronAndWhisper\Game;
 use Bga\Games\IronAndWhisper\Rules;
@@ -414,6 +416,84 @@ function test_the_winner_keeps_its_commitment_and_takes_the_losers(): void
         $game->bga->playerScore->get($empire),
         'the Empire banks the presence it suppressed, nothing more',
     );
+}
+
+function test_with_option_103_the_winner_also_banks_the_location(): void
+{
+    // Issue #1. Same resolution as above, with the table scoring locations:
+    // the Empire banks the presence it suppressed and Everlan's value besides,
+    // and the notification reports the two apart.
+    $game = newGame(locationValue: Game::LOCATION_VALUE_ON);
+    enterNextTurn($game);
+    $hand = $game->board->handCardIds();
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+
+    insurgencyTurn($game)->actCommitTurn(['everlan' => array_slice($hand, 0, 2), 'belmar' => array_slice($hand, 2)], '0', $insurgency);
+    enterNextTurn($game);
+    $game->bga->notify->clear();
+    resolvePhase($game)->actResolve('everlan');
+
+    $value = $game->scenario->towns['everlan']['value'];
+    $args = $game->bga->notify->of('townResolved')[0]['args'];
+    assertSame($value, $args['locationPoints']);
+    assertSame(
+        $game->board->towns()['everlan']['resolvedCardPresence'] + $value,
+        $game->bga->playerScore->get($empire),
+        'presence and the location',
+    );
+    assertSame(true, datasFor($game, $empire)['locationValue'], 'the client is told');
+}
+
+function test_without_option_103_the_scenario_decides(): void
+{
+    $game = newGame();
+    unset($game->bga->tableOptions->values[Game::OPT_LOCATION_VALUE]);
+    assertSame($game->scenario->locationValue, $game->scoresLocations(), 'a table from before the option existed');
+}
+
+// -- the result ----------------------------------------------------------------
+
+/** A solo game with the person on the Empire, scores set by hand, ended. */
+function endSoloGame(int $empire, int $rebels): array
+{
+    $game = newSoloGame(Game::SIDES_FIRST_IS_EMPIRE);
+    $game->bga->playerScore->inc(P_ONE, $empire);
+    $game->bga->globals->inc(Game::G_BOT_SCORE, $rebels);
+    $result = (new EndScore($game))->onEnteringState();
+    return [$game, $result];
+}
+
+function test_a_solo_game_the_bot_wins_is_reported_as_a_loss(): void
+{
+    // Table 974986: the Rebels bot won 14-12, and BGA, seeing one player row,
+    // called it a win for the person.
+    [$game, $result] = endSoloGame(12, 14);
+    assertTrue($result instanceof GameResult, 'a solo game hands BGA its result explicitly');
+    assertSame(false, $result->win);
+    assertSame(12, $result->score, 'the person keeps their real score');
+    assertSame(Rules::INSURGENCY, $game->bga->notify->of('finalScore')[0]['args']['winner']);
+}
+
+function test_a_solo_game_the_person_wins_is_reported_as_a_win(): void
+{
+    [, $result] = endSoloGame(14, 12);
+    assertSame(true, $result->win);
+}
+
+function test_a_level_solo_game_is_not_a_win(): void
+{
+    [$game, $result] = endSoloGame(9, 9);
+    assertSame(false, $result->win, 'no tie-breaker yet, so level is not a win');
+    assertSame(null, $game->bga->notify->of('finalScore')[0]['args']['winner']);
+}
+
+function test_a_two_player_game_still_ranks_itself(): void
+{
+    $game = newGame();
+    $result = (new EndScore($game))->onEnteringState();
+    assertSame(99, $result, 'player_score decides, as before');
+    assertSame(1, count($game->bga->notify->of('finalScore')), 'and the log still says who won');
 }
 
 // -- agreeing to end ---------------------------------------------------------

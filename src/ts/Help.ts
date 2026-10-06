@@ -1,6 +1,6 @@
 import { BoardView } from "./BoardView";
 import { presenceHtml } from "./presence";
-import { primerEmpire, primerRebels } from "./primers.generated";
+import { primerEmpire, primerLocations, primerRebels } from "./primers.generated";
 
 /**
  * The player's manual, served from the game's own folder.
@@ -44,6 +44,8 @@ export class Help {
     constructor(
         private scenario: ScenarioView,
         private board: BoardView,
+        /** Game option 103: whether winning a location scores its value. */
+        private locationValue: boolean = false,
     ) {
     }
 
@@ -190,6 +192,7 @@ export class Help {
         cardPresence: number;
         troopPresence: number;
         points: number;
+        locationPoints: number;
     }, onDismiss: () => void): void {
         document.getElementById('iaw-resolution')?.remove();
 
@@ -198,9 +201,17 @@ export class Help {
         const won = rebels
             ? _('The Rebels won ${town}').replace('${town}', label)
             : _('The Empire won ${town}').replace('${town}', label);
-        const scored = this.withIcons(result.points > 0
-            ? _('and scored ${points} ${presence} presence').replace('${points}', String(result.points))
-            : _('and scored nothing: there is no prize for a ${town} location nobody contested'));
+        // With location value (option 103) a walkover is worth something, so the
+        // line about there being no prize only applies to capture-only scoring.
+        const scored = this.withIcons(result.locationPoints > 0
+            ? (result.points > 0
+                ? _('and scored ${points} ${presence} presence and ${value} for the ${town} location')
+                : _('and scored ${value} for the ${town} location'))
+                .replace('${points}', String(result.points))
+                .replace('${value}', String(result.locationPoints))
+            : result.points > 0
+                ? _('and scored ${points} ${presence} presence').replace('${points}', String(result.points))
+                : _('and scored nothing: there is no prize for a ${town} location nobody contested'));
 
         const overlay = document.createElement('div');
         overlay.id = 'iaw-resolution';
@@ -396,9 +407,10 @@ export class Help {
         // prose file; `*.md` is excluded from the deploy, so it is compiled in
         // rather than fetched, and the generated form keeps the literal inside
         // `_()` so BGA can still translate it.
-        const summary = this.withIcons(rebel
+        const summary = this.withIcons((rebel
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
-            : primerEmpire());
+            : primerEmpire())
+            + (this.locationValue ? primerLocations() : ''));
 
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">

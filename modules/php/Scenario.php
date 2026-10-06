@@ -39,6 +39,7 @@ final class Scenario
         public readonly array $empireStart,
         public readonly string $firstPlayer,
         public readonly bool $empireWinsTies,
+        public readonly bool $locationValue,
     ) {
     }
 
@@ -67,6 +68,9 @@ final class Scenario
                 // town can be a depot, a rich one can build nothing.
                 'supply' => (int) ($town['supply'] ?? 1),
                 'production' => (int) ($town['production'] ?? 0),
+                // Points to whoever wins the town, when locations are scored.
+                // Separate from supply so the two can differ on a later map.
+                'value' => (int) ($town['value'] ?? 1),
                 'neighbors' => [],
             ];
         }
@@ -122,6 +126,7 @@ final class Scenario
             empireStart: array_map('intval', $scenario['empire_start']),
             firstPlayer: $scenario['first_player'],
             empireWinsTies: (bool) $scenario['empire_wins_ties'],
+            locationValue: (bool) ($scenario['location_value'] ?? false),
         );
     }
 

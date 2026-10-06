@@ -95,5 +95,26 @@
         "value": 1
       }
     ]
+  },
+
+  // Whether winning a resolution also scores the location itself (issue #1).
+  // Capture-only scoring is the default and the game as it has always been;
+  // location value is the experiment, offered beside it so both can be played.
+  // Applies to every table, solo or not.
+  "103": {
+    "name": "Scoring",
+    "values": {
+      "0": {
+        "name": "Presence only",
+        "description": "Winning a location scores the presence taken off the other side, and nothing more."
+      },
+      "1": {
+        "name": "Presence and locations",
+        "description": "Winning a location also scores its value: 1 point each, to either side.",
+        "tmdisplay": "Locations score",
+        "nobeginner": true
+      }
+    },
+    "default": 0
   }
 }

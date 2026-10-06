@@ -255,17 +255,19 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     else:
         winner = Side.EMPIRE if state.scenario.empire_wins_ties else Side.INSURGENCY
 
-    # You score only what you take off the opponent.
-    if winner is Side.EMPIRE:
-        state.scores[Side.EMPIRE] += card_presence
-    else:
-        state.scores[Side.INSURGENCY] += troop_presence
+    # You score what you take off the opponent, and, when the scenario scores
+    # locations, the town itself. Symmetric: either side, the same value. The
+    # end-of-game sweep comes through here too, so it pays the value as well.
+    points = card_presence if winner is Side.EMPIRE else troop_presence
+    location_points = (
+        state.scenario.town_value[town_id] if state.scenario.location_value else 0
+    )
+    state.scores[winner] += points + location_points
 
     stats.resolution(
         state, declared_by, winner, card_presence, troop_presence,
-        card_presence if winner is Side.EMPIRE else troop_presence,
-        0 if winner is Side.EMPIRE else town.troops,
-        list(town.cards),
+        points, 0 if winner is Side.EMPIRE else town.troops,
+        list(town.cards), location_points,
     )
 
     town.resolved = True
@@ -289,8 +291,8 @@ def resolve_town(state: GameState, town_id: str, declared_by: Side | None) -> Si
     state.log.append(
         f"R{state.round_number}: {town.label} resolved ({who}) — "
         f"rebels {card_presence} presence, Empire {troop_presence} presence — "
-        f"{winner.value} takes it, "
-        f"scoring {card_presence if winner is Side.EMPIRE else troop_presence}"
+        f"{winner.value} takes it, scoring {points}"
+        + (f" + {location_points} for the location" if location_points else "")
     )
     return winner
 

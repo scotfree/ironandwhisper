@@ -47,6 +47,12 @@ class TownDef:
     supply: int = 1
     production: int = 0
 
+    # Points to whoever wins the town's resolution, when the scenario scores
+    # locations at all. Separate from supply in the config so a rich-but-poor
+    # town stays possible; the client shows the two as one number while they
+    # agree.
+    value: int = 1
+
 
 @dataclass(frozen=True)
 class GameMap:
@@ -110,6 +116,12 @@ class Scenario:
     first_player: "Side"  # noqa: F821 - avoids a circular import at module load
     empire_wins_ties: bool
 
+    # Whether winning a resolution also scores the town's value, on top of the
+    # presence taken off the opponent. False is capture-only scoring, the game
+    # as it was before issue #1 was unparked. On BGA, game option 103 overrides
+    # it per table.
+    location_value: bool = False
+
     # Whether resolution spends the troops committed to it. True is the real
     # rule; False exists so the notebook can reproduce the experiment that
     # established why it has to be True. See Decision 3 in the design doc.
@@ -157,6 +169,10 @@ class Scenario:
     @cached_property
     def town_production(self) -> dict[str, int]:
         return {t.id: t.production for t in self.map.towns}
+
+    @cached_property
+    def town_value(self) -> dict[str, int]:
+        return {t.id: t.value for t in self.map.towns}
 
     @property
     def map_supply(self) -> int:
@@ -215,7 +231,8 @@ def load_map(map_id: str) -> GameMap:
     raw = _load_json(MAPS_DIR / f"{map_id}.json")
     towns = tuple(
         TownDef(id=t["id"], label=t["label"], x=t["x"], y=t["y"],
-                supply=t.get("supply", 1), production=t.get("production", 0))
+                supply=t.get("supply", 1), production=t.get("production", 0),
+                value=t.get("value", 1))
         for t in raw["towns"]
     )
     known = {t.id for t in towns}
@@ -253,6 +270,7 @@ def load_scenario(scenario_id: str, **overrides) -> Scenario:
         empire_start=dict(raw["empire_start"]),
         first_player=Side(raw["first_player"]),
         empire_wins_ties=raw["empire_wins_ties"],
+        location_value=raw.get("location_value", False),
     )
 
     for key, value in overrides.items():

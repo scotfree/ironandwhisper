@@ -10,6 +10,7 @@ Run with:  sim/.venv/bin/python -m pytest sim -q
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 
 import pytest
 
@@ -124,6 +125,46 @@ def test_walkover_scores_nothing():
     st.towns["a"].troops = 5
     assert resolve_town(st, "a", Side.EMPIRE) is Side.EMPIRE
     assert st.scores[Side.EMPIRE] == 0
+
+
+def test_location_value_is_off_unless_the_scenario_scores_it():
+    """Issue #1: capture-only scoring stays the default; 0 reproduces today's game."""
+    st = state()
+    st.towns["a"].troops = 5
+    resolve_town(st, "a", Side.EMPIRE)
+    assert st.scores[Side.EMPIRE] == 0
+
+
+def test_a_walkover_scores_the_location_when_locations_are_scored():
+    """Issue #1: a town is worth its value to whoever wins it, even uncontested."""
+    st = state(location_value=True)
+    st.towns["a"].troops = 5
+    resolve_town(st, "a", Side.EMPIRE)
+    assert st.scores[Side.EMPIRE] == 1
+
+
+def test_location_value_is_symmetric_and_adds_to_presence():
+    """Issue #1: either side scores the same value, on top of what it captured."""
+    st = state(location_value=True)
+    st.towns["a"].troops = 2          # presence 6
+    seed_pile(st, "a", presence=7)
+    resolve_town(st, "a", Side.INSURGENCY)
+    assert st.scores[Side.INSURGENCY] == 6 + 1
+
+    st = state(location_value=True)
+    st.towns["a"].troops = 2
+    seed_pile(st, "a", presence=4)
+    resolve_town(st, "a", Side.EMPIRE)
+    assert st.scores[Side.EMPIRE] == 4 + 1
+
+
+def test_location_value_comes_from_the_map_not_from_supply():
+    """Issue #1: value and supply are separate fields, so they can differ."""
+    rich = tuple(replace(t, value=3) if t.id == "b" else t for t in line_map(supply=2).towns)
+    st = state(location_value=True, map=replace(line_map(supply=2), towns=rich))
+    seed_pile(st, "b", presence=1)
+    resolve_town(st, "b", Side.INSURGENCY)
+    assert st.scores[Side.INSURGENCY] == 3
 
 
 def test_empire_wins_ties():

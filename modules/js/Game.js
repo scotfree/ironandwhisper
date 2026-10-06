@@ -1653,6 +1653,8 @@ class Resolve {
  */
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
 const primerEmpire = () => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
+/** From `src/text/primer-locations.md`. Edit that file, not this one. */
+const primerLocations = () => _('<p><b>Locations score at this table.</b> Winning a ${town} location also scores its value — 1 point, for either side, even if nobody contested it.</p>');
 /** From `src/text/primer-rebels.md`. Edit that file, not this one. */
 const primerRebels = () => _('<p>You place <b>${hand} hidden ${agent} agents</b> on ${town} locations each turn — some are decoys, some carry real ${presence} presence, and you must place your whole hand. When you think a ${town} location\'s ${agent} cards overpower its ${troop} garrison, <b>resolve</b> it and find out: you score the ${presence} presence you drive out, if you win.</p><p><b>The Empire wins ties.</b> You have to <i>beat</i> a ${troop} garrison, not match it.</p>');
 
@@ -1690,9 +1692,12 @@ const rulesUrl = () => `${g_gamethemeurl}rules.html`;
  */
 const ICON_NAMES = ['troop', 'town', 'city', 'agent', 'presence'];
 class Help {
-    constructor(scenario, board) {
+    constructor(scenario, board, 
+    /** Game option 103: whether winning a location scores its value. */
+    locationValue = false) {
         this.scenario = scenario;
         this.board = board;
+        this.locationValue = locationValue;
         this.dialog = null;
     }
     /**
@@ -1827,9 +1832,17 @@ class Help {
         const won = rebels
             ? _('The Rebels won ${town}').replace('${town}', label)
             : _('The Empire won ${town}').replace('${town}', label);
-        const scored = this.withIcons(result.points > 0
-            ? _('and scored ${points} ${presence} presence').replace('${points}', String(result.points))
-            : _('and scored nothing: there is no prize for a ${town} location nobody contested'));
+        // With location value (option 103) a walkover is worth something, so the
+        // line about there being no prize only applies to capture-only scoring.
+        const scored = this.withIcons(result.locationPoints > 0
+            ? (result.points > 0
+                ? _('and scored ${points} ${presence} presence and ${value} for the ${town} location')
+                : _('and scored ${value} for the ${town} location'))
+                .replace('${points}', String(result.points))
+                .replace('${value}', String(result.locationPoints))
+            : result.points > 0
+                ? _('and scored ${points} ${presence} presence').replace('${points}', String(result.points))
+                : _('and scored nothing: there is no prize for a ${town} location nobody contested'));
         const overlay = document.createElement('div');
         overlay.id = 'iaw-resolution';
         overlay.innerHTML = `
@@ -2006,9 +2019,10 @@ class Help {
         // prose file; `*.md` is excluded from the deploy, so it is compiled in
         // rather than fetched, and the generated form keeps the literal inside
         // `_()` so BGA can still translate it.
-        const summary = this.withIcons(rebel
+        const summary = this.withIcons((rebel
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
-            : primerEmpire());
+            : primerEmpire())
+            + (this.locationValue ? primerLocations() : ''));
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
                 <div class="iaw-frame-title">${title}</div>
@@ -2172,7 +2186,7 @@ class Game {
                 <div class="iaw-player-side">${sideLabel(this.bot.side)}</div>
             `);
         }
-        this.help = new Help(gamedatas.scenario, this.board);
+        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false);
         this.help.install();
         this.renderPrimer();
         // The same reminder, blown up and shown once at the start of the game:
@@ -2617,7 +2631,7 @@ class Game {
         // A real player's score is kept by the framework's counter, which
         // updates itself. The bot's is ours to move.
         if (this.bot && args.player_id === this.bot.id) {
-            this.bot.score += args.points;
+            this.bot.score += args.points + args.locationPoints;
             this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
         }
         const town = this.board.getTown(args.town_id);
@@ -2647,6 +2661,7 @@ class Game {
             cardPresence: args.cardPresence,
             troopPresence: args.troopPresence,
             points: args.points,
+            locationPoints: args.locationPoints,
         }, () => this.board.setResolving(null));
     }
     /**
@@ -2660,6 +2675,13 @@ class Game {
      * was not there.
      */
     async notif_troopsStarved(args) {
+        // Starved troops score for the rebels. A person's counter moves by
+        // itself; the bot's is ours to move, and this handler used to forget,
+        // so a solo Empire saw the rebels' score stand still when it starved.
+        if (this.bot && args.player_id === this.bot.id) {
+            this.bot.score += args.points;
+            this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
+        }
         Object.entries(args.troops ?? {}).forEach(([townId, troops]) => {
             this.board.getTown(townId).troops = troops;
             this.board.updateTown(townId);
@@ -2691,6 +2713,17 @@ class Game {
     }
     async notif_gameEnding(args) {
         this.board.clearInteraction();
+    }
+    /**
+     * The result, with both scores. The message is the point; the bot's score
+     * rides along so its panel ends on the authoritative number even if an
+     * earlier notification was missed.
+     */
+    async notif_finalScore(args) {
+        if (this.bot && args.bot_score !== null) {
+            this.bot.score = args.bot_score;
+            this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
+        }
     }
 }
 

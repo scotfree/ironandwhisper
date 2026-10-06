@@ -479,13 +479,17 @@ final class Rules
     /**
      * Who takes a town, and what the winner scores.
      *
-     * You score only what you take off the opponent: the Empire banks the
-     * presence it suppressed, the Insurgency banks the presence it absorbed.
-     * The Empire wins ties (Decision 7).
+     * You score what you take off the opponent: the Empire banks the presence
+     * it suppressed, the Insurgency banks the presence it absorbed. When the
+     * table scores locations, the winner also banks the town's value — either
+     * side, the same value (issue #1). The Empire wins ties (Decision 7).
      *
-     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int}
+     * `points` is the presence alone and `locationPoints` the value alone, so
+     * the two can be reported and counted apart.
+     *
+     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int, locationPoints: int}
      */
-    public static function resolutionOutcome(int $cardPresence, int $troopPresence, bool $empireWinsTies): array
+    public static function resolutionOutcome(int $cardPresence, int $troopPresence, bool $empireWinsTies, int $locationValue = 0): array
     {
         if ($troopPresence > $cardPresence) {
             $winner = self::EMPIRE;
@@ -500,6 +504,7 @@ final class Rules
             'cardPresence' => $cardPresence,
             'troopPresence' => $troopPresence,
             'points' => $winner === self::EMPIRE ? $cardPresence : $troopPresence,
+            'locationPoints' => $locationValue,
         ];
     }
 
@@ -507,9 +512,10 @@ final class Rules
      * Resolution outcome for one town on the given board.
      *
      * @param array<string, array> $towns
-     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int}
+     * @param int $locationValue the town's value, or 0 when locations are not scored
+     * @return array{winner: string, cardPresence: int, troopPresence: int, points: int, locationPoints: int}
      */
-    public static function resolveTown(array $towns, string $townId, int $unitPresence, bool $empireWinsTies): array
+    public static function resolveTown(array $towns, string $townId, int $unitPresence, bool $empireWinsTies, int $locationValue = 0): array
     {
         if (!isset($towns[$townId])) {
             throw new IllegalMove("unknown town {$townId}");
@@ -522,6 +528,7 @@ final class Rules
             self::cardPresence($towns[$townId]),
             self::troopPresence((int) $towns[$townId]['troops'], $unitPresence),
             $empireWinsTies,
+            $locationValue,
         );
     }
 

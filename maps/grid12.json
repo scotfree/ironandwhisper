@@ -9,7 +9,8 @@
       "x": 0,
       "y": 0,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "belmar",
@@ -17,7 +18,8 @@
       "x": 1,
       "y": 0,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "coldwater",
@@ -25,7 +27,8 @@
       "x": 2,
       "y": 0,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "draymoor",
@@ -33,7 +36,8 @@
       "x": 0,
       "y": 1,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "everlan",
@@ -41,7 +45,8 @@
       "x": 1,
       "y": 1,
       "supply": 2,
-      "production": 1
+      "production": 1,
+      "value": 1
     },
     {
       "id": "fenn",
@@ -49,7 +54,8 @@
       "x": 2,
       "y": 1,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "gallow",
@@ -57,7 +63,8 @@
       "x": 0,
       "y": 2,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "harrow",
@@ -65,7 +72,8 @@
       "x": 1,
       "y": 2,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "ilmen",
@@ -73,7 +81,8 @@
       "x": 2,
       "y": 2,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "joss",
@@ -81,7 +90,8 @@
       "x": 0,
       "y": 3,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     },
     {
       "id": "kirn",
@@ -89,7 +99,8 @@
       "x": 1,
       "y": 3,
       "supply": 2,
-      "production": 1
+      "production": 1,
+      "value": 1
     },
     {
       "id": "larrow",
@@ -97,7 +108,8 @@
       "x": 2,
       "y": 3,
       "supply": 2,
-      "production": 0
+      "production": 0,
+      "value": 1
     }
   ],
   "edges": [

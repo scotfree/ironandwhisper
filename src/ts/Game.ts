@@ -144,7 +144,7 @@ export class Game {
             `);
         }
 
-        this.help = new Help(gamedatas.scenario, this.board);
+        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false);
         this.help.install();
         this.renderPrimer();
 
@@ -651,6 +651,7 @@ export class Game {
         cardPresence: number;
         troopPresence: number;
         points: number;
+        locationPoints: number;
         player_id: number;
         pile: CardView[];
         troopsLost: number;
@@ -658,7 +659,7 @@ export class Game {
         // A real player's score is kept by the framework's counter, which
         // updates itself. The bot's is ours to move.
         if (this.bot && args.player_id === this.bot.id) {
-            this.bot.score += args.points;
+            this.bot.score += args.points + args.locationPoints;
             this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
         }
 
@@ -690,6 +691,7 @@ export class Game {
             cardPresence: args.cardPresence,
             troopPresence: args.troopPresence,
             points: args.points,
+            locationPoints: args.locationPoints,
         }, () => this.board.setResolving(null));
     }
 
@@ -703,7 +705,14 @@ export class Game {
      * Anyone planning a resolution in that window was reading a garrison that
      * was not there.
      */
-    async notif_troopsStarved(args: { troops: Record<string, number> }) {
+    async notif_troopsStarved(args: { troops: Record<string, number>; points: number; player_id: number }) {
+        // Starved troops score for the rebels. A person's counter moves by
+        // itself; the bot's is ours to move, and this handler used to forget,
+        // so a solo Empire saw the rebels' score stand still when it starved.
+        if (this.bot && args.player_id === this.bot.id) {
+            this.bot.score += args.points;
+            this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
+        }
         Object.entries(args.troops ?? {}).forEach(([townId, troops]) => {
             this.board.getTown(townId).troops = troops;
             this.board.updateTown(townId);
@@ -739,5 +748,17 @@ export class Game {
 
     async notif_gameEnding(args: { reason: string }) {
         this.board.clearInteraction();
+    }
+
+    /**
+     * The result, with both scores. The message is the point; the bot's score
+     * rides along so its panel ends on the authoritative number even if an
+     * earlier notification was missed.
+     */
+    async notif_finalScore(args: { bot_score: number | null }) {
+        if (this.bot && args.bot_score !== null) {
+            this.bot.score = args.bot_score;
+            this.bga.playerPanels.getScoreCounter(this.bot.id)?.setValue(this.bot.score);
+        }
     }
 }

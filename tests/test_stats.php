@@ -46,8 +46,10 @@ function test_every_statistic_has_its_own_id(): void
 function test_whole_games_satisfy_the_identities_the_definitions_imply(): void
 {
     foreach ([Game::BOT_MONOLITH, Game::BOT_GLOB] as $bot) {
+      foreach ([Game::LOCATION_VALUE_OFF, Game::LOCATION_VALUE_ON] as $locations) {
         for ($seed = 1; $seed <= 5; $seed++) {
-            $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, botOption: $bot, rebelOption: Game::REBEL_MIST2);
+            $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, botOption: $bot,
+                rebelOption: Game::REBEL_MIST2, locationValue: $locations);
             for ($guard = 0; $guard < 200; $guard++) {
                 if (enterNextTurn($game) === EndScore::class) {
                     break;
@@ -55,11 +57,22 @@ function test_whole_games_satisfy_the_identities_the_definitions_imply(): void
                 $game->playBotTurn($game->toMove());
             }
             $s = $game->bga->tableStats->values;
-            $label = "bot {$bot} seed {$seed}";
+            $label = "bot {$bot} seed {$seed} locations {$locations}";
 
             assertSame($game->scoreForSide(Rules::EMPIRE), $s['empire_score'], $label);
             assertSame($game->scoreForSide(Rules::INSURGENCY), $s['rebels_score'], $label);
-            assertSame($s['rebels_score'], $s['rebels_points_battle'] + $s['rebels_points_starvation'], $label);
+            assertSame($s['rebels_score'], $s['rebels_points_battle'] + $s['rebels_points_starvation']
+                + $s['rebels_points_locations'], $label);
+            assertSame($locations === Game::LOCATION_VALUE_ON, $s['location_value'], $label);
+            $won = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
+            foreach ($game->board->towns() as $townId => $town) {
+                if ($town['resolved']) {
+                    $won[$town['winner']] += $game->scenario->towns[$townId]['value'];
+                }
+            }
+            $scored = $locations === Game::LOCATION_VALUE_ON;
+            assertSame($scored ? $won[Rules::EMPIRE] : 0, $s['empire_points_locations'], $label);
+            assertSame($scored ? $won[Rules::INSURGENCY] : 0, $s['rebels_points_locations'], $label);
             assertSame(count($game->board->towns()),
                 $s['empire_locations'] + $s['rebels_locations'] + $s['open_locations'], $label);
             assertSame(1, (int) $s['ended_by_deck'] + (int) $s['ended_by_board']
@@ -68,6 +81,7 @@ function test_whole_games_satisfy_the_identities_the_definitions_imply(): void
             assertTrue($s['starvation_losses'] <= $s['starvation_warnings'], $label);
             assertSame($game->round(), $s['rounds_played'], $label);
         }
+      }
     }
 }
 
