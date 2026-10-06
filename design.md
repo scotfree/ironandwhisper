@@ -336,14 +336,30 @@ page endorses, "really efficient for icons or abstract images". **[verified]**
 
 ### Beta — visible to every BGA member
 
-- **The game has to be published.** BGA will not take an unpublished prototype past private
-  alpha; for a self-designed game that means self-publishing, and print-and-play is the
-  lightest form of it — `rules.html` is already written for physical components, so what is
-  missing is the printable component sheets. **[ask BGA]**
-- **A BGG entry**, which follows from publication rather than preceding it, since BGG's
-  criterion is public availability. **[ask BGA]**
-- **Confirm what evidence of publication BGA wants**, in one message to the developer forum —
-  the same place that settled the display-name question. **[ask BGA]**
+**Nothing external gates private alpha.** BGA's [license page](https://en.doc.boardgamearena.com/BGA_Game_licenses)
+lets "prototypes, self-published, print-n-play" games into private alpha — playable by invited
+friends — and no further. Everything below is what it takes to go *public*. **[verified]**
+
+- **The game has to be published, in BGA's words "can be bought somewhere, or will be in a
+  near future."** *Corrected 2026-10-06:* this used to say print-and-play was the lightest
+  form of publication. The same license page names print-n-play alongside prototypes as games
+  that stop at private alpha, so it is probably not enough. A **print-on-demand storefront**
+  (The Game Crafter, MakePlayingCards and the like), where anyone can order a copy, fits the
+  wording far better — and it needs the same files a print-and-play would: the board, three
+  card images, tokens, `rules.html` printed. An older
+  [forum thread](https://forum.boardgamearena.com/viewtopic.php?t=12409) says self-published
+  and crowdfunded games can qualify if the design is final, so the two sources disagree.
+  **[ask BGA]**
+- **The publisher approves the implementation during alpha**, and BGA must hold a license for
+  the game. For an own design the publisher is the designer; what that licence looks like and
+  when it is signed is not documented. **[ask BGA]**
+- **The design has to be finished.** The forum's condition is "100% done". Options 103 and 104
+  are live experiments, which is what private alpha is for — but the rules have to settle on
+  one configuration before asking to go public.
+- **A BGG entry.** Not a BGA requirement in its own docs; supporting evidence of publication,
+  and BGG lists self-published games.
+- **One message to the developer forum** settles the three **[ask BGA]** items above — the same
+  place that settled the display-name question.
 - **Balance that survives strangers.** Every figure in this document was measured against a
   bot, and four of five logged human games ended with the rebels scoring at or near zero.
 - **The game-page presentation** in the Metadata Manager, plus whatever the pre-release
