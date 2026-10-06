@@ -36,9 +36,13 @@ export class InsurgencyTurn {
         };
         this.reset();
 
-        this.bga.statusBar.setTitle(isCurrentPlayerActive
-            ? _('${you} must place the entire hand')
-            : _('${actplayer} must place the whole hand'));
+        this.bga.statusBar.setTitle(this.holds()
+            ? (isCurrentPlayerActive
+                ? _('${you} may place any of your hand')
+                : _('${actplayer} is placing cards'))
+            : (isCurrentPlayerActive
+                ? _('${you} must place the entire hand')
+                : _('${actplayer} must place the whole hand')));
 
         // Step 1 of the round, whoever is watching.
         this.game.setPhase(1);
@@ -130,6 +134,11 @@ export class InsurgencyTurn {
         this.refresh();
     }
 
+    /** Game option 104: the rebels may keep cards rather than place them all. */
+    private holds(): boolean {
+        return this.bga.gameui.gamedatas.rebelsHold ?? false;
+    }
+
     private unassigned(): CardView[] {
         return this.game.hand.filter(card => this.assigned[card.id] === undefined);
     }
@@ -160,6 +169,17 @@ export class InsurgencyTurn {
         this.game.board.setSelected([]);
 
         const remaining = this.unassigned().length;
+        if (this.holds()) {
+            // Option 104: anything not placed is kept, so nothing is ever
+            // "still to place" — the count is what you are holding back.
+            this.game.setStagingText(
+                `<div><b>${_('Cards held for later')}: ${remaining}</b></div>`
+                + this.placementsHtml()
+                + `<div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Anything you do not place stays in your hand; placing nothing is allowed.')}</div>`
+                + endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
+            this.buttons(0);
+            return;
+        }
         this.game.setStagingText((remaining > 0
             ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>`
             : `<div><b>${_('The whole hand is placed.')}</b></div>`)

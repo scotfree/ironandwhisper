@@ -52,7 +52,9 @@
         "starvation_losses": { "id": 56, "name": "Empire turns in which troops starved", "type": "int", "display": "limited" },
         "empire_bot": { "id": 57, "name": "Empire bot (0 a person; else option 101 value + 1)", "type": "int", "display": "limited" },
         "rebels_bot": { "id": 58, "name": "Rebel bot (0 a person; else option 102 value + 1)", "type": "int", "display": "limited" },
-        "location_value": { "id": 59, "name": "Locations scored their value (option 103)", "type": "bool", "display": "limited" }
+        "location_value": { "id": 59, "name": "Locations scored their value (option 103)", "type": "bool", "display": "limited" },
+        "rebels_hold_cards": { "id": 60, "name": "Rebels could hold cards (option 104)", "type": "bool", "display": "limited" },
+        "cards_unplayed": { "id": 61, "name": "Cards still in the Rebels' hand at the end", "type": "int", "display": "limited" }
     },
 
     // Statistics for each player: none for now. See the note at the top.

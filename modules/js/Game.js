@@ -1395,9 +1395,13 @@ class InsurgencyTurn {
             opponentOfferedEnd: args?.opponentOfferedEnd ?? false,
         };
         this.reset();
-        this.bga.statusBar.setTitle(isCurrentPlayerActive
-            ? _('${you} must place the entire hand')
-            : _('${actplayer} must place the whole hand'));
+        this.bga.statusBar.setTitle(this.holds()
+            ? (isCurrentPlayerActive
+                ? _('${you} may place any of your hand')
+                : _('${actplayer} is placing cards'))
+            : (isCurrentPlayerActive
+                ? _('${you} must place the entire hand')
+                : _('${actplayer} must place the whole hand')));
         // Step 1 of the round, whoever is watching.
         this.game.setPhase(1);
         if (!isCurrentPlayerActive) {
@@ -1474,6 +1478,10 @@ class InsurgencyTurn {
         this.selectedCard = null;
         this.refresh();
     }
+    /** Game option 104: the rebels may keep cards rather than place them all. */
+    holds() {
+        return this.bga.gameui.gamedatas.rebelsHold ?? false;
+    }
     unassigned() {
         return this.game.hand.filter(card => this.assigned[card.id] === undefined);
     }
@@ -1500,6 +1508,16 @@ class InsurgencyTurn {
         this.game.board.setSelectable(this.args.openTowns);
         this.game.board.setSelected([]);
         const remaining = this.unassigned().length;
+        if (this.holds()) {
+            // Option 104: anything not placed is kept, so nothing is ever
+            // "still to place" — the count is what you are holding back.
+            this.game.setStagingText(`<div><b>${_('Cards held for later')}: ${remaining}</b></div>`
+                + this.placementsHtml()
+                + `<div class="iaw-hint">${_('Drag a card onto a town, or click a card then a town. Anything you do not place stays in your hand; placing nothing is allowed.')}</div>`
+                + endOfferHtml(this.offerEnd, this.args.opponentOfferedEnd));
+            this.buttons(0);
+            return;
+        }
         this.game.setStagingText((remaining > 0
             ? `<div><b>${_('Cards still to place')}: ${remaining}</b></div>`
             : `<div><b>${_('The whole hand is placed.')}</b></div>`)
@@ -1653,6 +1671,8 @@ class Resolve {
  */
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
 const primerEmpire = () => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
+/** From `src/text/primer-hold.md`. Edit that file, not this one. */
+const primerHold = () => _('<p><b>The Rebels may hold cards at this table.</b> They draw ${hand} every turn whatever they kept, and may place any of their hand, or none of it. Cards still in hand when the deck runs out are never played.</p>');
 /** From `src/text/primer-locations.md`. Edit that file, not this one. */
 const primerLocations = () => _('<p><b>Locations score at this table.</b> Winning a ${town} location also scores its value — 1 point, for either side, even if nobody contested it.</p>');
 /** From `src/text/primer-rebels.md`. Edit that file, not this one. */
@@ -1694,10 +1714,13 @@ const ICON_NAMES = ['troop', 'town', 'city', 'agent', 'presence'];
 class Help {
     constructor(scenario, board, 
     /** Game option 103: whether winning a location scores its value. */
-    locationValue = false) {
+    locationValue = false, 
+    /** Game option 104: whether the rebels may keep cards in hand. */
+    rebelsHold = false) {
         this.scenario = scenario;
         this.board = board;
         this.locationValue = locationValue;
+        this.rebelsHold = rebelsHold;
         this.dialog = null;
     }
     /**
@@ -1976,8 +1999,12 @@ class Help {
     steps() {
         return [
             _('Rebels: resolve a ${town} location they have an ${agent} agent in'),
-            _('Rebels: place their entire hand of ${agent} agents'),
-            _('Rebels: draw back up to ${hand}').replace('${hand}', String(this.scenario.handSize)),
+            this.rebelsHold
+                ? _('Rebels: place any of their ${agent} agents, or none')
+                : _('Rebels: place their entire hand of ${agent} agents'),
+            (this.rebelsHold
+                ? _('Rebels: draw ${hand} more')
+                : _('Rebels: draw back up to ${hand}')).replace('${hand}', String(this.scenario.handSize)),
             _('Empire: resolve a ${town} location it has ${troop} troops in'),
             _('Empire: build ${troop} troops in ${city} cities it holds'),
             _('Empire: march ${troop} troops along roads'),
@@ -2022,7 +2049,8 @@ class Help {
         const summary = this.withIcons((rebel
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
             : primerEmpire())
-            + (this.locationValue ? primerLocations() : ''));
+            + (this.locationValue ? primerLocations() : '')
+            + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : ''));
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
                 <div class="iaw-frame-title">${title}</div>
@@ -2186,7 +2214,7 @@ class Game {
                 <div class="iaw-player-side">${sideLabel(this.bot.side)}</div>
             `);
         }
-        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false);
+        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false, gamedatas.rebelsHold ?? false);
         this.help.install();
         this.renderPrimer();
         // The same reminder, blown up and shown once at the start of the game:

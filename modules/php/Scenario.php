@@ -40,6 +40,7 @@ final class Scenario
         public readonly string $firstPlayer,
         public readonly bool $empireWinsTies,
         public readonly bool $locationValue,
+        public readonly bool $rebelsHoldCards,
     ) {
     }
 
@@ -127,6 +128,7 @@ final class Scenario
             firstPlayer: $scenario['first_player'],
             empireWinsTies: (bool) $scenario['empire_wins_ties'],
             locationValue: (bool) ($scenario['location_value'] ?? false),
+            rebelsHoldCards: (bool) ($scenario['rebels_hold_cards'] ?? false),
         );
     }
 

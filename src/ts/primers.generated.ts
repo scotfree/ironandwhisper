@@ -9,6 +9,9 @@
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
 export const primerEmpire = (): string => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
 
+/** From `src/text/primer-hold.md`. Edit that file, not this one. */
+export const primerHold = (): string => _('<p><b>The Rebels may hold cards at this table.</b> They draw ${hand} every turn whatever they kept, and may place any of their hand, or none of it. Cards still in hand when the deck runs out are never played.</p>');
+
 /** From `src/text/primer-locations.md`. Edit that file, not this one. */
 export const primerLocations = (): string => _('<p><b>Locations score at this table.</b> Winning a ${town} location also scores its value — 1 point, for either side, even if nobody contested it.</p>');
 

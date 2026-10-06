@@ -1,6 +1,6 @@
 import { BoardView } from "./BoardView";
 import { presenceHtml } from "./presence";
-import { primerEmpire, primerLocations, primerRebels } from "./primers.generated";
+import { primerEmpire, primerHold, primerLocations, primerRebels } from "./primers.generated";
 
 /**
  * The player's manual, served from the game's own folder.
@@ -46,6 +46,8 @@ export class Help {
         private board: BoardView,
         /** Game option 103: whether winning a location scores its value. */
         private locationValue: boolean = false,
+        /** Game option 104: whether the rebels may keep cards in hand. */
+        private rebelsHold: boolean = false,
     ) {
     }
 
@@ -361,8 +363,12 @@ export class Help {
     private steps(): string[] {
         return [
             _('Rebels: resolve a ${town} location they have an ${agent} agent in'),
-            _('Rebels: place their entire hand of ${agent} agents'),
-            _('Rebels: draw back up to ${hand}').replace('${hand}', String(this.scenario.handSize)),
+            this.rebelsHold
+                ? _('Rebels: place any of their ${agent} agents, or none')
+                : _('Rebels: place their entire hand of ${agent} agents'),
+            (this.rebelsHold
+                ? _('Rebels: draw ${hand} more')
+                : _('Rebels: draw back up to ${hand}')).replace('${hand}', String(this.scenario.handSize)),
             _('Empire: resolve a ${town} location it has ${troop} troops in'),
             _('Empire: build ${troop} troops in ${city} cities it holds'),
             _('Empire: march ${troop} troops along roads'),
@@ -410,7 +416,8 @@ export class Help {
         const summary = this.withIcons((rebel
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
             : primerEmpire())
-            + (this.locationValue ? primerLocations() : ''));
+            + (this.locationValue ? primerLocations() : '')
+            + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : ''));
 
         return `
             <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">

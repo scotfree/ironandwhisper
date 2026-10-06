@@ -273,6 +273,52 @@ def test_what_was_standing_at_the_start_of_the_turn_may_be_resolved():
     assert st.towns["b"].resolved
 
 
+def test_with_holding_the_rebels_may_place_part_of_the_hand_or_none():
+    """Option 104: Decision 6 relaxed. Unplaced cards stay in hand."""
+    st = state(rebels_hold_cards=True)
+    prepare_turn(st)
+    assert len(st.hand) == 2
+    apply_insurgency_turn(st, InsurgencyTurn(placements={"b": [1]}))
+    assert len(st.hand) == 1, "one placed, one held"
+
+    st = state(rebels_hold_cards=True)
+    prepare_turn(st)
+    apply_insurgency_turn(st, InsurgencyTurn(placements={}))
+    assert len(st.hand) == 2, "placing nothing is legal"
+
+
+def test_with_holding_the_draw_is_constant_so_the_deck_stays_a_clock():
+    """Option 104: draw hand_size every turn whatever was held."""
+    st = state(rebels_hold_cards=True)
+    prepare_turn(st)
+    apply_insurgency_turn(st, InsurgencyTurn(placements={}))
+    st.to_move = Side.INSURGENCY
+    prepare_turn(st)
+    assert len(st.hand) == 4, "two held, two more drawn"
+
+
+def test_with_holding_the_game_ends_when_there_is_nothing_to_draw():
+    """Option 104: held cards do not extend the game; they are never played."""
+    st = state(rebels_hold_cards=True)
+    turns = 0
+    for _ in range(1000):             # a guard, not a limit the game should reach
+        st.to_move = Side.INSURGENCY
+        prepare_turn(st)
+        if st.game_over:
+            break
+        apply_insurgency_turn(st, InsurgencyTurn(placements={}))
+        turns += 1
+    assert turns == st.scenario.turns
+    assert st.stats["cards_unplayed"] == st.scenario.deck_size
+
+
+def test_without_holding_a_partial_placement_is_still_illegal():
+    st = state()
+    prepare_turn(st)
+    with pytest.raises(IllegalMove):
+        apply_insurgency_turn(st, InsurgencyTurn(placements={"b": [0]}))
+
+
 def test_entire_hand_must_be_placed():
     st = state()
     st.hand = [Card(1, "influence1", 1), Card(2, "influence0", 0)]

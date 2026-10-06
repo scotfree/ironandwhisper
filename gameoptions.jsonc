@@ -116,5 +116,26 @@
       }
     },
     "default": 0
+  },
+
+  // Whether the rebels may keep cards in hand (Decision 6 relaxed). They draw
+  // the same number every turn whatever they hold, so the deck is still an
+  // exact clock, and may place any part of the hand or none of it. Cards still
+  // in hand when the deck runs out are never played.
+  "104": {
+    "name": "Rebels can hold cards",
+    "values": {
+      "0": {
+        "name": "No",
+        "description": "The Rebels must place their whole hand every turn."
+      },
+      "1": {
+        "name": "Yes",
+        "description": "The Rebels draw the same number every turn and may place any of their hand, or none of it.",
+        "tmdisplay": "Rebels can hold cards",
+        "nobeginner": true
+      }
+    },
+    "default": 0
   }
 }

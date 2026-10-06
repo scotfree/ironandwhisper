@@ -42,7 +42,8 @@ const P_TWO = 2345002;
 function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
                  int $botOption = Game::BOT_GLOB,
                  int $rebelOption = Game::REBEL_MIST,
-                 int $locationValue = Game::LOCATION_VALUE_OFF): Game
+                 int $locationValue = Game::LOCATION_VALUE_OFF,
+                 int $rebelsHold = Game::REBELS_HOLD_OFF): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -53,6 +54,7 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
     $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
     $game->bga->tableOptions->values[Game::OPT_REBEL_BOT] = $rebelOption;
     $game->bga->tableOptions->values[Game::OPT_LOCATION_VALUE] = $locationValue;
+    $game->bga->tableOptions->values[Game::OPT_REBELS_HOLD] = $rebelsHold;
 
     $players = [
         P_ONE => ['player_name' => 'One'],
@@ -172,4 +174,12 @@ function assertThrows(string $class, callable $fn, string $message = ''): \Throw
         return $e;
     }
     throw new AssertionFailed($message ?: "expected {$class}, nothing thrown");
+}
+
+/** Decline the Resolve phase if NextTurn would have entered one, so a test can go straight to the turn. */
+function resolvePhaseIfAny(Game $game): void
+{
+    if (Rules::legalResolutions($game->board->towns(), $game->toMove())) {
+        resolvePhase($game)->actSkipResolve();
+    }
 }

@@ -94,6 +94,8 @@ interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
     scenario: ScenarioView;
     /** Whether this table scores location value (game option 103). */
     locationValue: boolean;
+    /** Whether the rebels may keep cards in hand (game option 104). */
+    rebelsHold: boolean;
     towns: Record<string, TownView>;
     /** The Insurgency's hand. Null for the Empire — it is not entitled to it. */
     hand: CardView[] | null;

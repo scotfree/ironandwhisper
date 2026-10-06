@@ -542,10 +542,13 @@ final class Rules
      * so it is enforced here rather than left to the interface.
      *
      * @param array<string, array> $towns
+     * With `$mayHold` (game option 104) any part of the hand may be placed,
+     * or none of it: Decision 6 relaxed, the rest stays in hand.
+     *
      * @param int[] $hand              card ids currently in hand
      * @param array<string, int[]> $placements  town id => card ids
      */
-    public static function validatePlacements(array $towns, array $hand, array $placements): void
+    public static function validatePlacements(array $towns, array $hand, array $placements, bool $mayHold = false): void
     {
         $placed = [];
         foreach ($placements as $townId => $cardIds) {
@@ -558,6 +561,18 @@ final class Rules
             foreach ($cardIds as $cardId) {
                 $placed[] = (int) $cardId;
             }
+        }
+
+        if ($mayHold) {
+            $inHand = array_map('intval', $hand);
+            if (count(array_unique($placed)) !== count($placed) || array_diff($placed, $inHand)) {
+                throw new IllegalMove(sprintf(
+                    'placements must name distinct cards from the hand: got [%s], hand is [%s]',
+                    implode(',', $placed),
+                    implode(',', $inHand),
+                ));
+            }
+            return;
         }
 
         $sortedPlaced = $placed;

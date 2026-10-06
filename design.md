@@ -223,6 +223,8 @@ It also makes the deck an exact clock, which is lost if the placement rate can v
 
 Under Decision 9, this is less punishing than it sounds: **dummies are free to lose**, so forced placement is the Insurgency's cheap noise generator while it rations real presence.
 
+**Relaxed behind game option 104, "Rebels can hold cards"** (2026-10-06). With it on, the rebels place any part of the hand or none of it, and draw a constant `hand_size` every turn whatever they kept — so the clock objection above is gone: the deck still drains at exactly one hand a turn, and the game ends when there is nothing left to draw, with whatever is still held never played. The noise objection is not gone but changed: a rebel who holds will tend to place decoys and keep real cards, so a pile laid early skews toward decoys and the threat moves into the hand, whose size is public. What it buys is a timing decision the rebels never had — hoard, then strike in one turn — and an answer to the forced donation in option-103 games, where the last open location soaked up every remaining card (6 and 10 points to the Empire in the first two such games). The hand is unbounded for now; a cap is one number if hoarding proves too strong. Measure it against `scenarios/baseline.json` with `rebels_hold_cards: true`; no bot holds yet.
+
 ### 6a. The Insurgency scores every Empire troop that leaves the board
 
 **Why:** it is the same rule it always had — score the presence you take off the enemy — but it now covers two ways of taking it. Beat a garrison at a resolution and you score it. Cut the supply line that fed it and it starves, and you score that too.

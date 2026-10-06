@@ -16,6 +16,7 @@
   "first_player": "insurgency",
   "empire_wins_ties": true,
   "location_value": false,
+  "rebels_hold_cards": false,
   "supply_per_troop": 1,
   "production_cost": 1
 }

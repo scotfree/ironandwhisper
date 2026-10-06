@@ -55,6 +55,22 @@ function rulesBoard(array $overrides = []): array
     return $towns;
 }
 
+// -- holding cards (option 104) --------------------------------------------
+
+function test_with_holding_part_of_the_hand_or_none_may_be_placed(): void
+{
+    $towns = rulesBoard();
+    Rules::validatePlacements($towns, [1, 2, 3], ['b' => [2]], mayHold: true);
+    Rules::validatePlacements($towns, [1, 2, 3], [], mayHold: true);
+    assertThrows(IllegalMove::class, fn() => Rules::validatePlacements($towns, [1, 2, 3], ['b' => [9]], mayHold: true));
+    assertThrows(IllegalMove::class, fn() => Rules::validatePlacements($towns, [1, 2, 3], ['b' => [2], 'c' => [2]], mayHold: true));
+}
+
+function test_without_holding_a_partial_placement_is_still_illegal(): void
+{
+    assertThrows(IllegalMove::class, fn() => Rules::validatePlacements(rulesBoard(), [1, 2, 3], ['b' => [2]]));
+}
+
 // -- scoring ----------------------------------------------------------------
 
 function test_location_value_is_off_unless_the_table_scores_it(): void

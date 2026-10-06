@@ -144,7 +144,8 @@ export class Game {
             `);
         }
 
-        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false);
+        this.help = new Help(gamedatas.scenario, this.board,
+            gamedatas.locationValue ?? false, gamedatas.rebelsHold ?? false);
         this.help.install();
         this.renderPrimer();
 

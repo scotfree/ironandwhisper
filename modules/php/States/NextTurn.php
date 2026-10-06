@@ -95,13 +95,24 @@ class NextTurn extends GameState
     {
         $board = $this->game->board;
 
-        $hand = $board->hand();
-        $missing = $this->game->scenario->handSize - count($hand);
-        if ($missing > 0) {
-            $hand = $board->drawToHand($missing);
-        }
-        if (!$hand) {
-            return false;
+        if ($this->game->rebelsHoldCards()) {
+            // A constant draw, whatever was held, so the deck stays an exact
+            // clock. Nothing left to draw ends the game; whatever is still in
+            // hand then is never played.
+            if ($board->deckCount() === 0) {
+                return false;
+            }
+            $board->drawToHand($this->game->scenario->handSize);
+            $hand = $board->hand();
+        } else {
+            $hand = $board->hand();
+            $missing = $this->game->scenario->handSize - count($hand);
+            if ($missing > 0) {
+                $hand = $board->drawToHand($missing);
+            }
+            if (!$hand) {
+                return false;
+            }
         }
 
         // The round goes with the counts. It advances at the end of the

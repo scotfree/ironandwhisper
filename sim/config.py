@@ -122,6 +122,13 @@ class Scenario:
     # it per table.
     location_value: bool = False
 
+    # Whether the rebels may keep cards in hand rather than place them all
+    # (Decision 6, relaxed — game option 104 on BGA). When they may, they draw
+    # a constant `hand_size` every turn whatever they placed, so the deck stays
+    # an exact clock, and the hand grows by whatever they hold. False is the
+    # rule as it was: place the whole hand, refill to `hand_size`.
+    rebels_hold_cards: bool = False
+
     # Whether resolution spends the troops committed to it. True is the real
     # rule; False exists so the notebook can reproduce the experiment that
     # established why it has to be True. See Decision 3 in the design doc.
@@ -271,6 +278,7 @@ def load_scenario(scenario_id: str, **overrides) -> Scenario:
         first_player=Side(raw["first_player"]),
         empire_wins_ties=raw["empire_wins_ties"],
         location_value=raw.get("location_value", False),
+        rebels_hold_cards=raw.get("rebels_hold_cards", False),
     )
 
     for key, value in overrides.items():

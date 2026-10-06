@@ -522,10 +522,14 @@ resolution per turn: a parameter edit or a relaxed limit, so the cheap experimen
 two — changes that move a mechanic**. The split is the useful axis because some of these are a
 line in `scenarios/` and some are a different game.
 
-**Two things that look like tier one and are not.** Letting the rebels hold cards back reads as
-a relaxation, but Decision 6 exists to prevent exactly it: forced placement is the noise
-generator that makes pile height uninformative, and it is what makes the deck an exact clock.
-And lifting the one-resolution-per-turn cap *is* a fair relaxation — Decision 4's reason for it
+**Letting the rebels hold cards is now game option 104** (2026-10-06, Decision 6 in `design.md`).
+It was listed here as a relaxation that is not one, because Decision 6 makes the deck a clock and
+pile height noise. A **constant draw** (`hand_size` every turn, whatever was held) keeps the clock
+exact — the game ends when there is nothing to draw — so only the noise argument stands, and it
+is a measurement now rather than a veto. Hand unbounded; placing nothing is legal; no bot holds
+yet. Simulate with `--set rebels_hold_cards=true`.
+
+**One thing that looks like tier one and is not quite.** Lifting the one-resolution-per-turn cap *is* a fair relaxation — Decision 4's reason for it
 is rate-limiting, not a mechanism — but it would accelerate board-shrinking, which already ends
 games around turn 8 of 20, so measure game length and not just win rate.
 

@@ -86,6 +86,17 @@ class Game extends \Bga\GameFramework\Table
     public const LOCATION_VALUE_OFF = 0;
     public const LOCATION_VALUE_ON = 1;
 
+    /**
+     * Whether the rebels may keep cards in hand (Decision 6 relaxed). When they
+     * may, they draw a constant hand-size every turn whatever they placed, so
+     * the deck stays an exact clock, and place any part of the hand or none of
+     * it. The game ends when there is nothing left to draw. Absent, the
+     * scenario decides.
+     */
+    public const OPT_REBELS_HOLD = 104;
+    public const REBELS_HOLD_OFF = 0;
+    public const REBELS_HOLD_ON = 1;
+
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
@@ -278,6 +289,7 @@ class Game extends \Bga\GameFramework\Table
             $this->scoreForSide(Rules::EMPIRE),
             $this->scoreForSide(Rules::INSURGENCY),
             $this->board->towns(),
+            count($this->board->hand()),
         );
     }
 
@@ -534,7 +546,7 @@ class Game extends \Bga\GameFramework\Table
         }
 
         try {
-            Rules::validatePlacements($towns, $hand, $placements);
+            Rules::validatePlacements($towns, $hand, $placements, $this->rebelsHoldCards());
         } catch (IllegalMove $e) {
             throw new UserException($e->getMessage());
         }
@@ -956,6 +968,16 @@ class Game extends \Bga\GameFramework\Table
         return (int) $option === self::LOCATION_VALUE_ON;
     }
 
+    /** Whether the rebels may hold cards at this table, from game option 104 or else the scenario. */
+    public function rebelsHoldCards(): bool
+    {
+        $option = $this->bga->tableOptions->get(self::OPT_REBELS_HOLD);
+        if ($option === null) {
+            return $this->scenario->rebelsHoldCards;
+        }
+        return (int) $option === self::REBELS_HOLD_ON;
+    }
+
     /** Which Empire bot this table chose, from game option 101. */
     private function empireBot(): int
     {
@@ -1006,6 +1028,7 @@ class Game extends \Bga\GameFramework\Table
         // Per table rather than per scenario, so it rides beside the scenario
         // rather than inside it.
         $result['locationValue'] = $this->scoresLocations();
+        $result['rebelsHold'] = $this->rebelsHoldCards();
 
         return $result;
     }
@@ -1057,6 +1080,7 @@ class Game extends \Bga\GameFramework\Table
             $botSide === Rules::EMPIRE ? $this->empireBot() + 1 : 0,
             $botSide === Rules::INSURGENCY ? $this->insurgencyBot() + 1 : 0,
             $this->scoresLocations(),
+            $this->rebelsHoldCards(),
         );
 
         // Seat order does not decide who starts: the scenario does, and NextTurn

@@ -505,6 +505,55 @@ function test_without_option_103_the_scenario_decides(): void
     assertSame($game->scenario->locationValue, $game->scoresLocations(), 'a table from before the option existed');
 }
 
+// -- holding cards (option 104) ------------------------------------------------
+
+function test_with_holding_the_rebels_keep_what_they_do_not_place(): void
+{
+    $game = newGame(rebelsHold: Game::REBELS_HOLD_ON);
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $handSize = $game->scenario->handSize;
+
+    enterNextTurn($game);
+    $hand = $game->board->handCardIds();
+    insurgencyTurn($game)->actCommitTurn(['ashford' => [$hand[0]]], '0', $insurgency);
+    assertSame($handSize - 1, count($game->board->handCardIds()), 'the rest stays in hand');
+
+    enterNextTurn($game);
+    resolvePhaseIfAny($game);
+    empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+    enterNextTurn($game);
+    assertSame(2 * $handSize - 1, count($game->board->handCardIds()), 'a constant draw on top of what was held');
+
+    resolvePhaseIfAny($game);
+    insurgencyTurn($game)->actCommitTurn([], '0', $insurgency);
+    assertSame(2 * $handSize - 1, count($game->board->handCardIds()), 'and placing nothing is legal');
+}
+
+function test_with_holding_the_game_ends_when_there_is_nothing_to_draw(): void
+{
+    // The deck is still the clock: holding never lengthens the game.
+    $game = newGame(rebelsHold: Game::REBELS_HOLD_ON);
+    $insurgency = $game->playerIdForSide(Rules::INSURGENCY);
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $turns = 0;
+    for ($guard = 0; $guard < 200; $guard++) {
+        $next = enterNextTurn($game);
+        if ($next === EndScore::class) {
+            break;
+        }
+        resolvePhaseIfAny($game);
+        if ($game->toMove() === Rules::INSURGENCY) {
+            insurgencyTurn($game)->actCommitTurn([], '0', $insurgency);
+            $turns++;
+        } else {
+            empireTurn($game)->actCommitTurn([], [], [], '0', $empire);
+        }
+    }
+    assertSame($game->scenario->turns(), $turns);
+    assertSame($game->scenario->deckSize(), $game->bga->tableStats->values['cards_unplayed']);
+}
+
 // -- the result ----------------------------------------------------------------
 
 /** A solo game with the person on the Empire, scores set by hand, ended. */

@@ -480,7 +480,15 @@ def apply_insurgency_turn(state: GameState, turn: InsurgencyTurn) -> None:
             raise IllegalMove(f"{town_id} is resolved; no cards may be placed there")
         placed_indices.extend(indices)
 
-    if sorted(placed_indices) != list(range(len(state.hand))):
+    if state.scenario.rebels_hold_cards:
+        # Any part of the hand, or none of it; the rest stays for later.
+        if len(set(placed_indices)) != len(placed_indices) or any(
+                not 0 <= i < len(state.hand) for i in placed_indices):
+            raise IllegalMove(
+                f"placements must name distinct cards from the hand: got {placed_indices}, "
+                f"hand has {len(state.hand)} cards"
+            )
+    elif sorted(placed_indices) != list(range(len(state.hand))):
         raise IllegalMove(
             f"the entire hand must be placed: got indices {sorted(placed_indices)}, "
             f"hand has {len(state.hand)} cards"
@@ -494,7 +502,8 @@ def apply_insurgency_turn(state: GameState, turn: InsurgencyTurn) -> None:
         for i in indices:
             town.pile.insert(0, state.hand[i])
     total_placed = len(placed_indices)
-    state.hand = []
+    placed = set(placed_indices)
+    state.hand = [card for i, card in enumerate(state.hand) if i not in placed]
 
     if total_placed:
         summary = ", ".join(
@@ -777,6 +786,17 @@ def prepare_turn(state: GameState) -> None:
         return
 
     if state.to_move is Side.INSURGENCY:
+        if state.scenario.rebels_hold_cards:
+            # A constant draw, whatever was held, so the deck stays an exact
+            # clock. The game ends when there is nothing left to draw: cards
+            # still in hand then are simply never played.
+            if not state.deck:
+                _end_game(state, "deck exhausted", stats.END_DECK)
+                return
+            for _ in range(min(state.scenario.hand_size, len(state.deck))):
+                state.hand.append(state.deck.pop())
+            return
+
         want = state.scenario.hand_size - len(state.hand)
         drawn = min(want, len(state.deck))
         for _ in range(drawn):

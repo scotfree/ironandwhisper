@@ -40,6 +40,7 @@ def setup(state, empire_bot: int = 0, rebels_bot: int = 0) -> None:
     state.stats["empire_bot"] = empire_bot
     state.stats["rebels_bot"] = rebels_bot
     state.stats["location_value"] = bool(state.scenario.location_value)
+    state.stats["rebels_hold_cards"] = bool(state.scenario.rebels_hold_cards)
 
 
 def _inc(state, name: str, delta) -> None:
@@ -124,6 +125,7 @@ def game_ended(state, reason: str) -> None:
     empire, rebels = state.scores[Side.EMPIRE], state.scores[Side.INSURGENCY]
     _set(state, f"ended_by_{reason}", True)
     _set(state, "rounds_played", state.round_number)
+    _set(state, "cards_unplayed", len(state.hand))
     _set(state, "empire_score", empire)
     _set(state, "rebels_score", rebels)
     _set(state, "open_locations", sum(1 for t in state.towns.values() if not t.resolved))

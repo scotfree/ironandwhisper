@@ -29,7 +29,7 @@ class Stats
         'empire_turns', 'empire_garrisons_total', 'largest_garrison',
         'lone_garrisons_lost', 'empire_resolutions', 'rebels_resolutions',
         'first_battle_round', 'cards_looked', 'bluffs_captured',
-        'starvation_warnings', 'starvation_losses',
+        'starvation_warnings', 'starvation_losses', 'cards_unplayed',
         'empire_bot', 'rebels_bot',
     ];
     public const FLOATS = [
@@ -37,7 +37,7 @@ class Stats
     ];
     public const BOOLS = [
         'ended_by_deck', 'ended_by_board', 'ended_by_elimination', 'ended_by_agreement',
-        'location_value',
+        'location_value', 'rebels_hold_cards',
     ];
 
     /** How a game ended, as the codes `gameEnded` takes. */
@@ -56,7 +56,7 @@ class Stats
      * @param int $empireBot  0 for a person, else option 101's value + 1
      * @param int $rebelsBot  0 for a person, else option 102's value + 1
      */
-    public function setup(int $empireBot, int $rebelsBot, bool $locationValue = false): void
+    public function setup(int $empireBot, int $rebelsBot, bool $locationValue = false, bool $rebelsHold = false): void
     {
         $this->table->init(self::INTS, 0);
         $this->table->init(self::FLOATS, 0.0);
@@ -67,6 +67,9 @@ class Stats
         // and the table fails to create. `init` above has already made it false.
         if ($locationValue) {
             $this->table->set('location_value', true);
+        }
+        if ($rebelsHold) {
+            $this->table->set('rebels_hold_cards', true);
         }
     }
 
@@ -164,9 +167,10 @@ class Stats
     }
 
     /** @param array<string, array> $towns the board after the sweep */
-    public function gameEnded(string $reason, int $round, int $empireScore, int $rebelsScore, array $towns): void
+    public function gameEnded(string $reason, int $round, int $empireScore, int $rebelsScore, array $towns, int $cardsUnplayed = 0): void
     {
         $this->table->set('ended_by_' . $reason, true);
+        $this->table->set('cards_unplayed', $cardsUnplayed);
         $this->table->set('rounds_played', $round);
         $this->table->set('empire_score', $empireScore);
         $this->table->set('rebels_score', $rebelsScore);
