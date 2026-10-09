@@ -312,17 +312,22 @@ authoritative answer belongs to them and this is only the expected shape.
 
 - ~~**Fill in `stats.jsonc`.**~~ Done 2026-09-30: 36 table statistics, 17 shown and 19
   developer-only, recorded by `modules/php/Stats.php` and counted identically by the
-  simulator (`sim/stats.py`). Table-only because the bot has no player row. Not yet seen on
-  the Studio's end-of-game screen. **[verified]**
-- **Choose and implement a tie-breaker.** `tie_breaker_description` is empty and nothing
-  writes `player_score_aux`, and roughly one game in five ends level because scores are small
-  integers — this is the only item on the list that is a design decision rather than data
-  entry. **[verified]**
-- **Audit `gameinfos.jsonc`** against the deprecation warning that "Reload game informations"
-  throws; it has never been done, and some fields there are now ignored in favour of the
-  Metadata Manager. **[verified]**
-- **Move the six unreferenced SVG drafts out of `img/`** into `misc/`, because BGA loads every
-  file in the img root into every player's browser on every game load. **[verified]**
+  simulator (`sim/stats.py`). Table-only because the bot has no player row. They first reached
+  the Studio on 2026-10-03 — `Stats.php` had never been deployed until then. **[verified]**
+- ~~**Choose and implement a tie-breaker.**~~ Done 2026-10-09: locations won, then presence
+  still on the board (troops standing; agents left on the board), then the Empire, so there
+  are no draws. `player_score_aux` = locations x 10000 + presence x 100 + 1 for the Empire,
+  split for the results screen by `tie_breaker_split`; the same order in `sim/engine.py`'s
+  `tiebreak`. A solo game applies it too, through `GameResult::solo`. Monolith against Mist is
+  level on points in a quarter of games, and in both engines every one of those goes to the
+  rebels on locations. **[verified]**
+- ~~**Audit `gameinfos.jsonc`.**~~ Done 2026-10-09 against BGA's page: none of the deprecated
+  fields (designer, artist, year, tags, presentation) is in it; publisher and BGG ids stay
+  empty until publication; tie-breaker filled in. Whether "Reload game informations" still
+  warns about anything is visible only on the Studio. **[verified]**, bar that last check.
+- ~~**Move the six unreferenced SVG drafts out of `img/`.**~~ Done before 2026-10-06: they are
+  in `misc/img-drafts/`, and a pruning dry run shows nothing stale in the server's `img/`.
+  **[verified]**
 - **Play a full game with two Studio test accounts in separate browser profiles**, which is
   the only way `View::forSide` is exercised by two differently-privileged clients at once —
   every game so far has been against a bot that reads the database directly. **[verified]**

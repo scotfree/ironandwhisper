@@ -532,6 +532,44 @@ final class Rules
         );
     }
 
+    // -- the tie-breaker ----------------------------------------------------
+
+    /**
+     * What breaks a level score, in order (2026-10-09): locations resolved in
+     * your favour, then presence still on the board — the Empire's standing
+     * troops, the rebels' agents left in the locations they won or in an open
+     * pile — and finally the Empire, as it wins ties everywhere else
+     * (Decision 7). Mirrors `tiebreak` in sim/engine.py.
+     *
+     * @param array<string, array> $towns
+     * @return array{0: int, 1: int, 2: int}
+     */
+    public static function tiebreak(array $towns, string $side, int $unitPresence): array
+    {
+        $locations = 0;
+        $presence = 0;
+        foreach ($towns as $town) {
+            if ($town['resolved'] && $town['winner'] === $side) {
+                $locations++;
+            }
+            $presence += $side === self::EMPIRE
+                ? self::troopPresence((int) $town['troops'], $unitPresence)
+                : self::cardPresence($town);
+        }
+        return [$locations, $presence, $side === self::EMPIRE ? 1 : 0];
+    }
+
+    /**
+     * The tie-breaker as one number for `player_score_aux`, which BGA splits
+     * back into its parts with `tie_breaker_split` [10000, 100, 1] in
+     * gameinfos.jsonc. Presence stays under 100: the whole deck is 36 and the
+     * map feeds 24 troops.
+     */
+    public static function tiebreakAux(array $tiebreak): int
+    {
+        return $tiebreak[0] * 10000 + $tiebreak[1] * 100 + $tiebreak[2];
+    }
+
     // -- the Insurgency turn ------------------------------------------------
 
     /**

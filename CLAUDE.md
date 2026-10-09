@@ -480,7 +480,14 @@ Not done, in rough order of how much it hurts:
   where cards are 0 or 1 and useless at `graded36`, where every face-down card is assumed to
   be a 3 and almost nothing is ever certain. It plays legally there and wins 0%. Putting
   graded cards back means giving it a quantile or expected-value test instead.
-- No tie-breaker, no animations, no art.
+- No animations, no art.
+
+**The tie-breaker** (2026-10-09): locations won, then presence still on the board, then the
+Empire — so no game is a draw. `Rules::tiebreak` / `engine.tiebreak`, written to
+`player_score_aux` as locations x 10000 + presence x 100 + 1 for the Empire and split back by
+`tie_breaker_split` in `gameinfos.jsonc`. `sim.run` and `selfplay.php` report "on tie-breaker"
+where they used to report draws. Monolith against Mist goes to it a quarter of the time, and the
+rebels win nearly all of those on locations.
 
 **The turn counter was frozen at page load** until 2026-09-12. The round advances at the
 end of the Empire's turn (`Game::incRound`) and nothing told the client; `notif_deckCount`

@@ -293,8 +293,20 @@ class Game extends \Bga\GameFramework\Table
         );
     }
 
+    /** The tie-breaker for one side: see Rules::tiebreak. */
+    public function tiebreakFor(string $side): array
+    {
+        return Rules::tiebreak($this->board->towns(), $side, $this->scenario->unitPresence());
+    }
+
+    public function levelOnPoints(): bool
+    {
+        return $this->scoreForSide(Rules::EMPIRE) === $this->scoreForSide(Rules::INSURGENCY);
+    }
+
     /**
-     * Who won, by score: a side, or null for a level game.
+     * Who won: on points, then on the tie-breaker. Never a draw — the
+     * tie-breaker's last step always decides.
      *
      * Needed because BGA ranks a game from `player_score` alone, and in a solo
      * game only the person has a row — the bot's score is a global. Left to
@@ -302,14 +314,10 @@ class Game extends \Bga\GameFramework\Table
      * the bot had scored (table 974986: the Rebels won 14-12 and BGA reported
      * the Empire). EndScore uses this to tell BGA the truth.
      */
-    public function winningSide(): ?string
+    public function winningSide(): string
     {
-        $empire = $this->scoreForSide(Rules::EMPIRE);
-        $rebels = $this->scoreForSide(Rules::INSURGENCY);
-        if ($empire === $rebels) {
-            return null;
-        }
-        return $empire > $rebels ? Rules::EMPIRE : Rules::INSURGENCY;
+        $key = fn(string $side) => [$this->scoreForSide($side), ...$this->tiebreakFor($side)];
+        return $key(Rules::EMPIRE) > $key(Rules::INSURGENCY) ? Rules::EMPIRE : Rules::INSURGENCY;
     }
 
     /**
@@ -325,9 +333,12 @@ class Game extends \Bga\GameFramework\Table
             'winner' => $winner,
             'bot_score' => $this->isSolo() ? $this->botScore() : null,
         ];
-        if ($winner === null) {
+        if ($this->levelOnPoints()) {
             $this->bga->notify->all('finalScore',
-                clienttranslate('Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — a draw'), $args);
+                $winner === Rules::EMPIRE
+                    ? clienttranslate('Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — level, and the Empire wins on the tie-breaker')
+                    : clienttranslate('Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — level, and the Rebels win on the tie-breaker'),
+                $args);
             return;
         }
         $this->bga->notify->all('finalScore',

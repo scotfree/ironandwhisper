@@ -23,6 +23,7 @@ from .engine import (
     EmpireTurn,
     GameState,
     IllegalMove,
+    level_on_points,
     InsurgencyTurn,
     Side,
     apply_empire_turn,
@@ -50,7 +51,7 @@ def render_board(state: GameState, view: Side | None = None) -> str:
 
     if state.game_over:
         result = winner(state)
-        headline = "draw" if result is None else f"{result.value} wins"
+        headline = f"{result.value} wins" + (" on the tie-breaker" if level_on_points(state) else "")
         lines.append(f"GAME OVER — {headline}")
     else:
         lines.append(f"Round {state.round_number} — {state.to_move.value} to move")

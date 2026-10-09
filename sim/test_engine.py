@@ -37,6 +37,7 @@ from .engine import (
     prepare_turn,
     resolve_town,
     town_is_uncontested,
+    level_on_points,
     winner,
 )
 
@@ -165,6 +166,41 @@ def test_location_value_comes_from_the_map_not_from_supply():
     seed_pile(st, "b", presence=1)
     resolve_town(st, "b", Side.INSURGENCY)
     assert st.scores[Side.INSURGENCY] == 3
+
+
+def _finished(**overrides):
+    st = state(**overrides)
+    st.game_over = True
+    return st
+
+
+def test_level_on_points_goes_to_more_locations_won():
+    """Tie-breaker, step 1 (2026-10-09)."""
+    st = _finished()
+    st.towns["a"].resolved, st.towns["a"].winner = True, Side.INSURGENCY
+    st.towns["b"].resolved, st.towns["b"].winner = True, Side.INSURGENCY
+    st.towns["c"].resolved, st.towns["c"].winner = True, Side.EMPIRE
+    st.towns["a"].troops = 0
+    assert winner(st) is Side.INSURGENCY
+
+
+def test_then_to_more_presence_on_the_board():
+    """Tie-breaker, step 2: troops standing against agents left on the board."""
+    st = _finished()
+    st.towns["a"].resolved, st.towns["a"].winner = True, Side.INSURGENCY
+    st.towns["b"].resolved, st.towns["b"].winner = True, Side.EMPIRE
+    st.towns["a"].troops = 0
+    st.towns["b"].troops = 1                      # presence 3
+    st.towns["a"].revealed = [Card(uid=900 + i, type_id="influence1", presence=1) for i in range(4)]
+    assert winner(st) is Side.INSURGENCY, "4 presence of agents beats 3 of troops"
+
+
+def test_and_finally_to_the_empire():
+    """Tie-breaker, step 3: Decision 7 again. There are no draws."""
+    st = _finished()
+    st.towns["a"].troops = 0
+    assert winner(st) is Side.EMPIRE
+    assert level_on_points(st)
 
 
 def test_empire_wins_ties():
@@ -870,7 +906,7 @@ def test_a_full_game_terminates_and_resolves_every_town():
         st = play_game(real, HeuristicEmpire(rng), HeuristicInsurgency(rng), rng)
         assert st.game_over
         assert all(t.resolved or town_is_uncontested(t) for t in st.towns.values())
-        assert winner(st) in (Side.EMPIRE, Side.INSURGENCY, None)
+        assert winner(st) in (Side.EMPIRE, Side.INSURGENCY)
 
 
 def test_scoring_conserves_what_was_actually_committed():

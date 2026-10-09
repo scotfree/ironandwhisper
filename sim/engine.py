@@ -831,14 +831,38 @@ def _end_game(state: GameState, reason: str, code: str = stats.END_BOARD) -> Non
     stats.game_ended(state, code)
 
 
-def winner(state: GameState) -> Side | None:
-    """Winner, or None for a draw. Only meaningful once game_over."""
-    empire, insurgency = state.scores[Side.EMPIRE], state.scores[Side.INSURGENCY]
-    if empire > insurgency:
-        return Side.EMPIRE
-    if insurgency > empire:
-        return Side.INSURGENCY
-    return None
+def tiebreak(state: GameState, side: Side) -> tuple[int, int, int]:
+    """What breaks a level score, in order (2026-10-09).
+
+    1. Locations resolved in your favour.
+    2. Presence still on the board: the Empire's standing troops, the rebels'
+       agents — face up in the locations they won, and any pile left open.
+    3. The Empire, as it wins ties everywhere else (Decision 7).
+
+    The same three numbers are `player_score_aux` on BGA, split by
+    `tie_breaker_split` in gameinfos.jsonc.
+    """
+    locations = sum(1 for t in state.towns.values() if t.winner is side)
+    if side is Side.EMPIRE:
+        presence = sum(t.troops for t in state.towns.values()) * state.scenario.unit.presence
+    else:
+        presence = sum(c.presence for t in state.towns.values() for c in t.cards)
+    return (locations, presence, 1 if side is Side.EMPIRE else 0)
+
+
+def winner(state: GameState) -> Side:
+    """Winner on points, then on the tie-breaker. Only meaningful once game_over.
+
+    There are no draws: the tie-breaker's last step always decides.
+    """
+    def key(side: Side):
+        return (state.scores[side], *tiebreak(state, side))
+    return Side.EMPIRE if key(Side.EMPIRE) > key(Side.INSURGENCY) else Side.INSURGENCY
+
+
+def level_on_points(state: GameState) -> bool:
+    """Whether the tie-breaker decided the game. What used to count as a draw."""
+    return state.scores[Side.EMPIRE] == state.scores[Side.INSURGENCY]
 
 
 def play_game(scenario: Scenario, empire_bot, insurgency_bot,

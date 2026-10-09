@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from .bots import EMPIRE_BOTS, INSURGENCY_BOTS
 from .config import Scenario, load_scenario
 from . import stats
-from .engine import Side, play_game, winner
+from .engine import Side, level_on_points, play_game, winner
 
 # `--bots X` is shorthand for "X on both sides where X exists". The sides are
 # named separately as well, because the interesting comparisons are mixed: a new
@@ -40,6 +40,8 @@ class Result:
     presence_overcome: int
     # Every table statistic BGA collects, counted the same way (sim/stats.py).
     stats: dict
+    # Level on points, so the tie-breaker decided it — what used to be a draw.
+    level: bool = False
 
 
 def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result:
@@ -50,7 +52,8 @@ def run_one(scenario: Scenario, empire_bot, insurgency_bot, seed: int) -> Result
         seed=seed,
         empire_score=state.scores[Side.EMPIRE],
         insurgency_score=state.scores[Side.INSURGENCY],
-        winner="draw" if result is None else result.value,
+        winner=result.value,
+        level=level_on_points(state),
         rounds=state.round_number,
         towns_to_empire=sum(
             1 for t in state.towns.values() if t.winner is Side.EMPIRE
@@ -77,7 +80,7 @@ def summarise(results: list[Result], scenario: Scenario) -> str:
     total = len(results)
     empire_wins = sum(1 for r in results if r.winner == "empire")
     insurgency_wins = sum(1 for r in results if r.winner == "insurgency")
-    draws = total - empire_wins - insurgency_wins
+    level = sum(1 for r in results if r.level)
 
     empire_scores = [r.empire_score for r in results]
     insurgency_scores = [r.insurgency_score for r in results]
@@ -95,7 +98,7 @@ def summarise(results: list[Result], scenario: Scenario) -> str:
         f"  games             {total}",
         f"  Empire wins       {empire_wins:>4}  ({empire_wins / total:.1%})",
         f"  Insurgency wins   {insurgency_wins:>4}  ({insurgency_wins / total:.1%})",
-        f"  draws             {draws:>4}  ({draws / total:.1%})",
+        f"  on tie-breaker    {level:>4}  ({level / total:.1%})  level on points",
         "",
         f"  Empire score      mean {statistics.mean(empire_scores):5.1f}   "
         f"median {statistics.median(empire_scores):5.1f}",

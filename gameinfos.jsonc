@@ -2,13 +2,20 @@
  * From this file, you can edit the various meta-information of your game.
  *
  * See documentation about this file here:
- * http://en.doc.boardgamearena.com/Game_meta-information:_gameinfos.inc.php
+ * https://en.doc.boardgamearena.com/Game_meta-information:_gameinfos.jsonc
+ *
+ * Audited 2026-10-09 against that page. Designer, artist, year, tags and the
+ * presentation text are no longer read from here — they live in the Metadata
+ * Manager — and none of them is in this file. Publisher and BGG ids stay empty
+ * until the game is published and listed (design.md, Path to Release).
 */
 {
     // Name of the game in English (will serve as the basis for translation)
     "game_name": "Iron and Whispers",
 
-    // Game publisher (use empty string if there is no publisher)
+    // Game publisher (use empty string if there is no publisher). Empty until
+    // the game is for sale somewhere; for an own design the publisher will be
+    // the designer.
     "publisher": "",
 
     // Url of game publisher website
@@ -49,7 +56,12 @@
     // Note: if you are NOT using any tie breaker, leave the empty string.
     //
     // Example: "tie_breaker_description": "Number of remaining cards in hand",
-    "tie_breaker_description": "",
+    "tie_breaker_description": "Locations won, then presence still on the board (troops standing for the Empire, agents left on the board for the Rebels), then the Empire",
+
+    // How player_score_aux splits back into the steps above, for the results
+    // screen: locations x 10000 + presence x 100 + 1 for the Empire. See
+    // Rules::tiebreakAux, and tiebreak() in sim/engine.py.
+    "tie_breaker_split": [10000, 100, 1],
 
     // If in the game, all losers are equal (no score to rank them or explicit in the rules that losers are not ranked between them), set this to true
     // The game end result will display "Winner" for the 1st player and "Loser" for all other players

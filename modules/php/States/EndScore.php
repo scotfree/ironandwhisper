@@ -30,11 +30,21 @@ class EndScore extends \Bga\GameFramework\States\GameState
      * the bot has no player row, so BGA would see one player and call it a win
      * whatever the bot scored. `GameResult::solo` is BGA's documented way for a
      * solo game to say whether the person won, while keeping their real score.
-     * A level game is not a win; there is no tie-breaker yet.
+     * A level score goes to the tie-breaker, which never leaves a draw.
      */
     public function onEnteringState(): GameResult|int
     {
         $this->game->announceResult();
+
+        // The tie-breaker as BGA reads it: player_score_aux, split by
+        // tie_breaker_split in gameinfos.jsonc. Only people have a row.
+        foreach (array_keys($this->game->sides()) as $playerId) {
+            if (!$this->game->isBot($playerId)) {
+                $side = $this->game->sideForPlayer($playerId);
+                $this->bga->playerScoreAux->set($playerId,
+                    \Bga\Games\IronAndWhisper\Rules::tiebreakAux($this->game->tiebreakFor($side)));
+            }
+        }
 
         if (!$this->game->isSolo()) {
             return ST_END_GAME;

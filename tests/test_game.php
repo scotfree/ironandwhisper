@@ -583,11 +583,31 @@ function test_a_solo_game_the_person_wins_is_reported_as_a_win(): void
     assertSame(true, $result->win);
 }
 
-function test_a_level_solo_game_is_not_a_win(): void
+function test_a_level_solo_game_goes_to_the_tie_breaker(): void
 {
+    // Level at 9, and at the start nobody has won a location: presence on the
+    // board decides, the Empire's starting garrison against no agents at all.
     [$game, $result] = endSoloGame(9, 9);
-    assertSame(false, $result->win, 'no tie-breaker yet, so level is not a win');
-    assertSame(null, $game->bga->notify->of('finalScore')[0]['args']['winner']);
+    assertSame(true, $result->win, 'the person is the Empire, ahead on troop presence');
+    assertSame(Rules::EMPIRE, $game->bga->notify->of('finalScore')[0]['args']['winner']);
+}
+
+function test_the_tie_breaker_counts_locations_then_presence_then_the_empire(): void
+{
+    $towns = ['a' => ['resolved' => true, 'winner' => Rules::INSURGENCY, 'troops' => 0,
+                      'pile' => [], 'revealed' => [['presence' => 1], ['presence' => 0]]],
+              'b' => ['resolved' => false, 'winner' => null, 'troops' => 2, 'pile' => [], 'revealed' => []]];
+    assertSame([1, 1, 0], Rules::tiebreak($towns, Rules::INSURGENCY, 1));
+    assertSame([0, 2, 1], Rules::tiebreak($towns, Rules::EMPIRE, 1));
+    assertSame(10100, Rules::tiebreakAux([1, 1, 0]), 'split [10000, 100, 1]');
+}
+
+function test_a_two_player_game_records_the_tie_breaker_for_bga(): void
+{
+    $game = newGame();
+    (new EndScore($game))->onEnteringState();
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    assertSame(Rules::tiebreakAux($game->tiebreakFor(Rules::EMPIRE)), $game->bga->playerScoreAux->get($empire));
 }
 
 function test_a_two_player_game_still_ranks_itself(): void

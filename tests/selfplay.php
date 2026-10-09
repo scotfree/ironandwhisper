@@ -42,7 +42,7 @@ $rebel = match ($rebelName) {
     default => Game::REBEL_MIST,
 };
 
-$wins = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0, 'draw' => 0];
+$wins = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0, 'level' => 0];
 $statTotals = [];
 $towns = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
 $rounds = 0;
@@ -72,12 +72,11 @@ for ($seed = 1; $seed <= $games; $seed++) {
     $scores[Rules::EMPIRE] += $empire;
     $scores[Rules::INSURGENCY] += $insurgency;
 
-    if ($empire > $insurgency) {
-        $wins[Rules::EMPIRE]++;
-    } elseif ($insurgency > $empire) {
-        $wins[Rules::INSURGENCY]++;
-    } else {
-        $wins['draw']++;
+    // The tie-breaker decides a level score, so there are no draws; count
+    // how often it had to, to read beside sim.run's "on tie-breaker".
+    $wins[$game->winningSide()]++;
+    if ($game->levelOnPoints()) {
+        $wins['level']++;
     }
 
     foreach ($game->bga->tableStats->values as $name => $value) {
@@ -95,7 +94,7 @@ printf("bots: Empire %s vs Insurgency %s (PHP)\n", $botName, $rebelName);
 printf("  games             %d\n", $games);
 printf("  Empire wins       %4d  (%.1f%%)\n", $wins[Rules::EMPIRE], 100 * $wins[Rules::EMPIRE] / $games);
 printf("  Insurgency wins   %4d  (%.1f%%)\n", $wins[Rules::INSURGENCY], 100 * $wins[Rules::INSURGENCY] / $games);
-printf("  draws             %4d  (%.1f%%)\n", $wins['draw'], 100 * $wins['draw'] / $games);
+printf("  on tie-breaker    %4d  (%.1f%%)  level on points\n", $wins['level'], 100 * $wins['level'] / $games);
 printf("\n");
 printf("  Empire score      mean %.3f\n", $scores[Rules::EMPIRE] / $games);
 printf("  Insurgency score  mean %.3f\n", $scores[Rules::INSURGENCY] / $games);
