@@ -341,9 +341,16 @@ page endorses, "really efficient for icons or abstract images". **[verified]**
 
 ### Beta — visible to every BGA member
 
-**Nothing external gates private alpha.** BGA's [license page](https://en.doc.boardgamearena.com/BGA_Game_licenses)
-lets "prototypes, self-published, print-n-play" games into private alpha — playable by invited
-friends — and no further. Everything below is what it takes to go *public*. **[verified]**
+**Publication does not gate private alpha, but a license does.** BGA's
+[license page](https://en.doc.boardgamearena.com/BGA_Game_licenses) lets "prototypes,
+self-published, print-n-play" games into private alpha — playable by invited friends — and no
+further. But the [pre-release checklist](https://en.doc.boardgamearena.com/Pre-release_checklist)
+says "BGA must have a license for the game for a project to be moved to production", and the
+alpha confirmation email asks for "license/approval emails from publisher". For an own design
+that is presumably the designer's own written approval; what form it takes is the forum
+question's second item. *Corrected 2026-10-09: this paragraph said nothing external gated
+private alpha.* Everything below is what it takes to go *public*. **[verified]**, bar the form
+of the license **[ask BGA]**.
 
 - **The game has to be published, in BGA's words "can be bought somewhere, or will be in a
   near future."** *Corrected 2026-10-06:* this used to say print-and-play was the lightest
