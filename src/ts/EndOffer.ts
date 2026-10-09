@@ -1,4 +1,13 @@
 /**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * IronAndWhisper implementation : © Scot Free Kennedy
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/**
  * Agreeing to end the game, which both turn states offer in the same words.
  *
  * It is deliberately not called a pass. A pass that skipped your turn would

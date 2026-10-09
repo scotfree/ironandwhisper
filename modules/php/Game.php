@@ -401,17 +401,23 @@ class Game extends \Bga\GameFramework\Table
     }
 
     /**
-     * The game is an exact clock: the whole hand is placed every turn, so it
-     * lasts deck_size / hand_size Insurgency turns (Decision 6). That makes
-     * progression a straight count of rounds rather than a guess.
+     * Two clocks run, and the game ends on whichever runs out first: the deck,
+     * which lasts deck_size / hand_size Insurgency turns whether or not the
+     * rebels hold cards (Decision 6), and the board, which ends the game when
+     * every location is resolved. Logged games end on the board around turn 10
+     * of 20, so counting rounds alone left the bar at half way when the game
+     * finished. Progression is whichever clock is further along.
      */
     public function getGameProgression(): int
     {
         $turns = $this->scenario->turns();
-        if ($turns <= 0) {
-            return 0;
-        }
-        return (int) min(100, max(0, round(100 * ($this->round() - 1) / $turns)));
+        $deck = $turns > 0 ? ($this->round() - 1) / $turns : 0;
+
+        $towns = $this->board->towns();
+        $resolved = count($towns) - count(Rules::unresolvedTownIds($towns));
+        $board = $towns ? $resolved / count($towns) : 0;
+
+        return (int) min(100, max(0, round(100 * max($deck, $board))));
     }
 
     public function upgradeTableDb($from_version)

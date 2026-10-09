@@ -331,8 +331,22 @@ authoritative answer belongs to them and this is only the expected shape.
 - **Play a full game with two Studio test accounts in separate browser profiles**, which is
   the only way `View::forSide` is exercised by two differently-privileged clients at once —
   every game so far has been against a bot that reads the database directly. **[verified]**
+- **From BGA's [pre-release checklist](https://en.doc.boardgamearena.com/Pre-release_checklist)**
+  (read 2026-10-09), beyond the items above:
+  - ~~Copyright header on every source file~~ — done 2026-10-09, and on the shipped
+    `Game.js` and CSS through the build.
+  - ~~Game progression that means something~~ — done 2026-10-09: the further along of the
+    deck and the board, since games usually end on the board around turn 10 of 20.
+  - **Studio control panel:** "Reload game informations" with no warnings, "Dry run build",
+    "Check project", then a real build with a clean log.
+  - **Testing:** a spectator account; replay from a log entry and a full replay; minified
+    JS/CSS; Chrome, Firefox, Safari and Edge; dark mode; real-time mode.
+  - **Exceptions to explain in the alpha email:** mobile (issue #17 — the board needs 740px),
+    and the 3D game box image, which the checklist lists and the art docs say can come later.
 - **Request alpha once** from the game management page after a successful build; it costs BGA
-  staff time, so it is not a request to make twice. **[ask BGA]**
+  staff time, so it is not a request to make twice. The reply to BGA's confirmation email
+  wants the production BGA username, any other admins, and the license or publisher approval
+  (see Beta, below). **[ask BGA]**
 
 **Not needed for alpha:** the box, banner and title images. BGA's art documentation says those
 are "no longer stored in project directory" — they live in the Metadata Manager, and it says

@@ -1,5 +1,14 @@
 <?php
 /**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * IronAndWhisper implementation : © Scot Free Kennedy
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/**
  * The resolution phase: the first thing either side does on its turn.
  *
  * Resolution is judged on the board as your opponent left it (Decision 4), so

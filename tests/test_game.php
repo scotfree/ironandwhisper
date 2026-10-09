@@ -505,6 +505,22 @@ function test_without_option_103_the_scenario_decides(): void
     assertSame($game->scenario->locationValue, $game->scoresLocations(), 'a table from before the option existed');
 }
 
+// -- progression -----------------------------------------------------------------
+
+function test_progression_follows_whichever_clock_is_further_along(): void
+{
+    // Logged games end on the board around turn 10 of 20; counting rounds alone
+    // showed half way at the end.
+    $game = newGame();
+    assertSame(0, $game->getGameProgression(), 'nothing played');
+
+    $towns = array_keys($game->board->towns());
+    foreach (array_slice($towns, 0, intdiv(count($towns), 2)) as $townId) {
+        $game->resolveTown($townId, null);
+    }
+    assertSame(50, $game->getGameProgression(), 'half the board resolved on round 1');
+}
+
 // -- holding cards (option 104) ------------------------------------------------
 
 function test_with_holding_the_rebels_keep_what_they_do_not_place(): void

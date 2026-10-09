@@ -1,4 +1,13 @@
 /**
+ *------
+ * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
+ * IronAndWhisper implementation : © Scot Free Kennedy
+ *
+ * This code has been produced on the BGA studio platform for use on http://boardgamearena.com.
+ * See http://en.boardgamearena.com/#!doc/Studio for more information.
+ * -----
+ */
+/**
  * The board: towns laid out from the map's coordinates, edges drawn between
  * them, and each town showing what the viewing player is entitled to see.
  *
