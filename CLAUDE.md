@@ -275,10 +275,12 @@ Done:
   transparent grouping frame around the existing panels rather than a box of its own, and
   it is hidden outright when the Empire has no troops left standing — a heading over an
   empty box says less than nothing.
-- **The side column reads top to bottom in the order you need it**: the game state
+- **The side column reads top to bottom in the order you need it**: which side you are
+  playing and what it does, under a solid band in the side's colour; the game state
   (turn / deck / hand, and the numbered turn order with the live step lit), the zoomed
-  card, the turn summary with the Insurgency's hand inside it, the armies, what the
-  opponent did last turn, and a permanent reminder of what your side does. The cards and
+  card, the turn summary with the Insurgency's hand inside it, the armies, and what the
+  opponent did last turn. The side frame was last until 2026-10-11, when a two-account
+  playtest with two windows side by side could not tell which was which. The cards and
   the list of where they are going are one decision, so they share a frame; the Empire has
   no hand frame at all and reads the rebels' card count off the state box.
 - **The phase list is numbered explicitly** (`list-style: decimal`). It was already an

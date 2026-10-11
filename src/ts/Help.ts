@@ -429,7 +429,7 @@ export class Help {
             + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : ''));
 
         return `
-            <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
+            <div class="iaw-primer ${side ?? 'spectator'}">
                 <div class="iaw-frame-title">${title}</div>
                 ${summary}
                 <a class="iaw-primer-more" href="${rulesUrl()}"

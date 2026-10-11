@@ -2097,7 +2097,7 @@ class Help {
             + (this.locationValue ? primerLocations() : '')
             + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : ''));
         return `
-            <div class="iaw-primer ${rebel ? 'insurgency' : 'empire'}">
+            <div class="iaw-primer ${side ?? 'spectator'}">
                 <div class="iaw-frame-title">${title}</div>
                 ${summary}
                 <a class="iaw-primer-more" href="${rulesUrl()}"
@@ -2216,6 +2216,7 @@ class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
+                    <div id="iaw-primer"></div>
                     <div id="iaw-state">
                         <div class="iaw-frame-title">${_('Game Status')}</div>
                         <div id="iaw-clock"></div>
@@ -2232,7 +2233,6 @@ class Game {
                         <div id="iaw-armies"></div>
                     </div>
                     <div id="iaw-last-turn"></div>
-                    <div id="iaw-primer"></div>
                 </div>
             </div>
         `);
@@ -2559,8 +2559,11 @@ class Game {
         }
     }
     /**
-     * The permanent reminder of what your side does, below everything that
-     * changes. Rendered once: nothing in it depends on the state of the game.
+     * The permanent reminder of what your side does, at the top of the column
+     * under a band in your side's colour. It sat at the bottom, below
+     * everything that changes, and a two-account playtest found nobody could
+     * tell at a glance which side a window was playing. Rendered once: nothing
+     * in it depends on the state of the game.
      */
     renderPrimer() {
         const element = document.getElementById('iaw-primer');
@@ -2570,6 +2573,11 @@ class Game {
         // No wiring: "How to play" is an ordinary link to the manual, which is
         // what lets the start card's copy of this markup work as well.
         element.innerHTML = this.help.primerHtml(this.side);
+    }
+    /** A finished game's replay, or "replay from here" in one still running. */
+    isReplay() {
+        return typeof g_replayFrom !== 'undefined'
+            || (typeof g_archive_mode !== 'undefined' && g_archive_mode);
     }
     cardById(cardId) {
         return this.hand.find(card => card.id === cardId);
@@ -2737,6 +2745,14 @@ class Game {
         // announcement and the place it is about are connected. The board keeps
         // its own record of the numbers afterwards.
         this.board.setResolving(args.town_id);
+        // Not in a replay: the card waits for a click nobody in a replay makes,
+        // so they piled up on screen. The red mark and the result under the
+        // town's name carry the same numbers. Not `bgaAnimationsActive()`
+        // either — that is also false in a background tab, and a player coming
+        // back to one should still be told.
+        if (this.isReplay()) {
+            return;
+        }
         this.help.showResolution({
             townId: args.town_id,
             winner: args.winner,

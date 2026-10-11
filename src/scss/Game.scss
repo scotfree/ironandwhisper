@@ -547,6 +547,7 @@ $board: #e6e6e8;
 /********* the game state frame *********/
 
 #iaw-state {
+    margin-top: 10px;
     padding: 8px;
     background: $paper;
     border-radius: 4px;
@@ -1154,6 +1155,35 @@ $board: #e6e6e8;
         background: color.mix($insurgency, #fff, 6%);
     }
 
+    // Which side this window is playing, as a solid band in that side's colour
+    // across the top of the frame. A two-account playtest had two windows open
+    // side by side and the blackletter title alone did not say it loudly
+    // enough. The negative margins take the band to the frame's edges, so they
+    // have to match its padding — the start card's copy below matches its own.
+    // A spectator plays no side and keeps the ordinary title.
+    &.empire .iaw-frame-title,
+    &.insurgency .iaw-frame-title {
+        margin: -8px -10px 8px;
+        padding: 6px 10px;
+        border-bottom: none;
+        border-radius: 0 3px 0 0;
+        color: #fff;
+        font-size: 18px;
+    }
+
+    &.empire .iaw-frame-title {
+        background: $empire;
+    }
+
+    &.insurgency .iaw-frame-title {
+        background: $insurgency;
+    }
+
+}
+
+// First in the column now, so the frame below it takes the gap instead.
+#iaw-primer .iaw-primer {
+    margin-top: 0;
 }
 
 .iaw-primer-steps {
@@ -1240,6 +1270,12 @@ $board: #e6e6e8;
         font-size: 24px;
         margin-bottom: 10px;
         padding-bottom: 6px;
+    }
+
+    .iaw-primer.empire .iaw-frame-title,
+    .iaw-primer.insurgency .iaw-frame-title {
+        margin: -28px -32px 16px;
+        padding: 14px 32px;
     }
 
     .iaw-primer-more {

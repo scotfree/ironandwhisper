@@ -328,9 +328,14 @@ authoritative answer belongs to them and this is only the expected shape.
 - ~~**Move the six unreferenced SVG drafts out of `img/`.**~~ Done before 2026-10-06: they are
   in `misc/img-drafts/`, and a pruning dry run shows nothing stale in the server's `img/`.
   **[verified]**
-- **Play a full game with two Studio test accounts in separate browser profiles**, which is
-  the only way `View::forSide` is exercised by two differently-privileged clients at once —
-  every game so far has been against a bot that reads the database directly. **[verified]**
+- ~~**Play a full game with two Studio test accounts in separate browser profiles**~~, which
+  is the only way `View::forSide` is exercised by two differently-privileged clients at once.
+  Done 2026-10-11: two full games, a spectator open alongside, logs in `logs/984120.json`
+  and `logs/985910.json`, and `sim/replay.py` agrees with both at every step. It found that
+  nothing on screen said loudly enough which side a window was playing — the side frame now
+  heads the column under a band in the side's colour. The server reported an error once
+  around turn 4 or 5 of one game; it left no trace in either log, so it was most likely a
+  refused action, and it is worth watching for. **[verified]**
 - **From BGA's [pre-release checklist](https://en.doc.boardgamearena.com/Pre-release_checklist)**
   (read 2026-10-09), beyond the items above:
   - ~~Copyright header on every source file~~ — done 2026-10-09, and on the shipped
@@ -339,7 +344,10 @@ authoritative answer belongs to them and this is only the expected shape.
     deck and the board, since games usually end on the board around turn 10 of 20.
   - **Studio control panel:** "Reload game informations" with no warnings, "Dry run build",
     "Check project", then a real build with a clean log.
-  - **Testing:** a spectator account; replay from a log entry and a full replay; minified
+  - **Testing:** ~~a spectator account; replay from a log entry and a full replay~~ (done
+    2026-10-11 — the resolution card waited for a click nobody in a replay makes, and is now
+    skipped there; "replay from here" showed NaN% in BGA's own progress bar, which nothing
+    of ours draws and `getGameProgression` cannot produce, so it is left alone); minified
     JS/CSS; Chrome, Firefox, Safari and Edge; dark mode; real-time mode.
   - **Exceptions to explain in the alpha email:** mobile (issue #17 — the board needs 740px),
     and the 3D game box image, which the checklist lists and the art docs say can come later.

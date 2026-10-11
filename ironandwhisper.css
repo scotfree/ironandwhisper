@@ -380,6 +380,7 @@
 
 /********* the game state frame *********/
 #iaw-state {
+  margin-top: 10px;
   padding: 8px;
   background: #efe7d7;
   border-radius: 4px;
@@ -874,6 +875,24 @@
   border-left-color: #2e7d4f;
   background: rgb(95.0823529412%, 96.9411764706%, 95.8588235294%);
 }
+.iaw-primer.empire .iaw-frame-title, .iaw-primer.insurgency .iaw-frame-title {
+  margin: -8px -10px 8px;
+  padding: 6px 10px;
+  border-bottom: none;
+  border-radius: 0 3px 0 0;
+  color: #fff;
+  font-size: 18px;
+}
+.iaw-primer.empire .iaw-frame-title {
+  background: #6b3fa0;
+}
+.iaw-primer.insurgency .iaw-frame-title {
+  background: #2e7d4f;
+}
+
+#iaw-primer .iaw-primer {
+  margin-top: 0;
+}
 
 .iaw-primer-steps {
   margin: 0;
@@ -940,6 +959,11 @@
   font-size: 24px;
   margin-bottom: 10px;
   padding-bottom: 6px;
+}
+#iaw-start-card .iaw-primer.empire .iaw-frame-title,
+#iaw-start-card .iaw-primer.insurgency .iaw-frame-title {
+  margin: -28px -32px 16px;
+  padding: 14px 32px;
 }
 #iaw-start-card .iaw-primer-more {
   font-size: 14px;

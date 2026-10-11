@@ -1,0 +1,4137 @@
+{
+ "status": 1,
+ "data": {
+  "logs": [
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "1",
+    "packet_type": "resend",
+    "move_id": "1",
+    "time": "1791746070",
+    "data": [
+     {
+      "uid": "6acbe016353f6",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 1,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 2,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 3,
+         "type": "influence0",
+         "presence": 0
+        }
+       ]
+      },
+      "synchro": 4
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "2",
+    "packet_type": "resend",
+    "move_id": "1",
+    "time": "1791746070",
+    "data": [
+     {
+      "uid": "6acbe01630a8b",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "name": "gameSetup",
+       "type": "manager",
+       "description": "Game setup",
+       "descriptionmyturn": "",
+       "action": "stGameSetup",
+       "args": [],
+       "possibleactions": null,
+       "transitions": {
+        "": 2
+       },
+       "updateGameProgression": false,
+       "initialprivate": null,
+       "active_player": 2375193,
+       "reflexion": {
+        "total": {
+         "2375193": null,
+         "2375194": null
+        }
+       }
+      }
+     },
+     {
+      "uid": "6acbe01630fb4",
+      "type": "simpleNote",
+      "log": "Rematch with the exact same players detected: starting player has been rotated.",
+      "args": {
+       "name": "gameSetup",
+       "type": "manager",
+       "description": "Game setup",
+       "descriptionmyturn": "",
+       "action": "stGameSetup",
+       "args": [],
+       "possibleactions": null,
+       "transitions": {
+        "": 2
+       },
+       "updateGameProgression": false,
+       "initialprivate": null,
+       "active_player": 2375193,
+       "reflexion": {
+        "total": {
+         "2375193": null,
+         "2375194": null
+        }
+       }
+      }
+     },
+     {
+      "uid": "6acbe01632a5c",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": 2375193,
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": null,
+         "2375194": null
+        }
+       },
+       "updateGameProgression": 0
+      }
+     },
+     {
+      "uid": "6acbe016353e2",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 57,
+       "handCount": 3,
+       "round": 1
+      }
+     },
+     {
+      "uid": "6acbe01635867",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe0163cb97",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": 2375194,
+       "args": {
+        "openTowns": [
+         "ashford",
+         "belmar",
+         "coldwater",
+         "draymoor",
+         "everlan",
+         "fenn",
+         "gallow",
+         "harrow",
+         "ilmen",
+         "joss",
+         "kirn",
+         "larrow"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": null,
+         "2375194": null
+        }
+       },
+       "updateGameProgression": 0
+      }
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "3",
+    "packet_type": "resend",
+    "move_id": "2",
+    "time": "1791746128",
+    "data": [
+     {
+      "uid": "6acbe050272e8",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Harrow",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "eda7ed"
+     },
+     {
+      "uid": "6acbe0502756c",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Draymoor",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe050277f7",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Fenn",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe050277ff",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "harrow": [
+         1
+        ],
+        "draymoor": [
+         2
+        ],
+        "fenn": [
+         3
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe05029c0e",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "180",
+         "2375194": 123
+        }
+       },
+       "updateGameProgression": 0
+      }
+     },
+     {
+      "uid": "6acbe0502b815",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe0502fe49",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375193,
+       "args": {
+        "side": "empire",
+        "resolvable": [
+         "belmar",
+         "everlan"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "180",
+         "2375194": "123"
+        }
+       },
+       "updateGameProgression": 0
+      },
+      "lock_uuid": "d80ca7d3-1234-4b6a-8c75-d6fbcda59d96"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "4",
+    "packet_type": "resend",
+    "move_id": "3",
+    "time": "1791746151",
+    "data": [
+     {
+      "uid": "6acbe0679856f",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375193,
+       "name": "player_score",
+       "value": 1,
+       "oldValue": 0,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "682a07"
+     },
+     {
+      "uid": "6acbe0679d871",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 1,
+       "town_id": "belmar",
+       "town_label": "Belmar",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 0,
+       "troopPresence": 1,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "empire",
+       "declaredBy": "empire",
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "pile": [],
+       "troopsLost": 0,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe067a1074",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": "2375193",
+       "args": {
+        "production": {
+         "everlan": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "belmar",
+           "everlan"
+          ],
+          "ceiling": 4,
+          "troops": 4
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": 158,
+         "2375194": "123"
+        }
+       },
+       "updateGameProgression": 8
+      },
+      "lock_uuid": "39a76060-0367-4b12-8ac4-ca802021c133"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "5",
+    "packet_type": "resend",
+    "move_id": "4",
+    "time": "1791746169",
+    "data": [
+     {
+      "uid": "6acbe079725ce",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 4,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 5,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 6,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 8,
+      "lock_uuid": "01b92221-880d-4d1f-8908-99187fa3c90e",
+      "h": "d5e76a"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "6",
+    "packet_type": "resend",
+    "move_id": "4",
+    "time": "1791746169",
+    "data": [
+     {
+      "uid": "6acbe07962f47",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "d5e76a"
+     },
+     {
+      "uid": "6acbe079631c5",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Everlan",
+       "to_label": "Harrow",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe07963434",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Everlan",
+       "to_label": "Draymoor",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe0796378d",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 1,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Everlan",
+       "to_label": "Fenn",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe079637b0",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "everlan": 1
+       },
+       "moves": [
+        {
+         "from": "everlan",
+         "to": "harrow",
+         "count": 1
+        },
+        {
+         "from": "everlan",
+         "to": "draymoor",
+         "count": 1
+        },
+        {
+         "from": "everlan",
+         "to": "fenn",
+         "count": 1
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 1,
+        "coldwater": 0,
+        "draymoor": 1,
+        "everlan": 1,
+        "fenn": 1,
+        "gallow": 0,
+        "harrow": 1,
+        "ilmen": 0,
+        "joss": 0,
+        "kirn": 0,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe07964b9c",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": []
+      }
+     },
+     {
+      "uid": "6acbe0796fc54",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 141,
+         "2375194": "123"
+        }
+       },
+       "updateGameProgression": 8
+      }
+     },
+     {
+      "uid": "6acbe079725be",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 54,
+       "handCount": 3,
+       "round": 2
+      }
+     },
+     {
+      "uid": "6acbe07972a2b",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe079764ef",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "draymoor",
+         "fenn",
+         "harrow"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "141",
+         "2375194": "163"
+        }
+       },
+       "updateGameProgression": 8
+      },
+      "lock_uuid": "01b92221-880d-4d1f-8908-99187fa3c90e"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "7",
+    "packet_type": "resend",
+    "move_id": "5",
+    "time": "1791746192",
+    "data": [
+     {
+      "uid": "6acbe0909133c",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "ashford",
+         "coldwater",
+         "draymoor",
+         "everlan",
+         "fenn",
+         "gallow",
+         "harrow",
+         "ilmen",
+         "joss",
+         "kirn",
+         "larrow"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "141",
+         "2375194": 141
+        }
+       },
+       "updateGameProgression": 8
+      },
+      "lock_uuid": "6a3ca2de-d36c-4019-89c9-38a6f9f525e7",
+      "h": "f60145"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "8",
+    "packet_type": "resend",
+    "move_id": "6",
+    "time": "1791746214",
+    "data": [
+     {
+      "uid": "6acbe0a6a72fa",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Gallow",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "55bde3"
+     },
+     {
+      "uid": "6acbe0a6a7526",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Ilmen",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe0a6a7786",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Harrow",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe0a6a7792",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "gallow": [
+         4
+        ],
+        "ilmen": [
+         5
+        ],
+        "harrow": [
+         6
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe0a6a9f3f",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "141",
+         "2375194": 120
+        }
+       },
+       "updateGameProgression": 8
+      }
+     },
+     {
+      "uid": "6acbe0a6abaf3",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe0a6af588",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375193,
+       "args": {
+        "side": "empire",
+        "resolvable": [
+         "draymoor",
+         "everlan",
+         "fenn",
+         "harrow"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "180",
+         "2375194": "120"
+        }
+       },
+       "updateGameProgression": 8
+      },
+      "lock_uuid": "b6ac291a-1bc5-454f-800b-ea8e5c13a84d"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "9",
+    "packet_type": "resend",
+    "move_id": "7",
+    "time": "1791746231",
+    "data": [
+     {
+      "uid": "6acbe0b7de268",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375193,
+       "name": "player_score",
+       "value": 2,
+       "oldValue": 1,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "433cd1"
+     },
+     {
+      "uid": "6acbe0b7e39a1",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 2,
+       "town_id": "fenn",
+       "town_label": "Fenn",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 0,
+       "troopPresence": 1,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "empire",
+       "declaredBy": "empire",
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "pile": [
+        {
+         "id": 3,
+         "type": "influence0",
+         "presence": 0
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 1
+      }
+     },
+     {
+      "uid": "6acbe0b7e6f5a",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": "2375193",
+       "args": {
+        "production": {
+         "everlan": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "belmar",
+           "draymoor",
+           "everlan",
+           "fenn",
+           "harrow"
+          ],
+          "ceiling": 10,
+          "troops": 5
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": 164,
+         "2375194": "120"
+        }
+       },
+       "updateGameProgression": 17
+      },
+      "lock_uuid": "c4db0dcf-dcd1-47bd-80f9-9fc6b6016691"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "10",
+    "packet_type": "resend",
+    "move_id": "8",
+    "time": "1791746275",
+    "data": [
+     {
+      "uid": "6acbe0e3e13fe",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 7,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 8,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 9,
+         "type": "influence0",
+         "presence": 0
+        }
+       ]
+      },
+      "synchro": 9,
+      "lock_uuid": "0e7540fc-74c7-49d1-8754-bde659c300bb",
+      "h": "111831"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "11",
+    "packet_type": "resend",
+    "move_id": "8",
+    "time": "1791746275",
+    "data": [
+     {
+      "uid": "6acbe0e3d126a",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "111831"
+     },
+     {
+      "uid": "6acbe0e3d15ea",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Harrow",
+       "to_label": "Kirn",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe0e3d1963",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 2,
+       "from_label": "Everlan",
+       "to_label": "Harrow",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe0e3d1d0d",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Belmar",
+       "to_label": "Everlan",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe0e3d1d3a",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "everlan": 1
+       },
+       "moves": [
+        {
+         "from": "harrow",
+         "to": "kirn",
+         "count": 1
+        },
+        {
+         "from": "everlan",
+         "to": "harrow",
+         "count": 2
+        },
+        {
+         "from": "belmar",
+         "to": "everlan",
+         "count": 1
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 1,
+        "everlan": 1,
+        "fenn": 1,
+        "gallow": 0,
+        "harrow": 2,
+        "ilmen": 0,
+        "joss": 0,
+        "kirn": 1,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe0e3d24ad",
+      "type": "cardsRevealed",
+      "log": "T${turn}: ${player_name} turns ${count} cards face up in ${town_labels}",
+      "args": {
+       "turn": 2,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_labels": "Draymoor",
+       "i18n": [
+        "town_labels"
+       ],
+       "revealed": {
+        "draymoor": [
+         {
+          "id": 2,
+          "type": "influence0",
+          "presence": 0
+         }
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe0e3d3887",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": []
+      }
+     },
+     {
+      "uid": "6acbe0e3deb29",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 121,
+         "2375194": "120"
+        }
+       },
+       "updateGameProgression": 17
+      }
+     },
+     {
+      "uid": "6acbe0e3e13ef",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 51,
+       "handCount": 3,
+       "round": 3
+      }
+     },
+     {
+      "uid": "6acbe0e3e1834",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe0e3e5436",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "draymoor",
+         "gallow",
+         "harrow",
+         "ilmen"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "121",
+         "2375194": "160"
+        }
+       },
+       "updateGameProgression": 17
+      },
+      "lock_uuid": "0e7540fc-74c7-49d1-8754-bde659c300bb"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "12",
+    "packet_type": "resend",
+    "move_id": "9",
+    "time": "1791746352",
+    "data": [
+     {
+      "uid": "6acbe1306b381",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "ashford",
+         "coldwater",
+         "draymoor",
+         "everlan",
+         "gallow",
+         "harrow",
+         "ilmen",
+         "joss",
+         "kirn",
+         "larrow"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "121",
+         "2375194": 84
+        }
+       },
+       "updateGameProgression": 17
+      },
+      "lock_uuid": "ab90d075-6298-42cc-898c-0568b4ee17e4",
+      "h": "d77959"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "13",
+    "packet_type": "resend",
+    "move_id": "10",
+    "time": "1791746371",
+    "data": [
+     {
+      "uid": "6acbe143e7139",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 3,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "7598bb"
+     },
+     {
+      "uid": "6acbe143e714f",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "kirn": [
+         7,
+         8,
+         9
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe143e9817",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "121",
+         "2375194": 66
+        }
+       },
+       "updateGameProgression": 17
+      }
+     },
+     {
+      "uid": "6acbe143eb3f3",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe143ef108",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375193,
+       "args": {
+        "side": "empire",
+        "resolvable": [
+         "draymoor",
+         "everlan",
+         "harrow",
+         "kirn"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "161",
+         "2375194": "66"
+        }
+       },
+       "updateGameProgression": 17
+      },
+      "lock_uuid": "c52e83cb-1ada-4bb0-87d3-72af5458b6dd"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "14",
+    "packet_type": "resend",
+    "move_id": "11",
+    "time": "1791746383",
+    "data": [
+     {
+      "uid": "6acbe14f61984",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375193,
+       "name": "player_score",
+       "value": 3,
+       "oldValue": 2,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "f8f8e8"
+     },
+     {
+      "uid": "6acbe14f678e5",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 3,
+       "town_id": "draymoor",
+       "town_label": "Draymoor",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 0,
+       "troopPresence": 1,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "empire",
+       "declaredBy": "empire",
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "pile": [
+        {
+         "id": 2,
+         "type": "influence0",
+         "presence": 0
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 1
+      }
+     },
+     {
+      "uid": "6acbe14f6afa9",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": "2375193",
+       "args": {
+        "production": {
+         "everlan": 1,
+         "kirn": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "draymoor",
+           "everlan",
+           "fenn",
+           "harrow",
+           "kirn"
+          ],
+          "ceiling": 10,
+          "troops": 6
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": 150,
+         "2375194": "66"
+        }
+       },
+       "updateGameProgression": 25
+      },
+      "lock_uuid": "5da26f89-be1b-4afd-8b94-9e96dc233375"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "15",
+    "packet_type": "resend",
+    "move_id": "12",
+    "time": "1791746456",
+    "data": [
+     {
+      "uid": "6acbe198218c0",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 10,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 11,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 12,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 10,
+      "lock_uuid": "ca88e8fd-6fb6-4c14-855b-cf9aab90afc5",
+      "h": "81d51d"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "16",
+    "packet_type": "resend",
+    "move_id": "12",
+    "time": "1791746456",
+    "data": [
+     {
+      "uid": "6acbe19810bf6",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "81d51d"
+     },
+     {
+      "uid": "6acbe19810eca",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe198111be",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 2,
+       "from_label": "Everlan",
+       "to_label": "Harrow",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe1981148b",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 2,
+       "from_label": "Harrow",
+       "to_label": "Kirn",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe1981178e",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Draymoor",
+       "to_label": "Everlan",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe198117ac",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "kirn": 1,
+        "everlan": 1
+       },
+       "moves": [
+        {
+         "from": "everlan",
+         "to": "harrow",
+         "count": 2
+        },
+        {
+         "from": "harrow",
+         "to": "kirn",
+         "count": 2
+        },
+        {
+         "from": "draymoor",
+         "to": "everlan",
+         "count": 1
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 1,
+        "fenn": 1,
+        "gallow": 0,
+        "harrow": 2,
+        "ilmen": 0,
+        "joss": 0,
+        "kirn": 4,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe19811e10",
+      "type": "cardsRevealed",
+      "log": "T${turn}: ${player_name} turns ${count} cards face up in ${town_labels}",
+      "args": {
+       "turn": 3,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 2,
+       "town_labels": "Kirn",
+       "i18n": [
+        "town_labels"
+       ],
+       "revealed": {
+        "kirn": [
+         {
+          "id": 9,
+          "type": "influence0",
+          "presence": 0
+         },
+         {
+          "id": 8,
+          "type": "influence0",
+          "presence": 0
+         }
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe19812ec9",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": []
+      }
+     },
+     {
+      "uid": "6acbe1981eb84",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 78,
+         "2375194": "66"
+        }
+       },
+       "updateGameProgression": 25
+      }
+     },
+     {
+      "uid": "6acbe198218ae",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 48,
+       "handCount": 3,
+       "round": 4
+      }
+     },
+     {
+      "uid": "6acbe19821da5",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe19825d4e",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "gallow",
+         "harrow",
+         "ilmen",
+         "kirn"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "78",
+         "2375194": "106"
+        }
+       },
+       "updateGameProgression": 25
+      },
+      "lock_uuid": "ca88e8fd-6fb6-4c14-855b-cf9aab90afc5"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "17",
+    "packet_type": "resend",
+    "move_id": "13",
+    "time": "1791746477",
+    "data": [
+     {
+      "uid": "6acbe1ad1be2b",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375193,
+       "name": "player_score",
+       "value": 4,
+       "oldValue": 3,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "b78a5c"
+     },
+     {
+      "uid": "6acbe1ad22f23",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 4,
+       "town_id": "ilmen",
+       "town_label": "Ilmen",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 0,
+       "troopPresence": 0,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "empire",
+       "declaredBy": "insurgency",
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "pile": [
+        {
+         "id": 5,
+         "type": "influence0",
+         "presence": 0
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 1
+      }
+     },
+     {
+      "uid": "6acbe1ad271f1",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "ashford",
+         "coldwater",
+         "everlan",
+         "gallow",
+         "harrow",
+         "joss",
+         "kirn",
+         "larrow"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "78",
+         "2375194": 86
+        }
+       },
+       "updateGameProgression": 33
+      },
+      "lock_uuid": "fc0949f4-e4ee-4602-82a4-d812faf21246"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "18",
+    "packet_type": "resend",
+    "move_id": "14",
+    "time": "1791746515",
+    "data": [
+     {
+      "uid": "6acbe1d3afe58",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 4,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 3,
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "2509ed"
+     },
+     {
+      "uid": "6acbe1d3afe67",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "everlan": [
+         10,
+         11,
+         12
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe1d3b2286",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "78",
+         "2375194": 49
+        }
+       },
+       "updateGameProgression": 33
+      }
+     },
+     {
+      "uid": "6acbe1d3b3d56",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe1d3b7b52",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375193,
+       "args": {
+        "side": "empire",
+        "resolvable": [
+         "everlan",
+         "harrow",
+         "kirn"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "118",
+         "2375194": "49"
+        }
+       },
+       "updateGameProgression": 33
+      },
+      "lock_uuid": "bd367241-f7b5-42ff-8987-c344a1afc572"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "19",
+    "packet_type": "resend",
+    "move_id": "15",
+    "time": "1791746524",
+    "data": [
+     {
+      "uid": "6acbe1dc35ea9",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375193,
+       "name": "player_score",
+       "value": 5,
+       "oldValue": 4,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "a017ae"
+     },
+     {
+      "uid": "6acbe1dc3bc58",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 4,
+       "town_id": "kirn",
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 0,
+       "troopPresence": 4,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "empire",
+       "declaredBy": "empire",
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "pile": [
+        {
+         "id": 9,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 8,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 7,
+         "type": "influence0",
+         "presence": 0
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 3
+      }
+     },
+     {
+      "uid": "6acbe1dc3f16e",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": "2375193",
+       "args": {
+        "production": {
+         "everlan": 1,
+         "kirn": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "everlan",
+           "fenn",
+           "harrow",
+           "kirn"
+          ],
+          "ceiling": 8,
+          "troops": 8
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": 110,
+         "2375194": "49"
+        }
+       },
+       "updateGameProgression": 42
+      },
+      "lock_uuid": "89bbae89-f132-46a5-81fd-c4cde01d0479"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "20",
+    "packet_type": "resend",
+    "move_id": "16",
+    "time": "1791746551",
+    "data": [
+     {
+      "uid": "6acbe1f7a669c",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 13,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 14,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 15,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 9,
+      "lock_uuid": "f77a70f3-99d9-4d38-8e21-c22515b6e401",
+      "h": "350318"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "21",
+    "packet_type": "resend",
+    "move_id": "16",
+    "time": "1791746551",
+    "data": [
+     {
+      "uid": "6acbe1f795604",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 4,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "350318"
+     },
+     {
+      "uid": "6acbe1f79593f",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 4,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe1f795c0d",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 4,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Harrow",
+       "to_label": "Everlan",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe1f795eb1",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 4,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Fenn",
+       "to_label": "Everlan",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe1f795ec7",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "kirn": 1,
+        "everlan": 1
+       },
+       "moves": [
+        {
+         "from": "harrow",
+         "to": "everlan",
+         "count": 1
+        },
+        {
+         "from": "fenn",
+         "to": "everlan",
+         "count": 1
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 4,
+        "fenn": 0,
+        "gallow": 0,
+        "harrow": 1,
+        "ilmen": 0,
+        "joss": 0,
+        "kirn": 5,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe1f79663b",
+      "type": "cardsRevealed",
+      "log": "T${turn}: ${player_name} turns ${count} cards face up in ${town_labels}",
+      "args": {
+       "turn": 4,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 3,
+       "town_labels": "Everlan, Harrow",
+       "i18n": [
+        "town_labels"
+       ],
+       "revealed": {
+        "everlan": [
+         {
+          "id": 12,
+          "type": "influence1",
+          "presence": 1
+         },
+         {
+          "id": 11,
+          "type": "influence1",
+          "presence": 1
+         }
+        ],
+        "harrow": [
+         {
+          "id": 6,
+          "type": "influence1",
+          "presence": 1
+         }
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe1f797657",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": {
+        "kirn": 4
+       }
+      }
+     },
+     {
+      "uid": "6acbe1f7a3aca",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 84,
+         "2375194": "49"
+        }
+       },
+       "updateGameProgression": 42
+      }
+     },
+     {
+      "uid": "6acbe1f7a668a",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 45,
+       "handCount": 3,
+       "round": 5
+      }
+     },
+     {
+      "uid": "6acbe1f7a6a42",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe1f7aa197",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "everlan",
+         "gallow",
+         "harrow"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "84",
+         "2375194": "89"
+        }
+       },
+       "updateGameProgression": 42
+      },
+      "lock_uuid": "f77a70f3-99d9-4d38-8e21-c22515b6e401"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "22",
+    "packet_type": "resend",
+    "move_id": "17",
+    "time": "1791746568",
+    "data": [
+     {
+      "uid": "6acbe2080665c",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 2,
+       "oldValue": 0,
+       "inc": 2,
+       "absInc": 2
+      },
+      "h": "5a469c"
+     },
+     {
+      "uid": "6acbe2080e8a5",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 5,
+       "town_id": "harrow",
+       "town_label": "Harrow",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 2,
+       "troopPresence": 1,
+       "points": 1,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "insurgency",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 6,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 1,
+         "type": "influence1",
+         "presence": 1
+        }
+       ],
+       "troopsLost": 1,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe20811ef6",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "ashford",
+         "coldwater",
+         "everlan",
+         "gallow",
+         "joss",
+         "larrow"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "84",
+         "2375194": 73
+        }
+       },
+       "updateGameProgression": 50
+      },
+      "lock_uuid": "12137d31-856e-4da7-89b0-bcb7eff86099"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "23",
+    "packet_type": "resend",
+    "move_id": "18",
+    "time": "1791746592",
+    "data": [
+     {
+      "uid": "6acbe2202d62a",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 5,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 2,
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "cdbdfc"
+     },
+     {
+      "uid": "6acbe2202d806",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 5,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Larrow",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe2202d810",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "everlan": [
+         13,
+         14
+        ],
+        "larrow": [
+         15
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe2202f883",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "84",
+         "2375194": 50
+        }
+       },
+       "updateGameProgression": 50
+      }
+     },
+     {
+      "uid": "6acbe220310f0",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe220348d1",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375193,
+       "args": {
+        "side": "empire",
+        "resolvable": [
+         "everlan"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "124",
+         "2375194": "50"
+        }
+       },
+       "updateGameProgression": 50
+      },
+      "lock_uuid": "b592d745-c26d-4b4d-8f2d-78fbc3abebb7"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "24",
+    "packet_type": "resend",
+    "move_id": "19",
+    "time": "1791746636",
+    "data": [
+     {
+      "uid": "6acbe24cb356b",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 7,
+       "oldValue": 2,
+       "inc": 5,
+       "absInc": 5
+      },
+      "h": "fbb71f"
+     },
+     {
+      "uid": "6acbe24cb9f1b",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 5,
+       "town_id": "everlan",
+       "town_label": "Everlan",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 5,
+       "troopPresence": 4,
+       "points": 4,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "empire",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 12,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 11,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 14,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 13,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 10,
+         "type": "influence1",
+         "presence": 1
+        }
+       ],
+       "troopsLost": 4,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe24cbd6c9",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": "2375193",
+       "args": {
+        "production": {
+         "kirn": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "kirn"
+          ],
+          "ceiling": 2,
+          "troops": 5
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": 81,
+         "2375194": "50"
+        }
+       },
+       "updateGameProgression": 58
+      },
+      "lock_uuid": "c81f174b-1afc-4729-8c45-a3ee32be40a4"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "25",
+    "packet_type": "resend",
+    "move_id": "20",
+    "time": "1791746664",
+    "data": [
+     {
+      "uid": "6acbe2681742f",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 16,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 17,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 18,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 7,
+      "lock_uuid": "086d4241-6cd1-4159-8559-9ccb64248de5",
+      "h": "30c085"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "26",
+    "packet_type": "resend",
+    "move_id": "20",
+    "time": "1791746664",
+    "data": [
+     {
+      "uid": "6acbe26803e88",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 5,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "30c085"
+     },
+     {
+      "uid": "6acbe26803ea5",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "kirn": 1
+       },
+       "moves": [],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 0,
+        "fenn": 0,
+        "gallow": 0,
+        "harrow": 0,
+        "ilmen": 0,
+        "joss": 0,
+        "kirn": 6,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe26805021",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 11,
+       "oldValue": 7,
+       "inc": 4,
+       "absInc": 4
+      }
+     },
+     {
+      "uid": "6acbe2680576c",
+      "type": "troopsStarved",
+      "log": "T${turn}: ${count} Empire troops starve for want of supply in ${town_labels} — ${player_name} scores ${points}",
+      "args": {
+       "turn": 5,
+       "count": 4,
+       "points": 4,
+       "losses": {
+        "kirn": 4
+       },
+       "town_labels": "Kirn",
+       "i18n": [
+        "town_labels"
+       ],
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 0,
+        "fenn": 0,
+        "gallow": 0,
+        "harrow": 0,
+        "ilmen": 0,
+        "joss": 0,
+        "kirn": 2,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe26805ebb",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": []
+      }
+     },
+     {
+      "uid": "6acbe2681501e",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 54,
+         "2375194": "50"
+        }
+       },
+       "updateGameProgression": 58
+      }
+     },
+     {
+      "uid": "6acbe26817421",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 42,
+       "handCount": 3,
+       "round": 6
+      }
+     },
+     {
+      "uid": "6acbe26817871",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe2681b0dd",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "gallow",
+         "larrow"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "54",
+         "2375194": "90"
+        }
+       },
+       "updateGameProgression": 58
+      },
+      "lock_uuid": "086d4241-6cd1-4159-8559-9ccb64248de5"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "27",
+    "packet_type": "resend",
+    "move_id": "21",
+    "time": "1791746675",
+    "data": [
+     {
+      "uid": "6acbe2737f276",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 12,
+       "oldValue": 11,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "3d01b1"
+     },
+     {
+      "uid": "6acbe27384783",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 6,
+       "town_id": "larrow",
+       "town_label": "Larrow",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 1,
+       "troopPresence": 0,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "insurgency",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 15,
+         "type": "influence1",
+         "presence": 1
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe273893f7",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "ashford",
+         "coldwater",
+         "gallow",
+         "joss"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "54",
+         "2375194": 80
+        }
+       },
+       "updateGameProgression": 67
+      },
+      "lock_uuid": "be718f14-45cc-423c-8180-a833a14d1d4c"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "28",
+    "packet_type": "resend",
+    "move_id": "22",
+    "time": "1791746878",
+    "data": [
+     {
+      "uid": "6acbe33e3bbc1",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 6,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Coldwater",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "e2c772"
+     },
+     {
+      "uid": "6acbe33e3be4d",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 6,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Ashford",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe33e3c0c7",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 6,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Joss",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe33e3c0d5",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "coldwater": [
+         16
+        ],
+        "ashford": [
+         17
+        ],
+        "joss": [
+         18
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe33e496a8",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "54",
+         "2375194": -122
+        }
+       },
+       "updateGameProgression": 67
+      }
+     },
+     {
+      "uid": "6acbe33e4accd",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe33e4ea1a",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": 2375193,
+       "args": {
+        "production": {
+         "kirn": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "kirn"
+          ],
+          "ceiling": 2,
+          "troops": 2
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "94",
+         "2375194": "-122"
+        }
+       },
+       "updateGameProgression": 67
+      },
+      "lock_uuid": "846fad6a-35d8-48bd-83b9-40d68eaf840b"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "29",
+    "packet_type": "resend",
+    "move_id": "23",
+    "time": "1791746901",
+    "data": [
+     {
+      "uid": "6acbe35527112",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 19,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 20,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 21,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 6,
+      "lock_uuid": "0c40c6ac-159f-4bbc-8dd7-21c8a6adaabd",
+      "h": "936d0e"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "30",
+    "packet_type": "resend",
+    "move_id": "23",
+    "time": "1791746901",
+    "data": [
+     {
+      "uid": "6acbe355186ad",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 6,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "936d0e"
+     },
+     {
+      "uid": "6acbe35518927",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 6,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Kirn",
+       "to_label": "Joss",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe35518942",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "kirn": 1
+       },
+       "moves": [
+        {
+         "from": "kirn",
+         "to": "joss",
+         "count": 1
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 0,
+        "fenn": 0,
+        "gallow": 0,
+        "harrow": 0,
+        "ilmen": 0,
+        "joss": 1,
+        "kirn": 2,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe355197e4",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": []
+      }
+     },
+     {
+      "uid": "6acbe3552477c",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 72,
+         "2375194": "-122"
+        }
+       },
+       "updateGameProgression": 67
+      }
+     },
+     {
+      "uid": "6acbe35527102",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 39,
+       "handCount": 3,
+       "round": 7
+      }
+     },
+     {
+      "uid": "6acbe35527609",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe3552b260",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "ashford",
+         "coldwater",
+         "gallow",
+         "joss"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "72",
+         "2375194": "-82"
+        }
+       },
+       "updateGameProgression": 67
+      },
+      "lock_uuid": "0c40c6ac-159f-4bbc-8dd7-21c8a6adaabd"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "31",
+    "packet_type": "resend",
+    "move_id": "24",
+    "time": "1791746915",
+    "data": [
+     {
+      "uid": "6acbe36365447",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 13,
+       "oldValue": 12,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "bb812f"
+     },
+     {
+      "uid": "6acbe3636ce22",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 7,
+       "town_id": "ashford",
+       "town_label": "Ashford",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 1,
+       "troopPresence": 0,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "insurgency",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 17,
+         "type": "influence1",
+         "presence": 1
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe36372058",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "coldwater",
+         "gallow",
+         "joss"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "72",
+         "2375194": -95
+        }
+       },
+       "updateGameProgression": 75
+      },
+      "lock_uuid": "94703013-6ce7-48d2-8e9a-52507b26fc48"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "32",
+    "packet_type": "resend",
+    "move_id": "25",
+    "time": "1791746932",
+    "data": [
+     {
+      "uid": "6acbe37490160",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 7,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 2,
+       "town_label": "Joss",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "25df1d"
+     },
+     {
+      "uid": "6acbe374904ca",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 7,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 1,
+       "town_label": "Coldwater",
+       "i18n": [
+        "town_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe374904dd",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "joss": [
+         19,
+         20
+        ],
+        "coldwater": [
+         21
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe3749391b",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "72",
+         "2375194": -111
+        }
+       },
+       "updateGameProgression": 75
+      }
+     },
+     {
+      "uid": "6acbe3749564a",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe374995e5",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375193,
+       "args": {
+        "side": "empire",
+        "resolvable": [
+         "joss"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "112",
+         "2375194": "-111"
+        }
+       },
+       "updateGameProgression": 75
+      },
+      "lock_uuid": "3d90e10c-2a80-438d-8bbb-769c18038ab2"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "33",
+    "packet_type": "resend",
+    "move_id": "26",
+    "time": "1791746945",
+    "data": [
+     {
+      "uid": "6acbe38151337",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 15,
+       "oldValue": 13,
+       "inc": 2,
+       "absInc": 2
+      },
+      "h": "a1b57e"
+     },
+     {
+      "uid": "6acbe38157f1e",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 7,
+       "town_id": "joss",
+       "town_label": "Joss",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 3,
+       "troopPresence": 1,
+       "points": 1,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "empire",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 20,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 19,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 18,
+         "type": "influence1",
+         "presence": 1
+        }
+       ],
+       "troopsLost": 1,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe3815b1b9",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": "2375193",
+       "args": {
+        "production": {
+         "kirn": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "kirn"
+          ],
+          "ceiling": 2,
+          "troops": 2
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": 100,
+         "2375194": "-111"
+        }
+       },
+       "updateGameProgression": 83
+      },
+      "lock_uuid": "926d8ec1-5afd-4b6d-8bac-15bc98baf55a"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "34",
+    "packet_type": "resend",
+    "move_id": "27",
+    "time": "1791746968",
+    "data": [
+     {
+      "uid": "6acbe398c9311",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 22,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 23,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 24,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 6,
+      "lock_uuid": "02a91180-c495-4864-8f0e-8ba986f5f4c2",
+      "h": "4528d1"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "35",
+    "packet_type": "resend",
+    "move_id": "27",
+    "time": "1791746968",
+    "data": [
+     {
+      "uid": "6acbe398b733c",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 7,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "4528d1"
+     },
+     {
+      "uid": "6acbe398b7640",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 7,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 2,
+       "from_label": "Kirn",
+       "to_label": "Joss",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe398b7669",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "kirn": 1
+       },
+       "moves": [
+        {
+         "from": "kirn",
+         "to": "joss",
+         "count": 2
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 0,
+        "fenn": 0,
+        "gallow": 0,
+        "harrow": 0,
+        "ilmen": 0,
+        "joss": 2,
+        "kirn": 1,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe398b8f01",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": {
+        "joss": 1
+       }
+      }
+     },
+     {
+      "uid": "6acbe398c5d15",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 78,
+         "2375194": "-111"
+        }
+       },
+       "updateGameProgression": 83
+      }
+     },
+     {
+      "uid": "6acbe398c9300",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 36,
+       "handCount": 3,
+       "round": 8
+      }
+     },
+     {
+      "uid": "6acbe398c9841",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe398ce541",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "coldwater",
+         "gallow"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "78",
+         "2375194": "-71"
+        }
+       },
+       "updateGameProgression": 83
+      },
+      "lock_uuid": "02a91180-c495-4864-8f0e-8ba986f5f4c2"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "36",
+    "packet_type": "resend",
+    "move_id": "28",
+    "time": "1791746988",
+    "data": [
+     {
+      "uid": "6acbe3acd1064",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 16,
+       "oldValue": 15,
+       "inc": 1,
+       "absInc": 1
+      },
+      "h": "590d3c"
+     },
+     {
+      "uid": "6acbe3acd6c85",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 8,
+       "town_id": "coldwater",
+       "town_label": "Coldwater",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 1,
+       "troopPresence": 0,
+       "points": 0,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "insurgency",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 21,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 16,
+         "type": "influence0",
+         "presence": 0
+        }
+       ],
+       "troopsLost": 0,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe3acda75a",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 10,
+       "active_player": "2375194",
+       "args": {
+        "openTowns": [
+         "gallow"
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "78",
+         "2375194": -90
+        }
+       },
+       "updateGameProgression": 92
+      },
+      "lock_uuid": "ab76ada2-c95b-4eb7-8f57-316669d67ea8"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "37",
+    "packet_type": "resend",
+    "move_id": "29",
+    "time": "1791746998",
+    "data": [
+     {
+      "uid": "6acbe3b60b7cd",
+      "type": "placedIn",
+      "log": "T${turn}: ${player_name} places ${count} in ${town_label}",
+      "args": {
+       "turn": 8,
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "count": 3,
+       "town_label": "Gallow",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "d75ab5"
+     },
+     {
+      "uid": "6acbe3b60b7d9",
+      "type": "cardsPlaced",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "count": 3,
+       "cards": {
+        "gallow": [
+         22,
+         23,
+         24
+        ]
+       }
+      }
+     },
+     {
+      "uid": "6acbe3b60db5c",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "78",
+         "2375194": -99
+        }
+       },
+       "updateGameProgression": 92
+      }
+     },
+     {
+      "uid": "6acbe3b60f663",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe3b613183",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 11,
+       "active_player": 2375193,
+       "args": {
+        "production": {
+         "kirn": 1
+        },
+        "networks": [
+         {
+          "towns": [
+           "joss",
+           "kirn"
+          ],
+          "ceiling": 2,
+          "troops": 3
+         }
+        ],
+        "offeredEnd": false,
+        "opponentOfferedEnd": false
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "118",
+         "2375194": "-99"
+        }
+       },
+       "updateGameProgression": 92
+      },
+      "lock_uuid": "323b0705-a081-4296-8c89-424378960621"
+     }
+    ]
+   },
+   {
+    "channel": "/player/p2375194",
+    "table_id": 984120,
+    "packet_id": "38",
+    "packet_type": "resend",
+    "move_id": "30",
+    "time": "1791747012",
+    "data": [
+     {
+      "uid": "6acbe3c415092",
+      "type": "handDrawn",
+      "log": "",
+      "args": {
+       "hand": [
+        {
+         "id": 25,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 26,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 27,
+         "type": "influence1",
+         "presence": 1
+        }
+       ]
+      },
+      "synchro": 6,
+      "lock_uuid": "0e87cb7e-a309-45c6-8748-0d3b915cd794",
+      "h": "6dceb7"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "39",
+    "packet_type": "resend",
+    "move_id": "30",
+    "time": "1791747012",
+    "data": [
+     {
+      "uid": "6acbe3c405ec7",
+      "type": "built",
+      "log": "T${turn}: ${player_name} builds ${count} in ${town_label}",
+      "args": {
+       "turn": 8,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "town_label": "Kirn",
+       "i18n": [
+        "town_label"
+       ]
+      },
+      "h": "6dceb7"
+     },
+     {
+      "uid": "6acbe3c40617e",
+      "type": "marched",
+      "log": "T${turn}: ${player_name} marches ${count} from ${from_label} to ${to_label}",
+      "args": {
+       "turn": 8,
+       "player_id": 2375193,
+       "player_name": "scotfree0",
+       "count": 1,
+       "from_label": "Joss",
+       "to_label": "Gallow",
+       "i18n": [
+        "from_label",
+        "to_label"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe3c40619b",
+      "type": "empireMoved",
+      "log": "",
+      "args": {
+       "player_id": 2375193,
+       "produced": {
+        "kirn": 1
+       },
+       "moves": [
+        {
+         "from": "joss",
+         "to": "gallow",
+         "count": 1
+        }
+       ],
+       "troops": {
+        "ashford": 0,
+        "belmar": 0,
+        "coldwater": 0,
+        "draymoor": 0,
+        "everlan": 0,
+        "fenn": 0,
+        "gallow": 1,
+        "harrow": 0,
+        "ilmen": 0,
+        "joss": 1,
+        "kirn": 2,
+        "larrow": 0
+       }
+      }
+     },
+     {
+      "uid": "6acbe3c4071e7",
+      "type": "starvationWarning",
+      "log": "",
+      "args": {
+       "starving": []
+      }
+     },
+     {
+      "uid": "6acbe3c41240b",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375193",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": 105,
+         "2375194": "-99"
+        }
+       },
+       "updateGameProgression": 92
+      }
+     },
+     {
+      "uid": "6acbe3c415082",
+      "type": "deckCount",
+      "log": "",
+      "args": {
+       "deckCount": 33,
+       "handCount": 3,
+       "round": 9
+      }
+     },
+     {
+      "uid": "6acbe3c415545",
+      "type": "updateReflexionTime",
+      "log": "",
+      "args": {
+       "player_id": 2375194,
+       "delta": "40",
+       "max": "180"
+      }
+     },
+     {
+      "uid": "6acbe3c4199fc",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 12,
+       "active_player": 2375194,
+       "args": {
+        "side": "insurgency",
+        "resolvable": [
+         "gallow"
+        ]
+       },
+       "type": "activeplayer",
+       "reflexion": {
+        "total": {
+         "2375193": "105",
+         "2375194": "-59"
+        }
+       },
+       "updateGameProgression": 92
+      },
+      "lock_uuid": "0e87cb7e-a309-45c6-8748-0d3b915cd794"
+     }
+    ]
+   },
+   {
+    "channel": "/table/t984120",
+    "table_id": 984120,
+    "packet_id": "40",
+    "packet_type": "resend",
+    "move_id": "31",
+    "time": "1791747020",
+    "data": [
+     {
+      "uid": "6acbe3cbbd9b5",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score",
+       "value": 18,
+       "oldValue": 16,
+       "inc": 2,
+       "absInc": 2
+      },
+      "h": "4e45af"
+     },
+     {
+      "uid": "6acbe3cbc4924",
+      "type": "townResolved",
+      "log": "T${turn}: ${town_label} resolves: Rebels ${cardPresence} presence against the Empire's ${troopPresence} — ${player_name} takes it for ${points}, and ${locationPoints} for the location",
+      "args": {
+       "turn": 9,
+       "town_id": "gallow",
+       "town_label": "Gallow",
+       "i18n": [
+        "town_label"
+       ],
+       "cardPresence": 2,
+       "troopPresence": 1,
+       "points": 1,
+       "locationPoints": 1,
+       "winner": "insurgency",
+       "declaredBy": "insurgency",
+       "player_id": 2375194,
+       "player_name": "scotfree1",
+       "pile": [
+        {
+         "id": 24,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 23,
+         "type": "influence1",
+         "presence": 1
+        },
+        {
+         "id": 22,
+         "type": "influence0",
+         "presence": 0
+        },
+        {
+         "id": 4,
+         "type": "influence0",
+         "presence": 0
+        }
+       ],
+       "troopsLost": 1,
+       "cardsTaken": 0
+      }
+     },
+     {
+      "uid": "6acbe3cbc6f97",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 90,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "105",
+         "2375194": -65
+        }
+       },
+       "updateGameProgression": 100
+      }
+     },
+     {
+      "uid": "6acbe3cbc7c45",
+      "type": "gameEnding",
+      "log": "T${turn}: The game ends: ${reason}",
+      "args": {
+       "turn": 9,
+       "reason": "every town has been resolved",
+       "i18n": [
+        "reason"
+       ]
+      }
+     },
+     {
+      "uid": "6acbe3cbd0930",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 98,
+       "active_player": "2375194",
+       "args": [],
+       "type": "game",
+       "reflexion": {
+        "total": {
+         "2375193": "105",
+         "2375194": "-65"
+        }
+       },
+       "updateGameProgression": 100
+      }
+     },
+     {
+      "uid": "6acbe3cbd15f4",
+      "type": "finalScore",
+      "log": "Final score: the Empire ${empire_score}, the Rebels ${rebels_score} — the Rebels win",
+      "args": {
+       "empire_score": 5,
+       "rebels_score": 18,
+       "winner": "insurgency",
+       "bot_score": null
+      }
+     },
+     {
+      "uid": "6acbe3cbd1c94",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375193,
+       "name": "player_score_aux",
+       "value": 50301,
+       "oldValue": 0,
+       "inc": 50301,
+       "absInc": 50301
+      }
+     },
+     {
+      "uid": "6acbe3cbd2180",
+      "type": "setPlayerCounter",
+      "log": "",
+      "args": {
+       "playerId": 2375194,
+       "name": "player_score_aux",
+       "value": 71500,
+       "oldValue": 0,
+       "inc": 71500,
+       "absInc": 71500
+      }
+     },
+     {
+      "uid": "6acbe3cbd3366",
+      "type": "gameStateChange",
+      "log": "",
+      "args": {
+       "id": 99,
+       "active_player": "2375194",
+       "args": [],
+       "type": "manager",
+       "reflexion": {
+        "total": {
+         "2375193": "105",
+         "2375194": "-65"
+        }
+       },
+       "updateGameProgression": 100
+      }
+     },
+     {
+      "uid": "6acbe3cbd7974",
+      "type": "simpleNode",
+      "log": "End of game",
+      "args": [],
+      "lock_uuid": "5807c806-a600-4e58-8ec8-dcadeebadbd4"
+     }
+    ]
+   }
+  ],
+  "players": []
+ }
+}
