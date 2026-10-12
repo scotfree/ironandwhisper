@@ -547,16 +547,54 @@ $board: #e6e6e8;
 /********* the game state frame *********/
 
 #iaw-state {
-    margin-top: 10px;
     padding: 8px;
     background: $paper;
     border-radius: 4px;
     font-variant-numeric: tabular-nums;
 }
 
+// The column's first line is which side this window is playing, on a solid band
+// in that side's colour, with the clock beside it in small plain type. A
+// two-account game had two windows side by side and nothing at the top of
+// either said which was which. The negative margins take the band to the
+// frame's edges, so they match `#iaw-state`'s padding.
+#iaw-state > .iaw-frame-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 10px;
+    row-gap: 2px;
+    margin: -8px -8px 6px;
+    padding: 6px 8px;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    background: #888;
+    color: #fff;
+}
+
+#iaw-state.empire > .iaw-frame-title {
+    background: $empire;
+}
+
+#iaw-state.insurgency > .iaw-frame-title {
+    background: $insurgency;
+}
+
+.iaw-state-side {
+    font-size: 20px;
+}
+
+// Not a reading face for numbers, so the clock breaks back out to sans, as
+// `.iaw-army-load` does.
 #iaw-clock {
-    padding: 0;
-    background: none;
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 8px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11px;
+    font-weight: normal;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
 }
 
 // Numbered explicitly: BGA's reset strips list markers, which is why the turn
@@ -995,13 +1033,6 @@ $board: #e6e6e8;
     margin-top: 10px;
 }
 
-#iaw-clock {
-    padding: 8px;
-    background: $paper;
-    border-radius: 4px;
-    font-variant-numeric: tabular-nums;
-}
-
 /********* the army list *********/
 
 // One per supply network. Usually there is one; when a line is cut there are
@@ -1155,35 +1186,6 @@ $board: #e6e6e8;
         background: color.mix($insurgency, #fff, 6%);
     }
 
-    // Which side this window is playing, as a solid band in that side's colour
-    // across the top of the frame. A two-account playtest had two windows open
-    // side by side and the blackletter title alone did not say it loudly
-    // enough. The negative margins take the band to the frame's edges, so they
-    // have to match its padding — the start card's copy below matches its own.
-    // A spectator plays no side and keeps the ordinary title.
-    &.empire .iaw-frame-title,
-    &.insurgency .iaw-frame-title {
-        margin: -8px -10px 8px;
-        padding: 6px 10px;
-        border-bottom: none;
-        border-radius: 0 3px 0 0;
-        color: #fff;
-        font-size: 18px;
-    }
-
-    &.empire .iaw-frame-title {
-        background: $empire;
-    }
-
-    &.insurgency .iaw-frame-title {
-        background: $insurgency;
-    }
-
-}
-
-// First in the column now, so the frame below it takes the gap instead.
-#iaw-primer .iaw-primer {
-    margin-top: 0;
 }
 
 .iaw-primer-steps {
@@ -1272,10 +1274,24 @@ $board: #e6e6e8;
         padding-bottom: 6px;
     }
 
+    // Full-screen, the title names your side on a band in its colour. The
+    // negative margins take the band to the card's edges, so they match the
+    // card's padding. A spectator plays no side and keeps the plain title.
     .iaw-primer.empire .iaw-frame-title,
     .iaw-primer.insurgency .iaw-frame-title {
         margin: -28px -32px 16px;
         padding: 14px 32px;
+        border-bottom: none;
+        border-radius: 0 3px 0 0;
+        color: #fff;
+    }
+
+    .iaw-primer.empire .iaw-frame-title {
+        background: $empire;
+    }
+
+    .iaw-primer.insurgency .iaw-frame-title {
+        background: $insurgency;
     }
 
     .iaw-primer-more {

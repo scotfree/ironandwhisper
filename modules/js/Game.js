@@ -2072,20 +2072,22 @@ class Help {
      * empty box. No turn order here any more — that is `phaseListHtml`, which
      * lives with the rest of the game state.
      *
-     * Its title names the side rather than the frame. Every other frame in the
-     * column is titled for what it is, and this one is the exception on
-     * purpose: the asymmetry is the thing worth never losing track of, and this
-     * is the only box on screen that is about *you*. It reads the same blown up
-     * full-screen at the start of the game, which is the other place it is
-     * drawn and the one place a player is certain to look.
+     * Full-screen at the start of the game its title names your side — the
+     * one place a player is certain to look. In the column it is "How to Play
+     * Rebels": which side you are is the Game Status band's job, at the top,
+     * where a player returning to a window looks first.
      */
-    primerHtml(side) {
+    primerHtml(side, where = 'start') {
         const rebel = side === 'insurgency';
         // A spectator is playing no side, so the frame goes back to being
-        // named for what it is.
+        // named for what it is. In the column the Game Status band already
+        // says which side you are, so the frame says what it is; full-screen,
+        // the card is the announcement and says it loudly.
         const title = side === null
             ? _('Rules Summary')
-            : (rebel ? _('You Are Playing the Rebels') : _('You Are Playing the Empire'));
+            : where === 'column'
+                ? (rebel ? _('How to Play Rebels') : _('How to Play Empire'))
+                : (rebel ? _('You Are Playing the Rebels') : _('You Are Playing the Empire'));
         // Written as Markdown in `src/text/`, compiled into
         // `primers.generated.ts` by `tools/build-text.mjs`. Prose belongs in a
         // prose file; `*.md` is excluded from the deploy, so it is compiled in
@@ -2216,10 +2218,11 @@ class Game {
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
-                    <div id="iaw-primer"></div>
-                    <div id="iaw-state">
-                        <div class="iaw-frame-title">${_('Game Status')}</div>
-                        <div id="iaw-clock"></div>
+                    <div id="iaw-state" class="${this.side ?? 'spectator'}">
+                        <div class="iaw-frame-title">
+                            <span class="iaw-state-side">${this.sideTitle()}</span>
+                            <span id="iaw-clock"></span>
+                        </div>
                         <div id="iaw-phases"></div>
                     </div>
                     <div id="iaw-zoom"></div>
@@ -2233,6 +2236,7 @@ class Game {
                         <div id="iaw-armies"></div>
                     </div>
                     <div id="iaw-last-turn"></div>
+                    <div id="iaw-primer"></div>
                 </div>
             </div>
         `);
@@ -2301,10 +2305,31 @@ class Game {
             return;
         }
         const scenario = this.gamedatas.scenario;
-        element.innerHTML = `
-            <div>${_('Turn')} ${Math.min(round, scenario.turns)} / ${scenario.turns}</div>
-            <div>${_('Deck')}: ${deckCount} &nbsp; ${_('Hand')}: ${handCount}</div>
-        `;
+        const deckSize = Object.values(scenario.deck).reduce((sum, count) => sum + count, 0);
+        // The hand is the rebels' whatever side you are: the Empire has none,
+        // and reads how many cards are coming at it here. With option 104 the
+        // rebels may hold cards, so it is not always the hand size.
+        element.innerHTML = [
+            _('${turn}/${turns} turns')
+                .replace('${turn}', String(Math.min(round, scenario.turns)))
+                .replace('${turns}', String(scenario.turns)),
+            _('${deck}/${size} cards')
+                .replace('${deck}', String(deckCount))
+                .replace('${size}', String(deckSize)),
+            _('${hand} in hand').replace('${hand}', String(handCount)),
+        ].map(part => `<span>${part}</span>`).join(' ');
+    }
+    /**
+     * The first thing in the column, on a band in your side's colour: which
+     * side this window is playing. Two windows side by side in a two-account
+     * game could not be told apart, and the side was otherwise named only in
+     * the rules summary at the foot of the column.
+     */
+    sideTitle() {
+        if (this.side === null) {
+            return _('Watching');
+        }
+        return this.side === 'insurgency' ? _('Playing Rebels') : _('Playing Empire');
     }
     /**
      * The Empire's armies, one per supply network.
@@ -2559,11 +2584,10 @@ class Game {
         }
     }
     /**
-     * The permanent reminder of what your side does, at the top of the column
-     * under a band in your side's colour. It sat at the bottom, below
-     * everything that changes, and a two-account playtest found nobody could
-     * tell at a glance which side a window was playing. Rendered once: nothing
-     * in it depends on the state of the game.
+     * The permanent reminder of what your side does, below everything that
+     * changes. Rendered once: nothing in it depends on the state of the game.
+     * Which side you are is said by the Game Status band at the top; this
+     * frame was tried up there and cost too much of the column.
      */
     renderPrimer() {
         const element = document.getElementById('iaw-primer');
@@ -2572,7 +2596,7 @@ class Game {
         }
         // No wiring: "How to play" is an ordinary link to the manual, which is
         // what lets the start card's copy of this markup work as well.
-        element.innerHTML = this.help.primerHtml(this.side);
+        element.innerHTML = this.help.primerHtml(this.side, 'column');
     }
     /** A finished game's replay, or "replay from here" in one still running. */
     isReplay() {

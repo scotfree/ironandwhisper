@@ -332,8 +332,8 @@ authoritative answer belongs to them and this is only the expected shape.
   is the only way `View::forSide` is exercised by two differently-privileged clients at once.
   Done 2026-10-11: two full games, a spectator open alongside, logs in `logs/984120.json`
   and `logs/985910.json`, and `sim/replay.py` agrees with both at every step. It found that
-  nothing on screen said loudly enough which side a window was playing — the side frame now
-  heads the column under a band in the side's colour. The server reported an error once
+  nothing on screen said loudly enough which side a window was playing — the Game Status
+  frame's title is now a band in the side's colour that says so. The server reported an error once
   around turn 4 or 5 of one game; it left no trace in either log, so it was most likely a
   refused action, and it is worth watching for. **[verified]**
 - **From BGA's [pre-release checklist](https://en.doc.boardgamearena.com/Pre-release_checklist)**

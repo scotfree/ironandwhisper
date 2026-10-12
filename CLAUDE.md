@@ -260,27 +260,31 @@ Done:
   `renderArmies`, because the list is rebuilt on every board change — a dozen times on a
   full refresh — and anything bound to an entry would not survive one notification.
 - **Every frame in the side column opens with its name in blackletter**
-  (`.iaw-frame-title`): Game Status, Turn Status, Armies, Last Turn, Rules Summary. Five
+  (`.iaw-frame-title`): Playing Rebels/Empire, Turn Status, Armies, Last Turn, How to Play. Five
   boxes of small type ran together, and the titles are what make the column a list of
   things rather than a wall. Blackletter is not a reading face, which is the point — a
   title in it is scanned for *which box this is* and never mistaken for the contents, and
   it is why `.iaw-army-load` breaks back out to a sans face for its digits. The titles
   replaced the small uppercase headings on Last Turn ("The Empire's last turn") and Rules
-  Summary: whose turn it was is legible from the lines under it. **Rules Summary is titled
-  for the side instead** — "You Are Playing the Empire" — the one frame named for you
-  rather than for what it is, because the asymmetry is the thing worth never losing track
-  of. The same title serves the full-screen start card, which is the other place
-  `primerHtml` is drawn. A title-bar banner saying the same thing was tried and taken out:
-  it was a third place to say one sentence, and the frame was already saying it. `Armies` is a
+  Summary: whose turn it was is legible from the lines under it. **The first frame is
+  titled for your side** — "Playing Empire", on a band in the side's colour, see below —
+  because the asymmetry is the thing worth never losing track of. The rules summary at the
+  foot is "How to Play Empire" in the column and "You Are Playing the Empire" on the
+  full-screen start card, the other place `primerHtml` is drawn. A banner in BGA's title bar
+  saying the same thing was tried and taken out: it was a third place to say one sentence.
+  Naming the side only in the rules summary, at the foot of the column, then turned out too
+  quiet for anyone returning to a window (2026-10-12). `Armies` is a
   transparent grouping frame around the existing panels rather than a box of its own, and
   it is hidden outright when the Empire has no troops left standing — a heading over an
   empty box says less than nothing.
-- **The side column reads top to bottom in the order you need it**: which side you are
-  playing and what it does, under a solid band in the side's colour; the game state
-  (turn / deck / hand, and the numbered turn order with the live step lit), the zoomed
-  card, the turn summary with the Insurgency's hand inside it, the armies, and what the
-  opponent did last turn. The side frame was last until 2026-10-11, when a two-account
-  playtest with two windows side by side could not tell which was which. The cards and
+- **The side column reads top to bottom in the order you need it**: the game state, the
+  zoomed card, the turn summary with the Insurgency's hand inside it, the armies, what the
+  opponent did last turn, and "How to Play Rebels/Empire" at the foot. **The game state's
+  title is a solid band in your side's colour** (2026-10-12) — "Playing Rebels" in
+  blackletter, then turns, deck and the rebels' hand in small sans — with the numbered
+  turn order under it. A two-account playtest with two windows side by side could not
+  tell which was which. Moving the whole side frame to the top was tried first and
+  rejected: that space is too valuable for a rules summary. The cards and
   the list of where they are going are one decision, so they share a frame; the Empire has
   no hand frame at all and reads the rebels' card count off the state box.
 - **The phase list is numbered explicitly** (`list-style: decimal`). It was already an

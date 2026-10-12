@@ -401,21 +401,23 @@ export class Help {
      * empty box. No turn order here any more — that is `phaseListHtml`, which
      * lives with the rest of the game state.
      *
-     * Its title names the side rather than the frame. Every other frame in the
-     * column is titled for what it is, and this one is the exception on
-     * purpose: the asymmetry is the thing worth never losing track of, and this
-     * is the only box on screen that is about *you*. It reads the same blown up
-     * full-screen at the start of the game, which is the other place it is
-     * drawn and the one place a player is certain to look.
+     * Full-screen at the start of the game its title names your side — the
+     * one place a player is certain to look. In the column it is "How to Play
+     * Rebels": which side you are is the Game Status band's job, at the top,
+     * where a player returning to a window looks first.
      */
-    primerHtml(side: Side | null): string {
+    primerHtml(side: Side | null, where: 'start' | 'column' = 'start'): string {
         const rebel = side === 'insurgency';
 
         // A spectator is playing no side, so the frame goes back to being
-        // named for what it is.
+        // named for what it is. In the column the Game Status band already
+        // says which side you are, so the frame says what it is; full-screen,
+        // the card is the announcement and says it loudly.
         const title = side === null
             ? _('Rules Summary')
-            : (rebel ? _('You Are Playing the Rebels') : _('You Are Playing the Empire'));
+            : where === 'column'
+                ? (rebel ? _('How to Play Rebels') : _('How to Play Empire'))
+                : (rebel ? _('You Are Playing the Rebels') : _('You Are Playing the Empire'));
 
         // Written as Markdown in `src/text/`, compiled into
         // `primers.generated.ts` by `tools/build-text.mjs`. Prose belongs in a
