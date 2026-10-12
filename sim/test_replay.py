@@ -37,10 +37,18 @@ def test_every_log_replays_to_the_score_the_server_gave(path):
 def test_a_bot_turn_in_a_real_game_is_what_the_simulator_bot_would_play(path):
     result = load(path)
     bot_turns = [d for d in result.decisions if d.by_bot]
-    assert bot_turns, 'every logged game so far has a bot in it'
+    if not bot_turns:
+        pytest.skip('two people played this one: no bot turn to compare')
     for decision in bot_turns:
         assert same(decision, decision.turn, bot_turn(decision)), (
             f'R{decision.round} {decision.side.value}: the PHP bot and the simulator bot disagree')
+
+
+def test_the_replay_still_recognises_a_bot():
+    # Games between two people skip the comparison above, so a parser that
+    # stopped recognising bot turns would skip every game rather than fail one.
+    # Tables 974986 to 976296 were all played against a bot.
+    assert any(d.by_bot for path in LOGS for d in load(path).decisions)
 
 
 def test_a_log_that_disagrees_with_the_rules_is_caught():
