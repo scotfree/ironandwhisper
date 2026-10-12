@@ -14,7 +14,15 @@ from __future__ import annotations
 
 import random
 
-from .bots import Glob2Empire, GlobEmpire, HeuristicInsurgency, ImperialMonolithBot, Mist2Insurgency, MistBot
+from .bots import (
+    Glob2Empire,
+    GlobEmpire,
+    HeuristicInsurgency,
+    ImperialMonolithBot,
+    Mist2Insurgency,
+    MistBot,
+    MonoLocEmpire,
+)
 from .config import CardType, GameMap, Scenario, TownDef, Unit
 from .engine import (
     Card,
@@ -693,3 +701,84 @@ def test_monolith_plays_whole_games_legally():
             state = play_game(scenario_, ImperialMonolithBot(),
                               rebels(random.Random(seed_)), random.Random(seed_))
             assert state.game_over
+
+
+# ---------------------------------------------------------------------------
+# MonoLocEmpire: the Monolith, playing for ground
+# ---------------------------------------------------------------------------
+
+def monoloc_turn(st, **kwargs):
+    return MonoLocEmpire(random.Random(0), **kwargs).choose(st)
+
+
+def line_map(supply: dict[str, int] | None = None) -> GameMap:
+    """a - b - c - d in a row: the smallest board where a walk has a middle."""
+    names = ("a", "b", "c", "d")
+    supply = supply or {}
+    towns = tuple(
+        TownDef(id=n, label=n.upper(), x=i, y=0, supply=supply.get(n, 10), production=0)
+        for i, n in enumerate(names)
+    )
+    return GameMap(id="line", label="Line", towns=towns,
+                   edges=(("a", "b"), ("b", "c"), ("c", "d")))
+
+
+def test_monoloc_sends_a_picket_from_won_ground_to_claim_a_location():
+    """Table 984830's trail: the last troop on a won town steps on to open
+    ground, so there is something to resolve next turn. The Monolith keeps
+    its picket where it is."""
+    st = board()
+    st.towns["a"].troops = 1
+    won_by(st, "a", Side.EMPIRE)
+    seed(st, "b", 1)      # one face-down card: a single troop at least ties it
+
+    assert monolith_turn(st).moves == []
+    assert ("a", "b", 1) in monoloc_turn(st).moves
+
+
+def test_monoloc_claims_only_what_one_troop_can_certainly_hold():
+    st = board()
+    st.towns["a"].troops = 1
+    won_by(st, "a", Side.EMPIRE)
+    seed(st, "b", 2)      # could be two: one troop might lose it
+    seed(st, "c", 1)
+
+    moves = monoloc_turn(st).moves
+    assert ("a", "c", 1) in moves
+    assert all(dst != "b" for _, dst, _ in moves)
+
+
+def test_monoloc_does_not_claim_by_starving_the_troops_it_leaves_behind():
+    """Emptying a won town gives up its supply. Here that is most of what feeds
+    the garrison next door, so the claim would put it over its ceiling."""
+    st = board(map=line_map(supply={"a": 1, "b": 4, "c": 1, "d": 1}))
+    st.towns["b"].troops = 1
+    won_by(st, "b", Side.EMPIRE)
+    st.towns["c"].troops = 2
+    won_by(st, "c", Side.EMPIRE)
+    won_by(st, "d", Side.INSURGENCY)   # so c has no claim of its own to make
+
+    assert all(src != "b" for src, _, _ in monoloc_turn(st).moves)
+
+
+def test_monoloc_walks_across_ground_the_rebels_won():
+    """The Monolith will not cross a rebel-won town, so a ring of them shuts its
+    army out of the board. They feed nothing, but they can be walked through."""
+    st = board(map=line_map())
+    st.towns["a"].troops = 3
+    won_by(st, "a", Side.EMPIRE)
+    won_by(st, "b", Side.INSURGENCY)
+    seed(st, "d", 1)      # the only place left with anything in it
+
+    assert monolith_turn(st).moves == []
+    assert ("a", "b", 2) in monoloc_turn(st).moves
+
+
+def test_monoloc_plays_whole_games_legally():
+    for location_value in (True, False):
+        scenario_ = load_scenario("baseline", location_value=location_value)
+        for seed_ in range(10):
+            for rebels in (Mist2Insurgency, MistBot, HeuristicInsurgency):
+                state = play_game(scenario_, MonoLocEmpire(),
+                                  rebels(random.Random(seed_)), random.Random(seed_))
+                assert state.game_over

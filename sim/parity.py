@@ -30,7 +30,7 @@ import json
 import random
 from pathlib import Path
 
-from .bots import GlobEmpire, ImperialMonolithBot, MistBot
+from .bots import GlobEmpire, ImperialMonolithBot, MistBot, MonoLocEmpire
 from .config import load_scenario
 from .engine import Card, Side, new_game
 
@@ -38,6 +38,7 @@ FIXTURES = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
 FIXTURE = FIXTURES / "glob_parity.jsonl"
 MIST_FIXTURE = FIXTURES / "mist_parity.jsonl"
 MONOLITH_FIXTURE = FIXTURES / "monolith_parity.jsonl"
+MONOLOC_FIXTURE = FIXTURES / "monoloc_parity.jsonl"
 
 # Hand card ids the PHP fixture reader mirrors: card `HAND_UID + i` is hand
 # index i, which is how a placement of ids becomes a placement of indices.
@@ -103,6 +104,16 @@ def monolith_decision(state, _rng) -> dict:
     }
 
 
+def monoloc_decision(state, _rng) -> dict:
+    plan = MonoLocEmpire(random.Random(0)).choose(state)
+    return {
+        "resolve": plan.resolve,
+        "produce": dict(sorted(plan.produce.items())),
+        "moves": [list(move) for move in plan.moves],
+        "disband": dict(sorted(plan.disband.items())),
+    }
+
+
 def mist_decision(state, rng) -> dict:
     """The rebels see everything they placed, so the hand is part of the board."""
     state.hand = deal(state.scenario, rng)
@@ -119,6 +130,7 @@ BOTS = {
     "glob": (glob_decision, FIXTURE),
     "mist": (mist_decision, MIST_FIXTURE),
     "monolith": (monolith_decision, MONOLITH_FIXTURE),
+    "monoloc": (monoloc_decision, MONOLOC_FIXTURE),
 }
 
 

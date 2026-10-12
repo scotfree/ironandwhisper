@@ -663,6 +663,7 @@ sim/.venv/bin/python -m pytest sim -q            # 87 tests
 sim/.venv/bin/python -m sim.run --games 500      # batch runner
 sim/.venv/bin/python -m sim.run --games 500 --bots glob   # the good Empire bot
 sim/.venv/bin/python -m sim.run --games 500 --bots glob --insurgency mist   # both good bots
+sim/.venv/bin/python -m sim.run --games 500 --bots monoloc --insurgency mist2 --set location_value=true
 sim/.venv/bin/jupyter notebook notebooks/exploration.ipynb
 ```
 
@@ -863,6 +864,36 @@ from `sim.parity --bot monolith`, plus a one-off check on 609 positions from sim
 all identical. Agreement with human Empire turns in the logs is not yet a useful measure: the
 only human Empire log is the dispersed 2-2 game, and the three wins it was written from were
 never kept raw.
+
+### MonoLoc: the Monolith, playing for ground (2026-10-12)
+
+`MonoLocEmpire` in `sim/bots.py`, ported to `Bots::monolocEmpireTurn`, game option 101 value
+4. **With location value on (option 103) the Monolith wins 0.6% against Mist2.** It was built
+to win by not losing, which capture-only scoring rewards. It resolves about three times a game
+while Mist2 claims nine. The four human Empire games played with location value claimed seven
+to ten locations each, and MonoLoc is what they did:
+
+1. **Claim before the army moves.** Every open location a single troop can certainly hold gets
+   one, richest first, so there is something to resolve next turn. A picket may leave won
+   ground to do it, provided no network ends up shorter of supply than it already was.
+2. **Rebel-won ground can be walked through.** The Monolith would not cross it, so once the
+   rebels held a ring of locations its army was shut out of the rest of the board.
+
+Everything else is the Monolith's, retreat margin 0 included: a claim the rebels answer with a
+taller pile is withdrawn, and the cards they spent on it stay put. **39% against Mist2 and 38%
+against Mist over 500 games, PHP self-play 41%**, about six locations a side, a third of games
+level on points. Letting pickets claim is what moves it (4% → 18%); the passable rebel ground
+takes it the rest of the way. A retreat margin of 1, building past the ceiling, heading for an
+unheld factory and capping the number of claims were all tried and dropped; the numbers are in
+the class docstring. Under capture-only scoring it plays level with the Monolith.
+
+Checked the Monolith's three ways: parity on 300 random boards (`tests/test_monoloc.php`, fixture
+from `sim.parity --bot monoloc`; it decides differently from the Monolith on 210 of them, so the
+fixture exercises the new code); `sim/test_bots.py` pins each rule; and agreement with the human
+Empire turns in `logs/`, now that there are enough of them to mean something. It marches into
+38% of the locations a person marched into, against the Monolith's 27%. No bot matches a whole
+human turn more than one time in thirty, which says more about people than about bots.
+`php tests/selfplay.php 500 monoloc mist2 locations` runs it with option 103 on.
 
 ## The rebel bot that works
 

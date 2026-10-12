@@ -5,6 +5,7 @@
  *   php tests/selfplay.php 200
  *   php tests/selfplay.php 200 heuristic          # the old Empire bot
  *   php tests/selfplay.php 200 glob heuristic     # the old rebel bot
+ *   php tests/selfplay.php 200 monoloc mist2 locations   # with location value (option 103)
  *
  * The unit tests prove the PHP does what it was written to do. This asks a
  * different question: does it do what the *specification* does? Run the same
@@ -33,6 +34,7 @@ $bot = match ($botName) {
     'heuristic' => Game::BOT_HEURISTIC,
     'glob2' => Game::BOT_GLOB2,
     'monolith' => Game::BOT_MONOLITH,
+    'monoloc' => Game::BOT_MONOLOC,
     default => Game::BOT_GLOB,
 };
 $rebelName = (string) ($argv[3] ?? 'mist');
@@ -41,6 +43,7 @@ $rebel = match ($rebelName) {
     'mist2' => Game::REBEL_MIST2,
     default => Game::REBEL_MIST,
 };
+$locationValue = ($argv[4] ?? '') === 'locations' ? Game::LOCATION_VALUE_ON : Game::LOCATION_VALUE_OFF;
 
 $wins = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0, 'level' => 0];
 $statTotals = [];
@@ -50,7 +53,8 @@ $scores = [Rules::EMPIRE => 0, Rules::INSURGENCY => 0];
 $started = microtime(true);
 
 for ($seed = 1; $seed <= $games; $seed++) {
-    $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, botOption: $bot, rebelOption: $rebel);
+    $game = newGame(Game::SIDES_FIRST_IS_EMPIRE, seed: $seed, botOption: $bot, rebelOption: $rebel,
+        locationValue: $locationValue);
 
     for ($guard = 0; $guard < 200; $guard++) {
         if (enterNextTurn($game) === EndScore::class) {

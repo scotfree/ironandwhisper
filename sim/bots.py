@@ -1088,6 +1088,131 @@ class ImperialMonolithBot(GlobEmpire):
                 return
 
 
+class MonoLocEmpire(ImperialMonolithBot):
+    """The Monolith, playing for ground: built for location scoring (option 103).
+
+    Under location value the Monolith wins 0.6% against Mist2, where under
+    capture-only scoring it takes a third of its games. It was written to win
+    by not losing, and with every location worth a point not losing is not
+    enough: it resolves about three times a game while Mist2 claims nine. The
+    four human Empire games played with location value claimed seven to ten
+    locations each, and the way they did it is this bot (issue #18, tables
+    974986, 976296, 984830 and 986540):
+
+    1. **Claim before the army moves.** Every open location a single troop can
+       certainly hold — nothing in it, or a pile no bigger than one troop could
+       tie — gets one, richest first, so there is something to resolve next
+       turn. A picket may leave won ground to do it as long as no network is
+       left shorter of supply than it already was: stepping from a won town to
+       an open one gives up that town's supply and gains the new one's.
+    2. **Rebel-won ground can be walked through.** It feeds nothing, which is
+       why the Monolith would not cross it — but standing in it is legal and it
+       can never be contested, and once the rebels hold a ring of locations an
+       army that will not cross them is shut out of the rest of the board.
+
+    Everything else is the Monolith's, including the retreat margin of 0: a
+    claim the rebels answer with a taller pile is withdrawn, not defended.
+    The cards they spent on it stay where they are.
+
+    Measured with location value on, 500 games: **39% against Mist2 and 38%
+    against Mist**, where the Monolith takes 0.6%, with about six locations a
+    game to each side and a third of games level on points. PHP self-play
+    agrees (41%). How it got there, 300 games each against Mist2: the claims
+    alone, with every picket held where it stood, 4%; pickets free to claim,
+    18%; rebel ground passable as well, 35%. Tried and dropped: a retreat
+    margin of 1 (28%), building past the ceiling (19%), heading for an unheld
+    factory (no change), and a cap on how many claims to stage (no change from
+    four up — the limit is troops in reach, not the count). Under capture-only
+    scoring it plays level with the Monolith, 40% against 39%.
+
+    Against the four human Empire games with location value it marches into
+    38% of the locations the person marched into, where the Monolith manages
+    27%; nothing matches a whole human turn more than one time in thirty.
+    """
+
+    @staticmethod
+    def _passable(board: GameState, town_id: str) -> bool:
+        """Anywhere: rebel-won ground is barren, not blocked."""
+        return True
+
+    def _moves(self, board: GameState) -> list[tuple[str, str, int]]:
+        origin = {tid: t.troops for tid, t in board.towns.items()}
+        departed: dict[str, int] = {}
+        moves: list[tuple[str, str, int]] = []
+
+        def available(town_id: str) -> int:
+            return origin[town_id] - departed.get(town_id, 0)
+
+        def commit(src: str, dst: str, quantity: int) -> bool:
+            # The Monolith's commit: no supply check of its own. The claims
+            # make theirs before calling it.
+            if quantity <= 0 or quantity > available(src):
+                return False
+            board.towns[src].troops -= quantity
+            board.towns[dst].troops += quantity
+            departed[src] = departed.get(src, 0) + quantity
+            moves.append((src, dst, quantity))
+            return True
+
+        army = self._army_town(board)
+        if army is None:
+            return moves
+
+        self._withdraw_the_exposed(board, army, available, commit)
+        self._claim(board, available, commit)
+        army = self._army_town(board) or army
+        army = self._march_the_army(board, army, available, commit)
+        self._gather(board, army, available, commit)
+        self._picket(board, army, available, commit)
+        return moves
+
+    def _claim(self, board, available, commit) -> None:
+        """One troop onto every open location it can certainly hold.
+
+        A source keeps one troop if it is itself an open location — it is a
+        claim too — and gives up its last otherwise. Taken one at a time,
+        re-deriving the options after each, because every move changes which
+        sources have troops to spare and what the network can feed.
+        """
+        while True:
+            best, best_key = None, None
+            for target in board.unresolved:
+                if target.troops > 0 or not self._safe_with(board, target.id, 1):
+                    continue
+                for src in target.neighbors:
+                    source = board.towns[src]
+                    keep = 0 if source.resolved else 1
+                    if available(src) - keep < 1:
+                        continue
+                    if not self._safe_with(board, src, source.troops - 1):
+                        continue
+                    if self._starves(board, src, target.id):
+                        continue
+                    key = (
+                        self.worst_case(board, target),     # points, if any
+                        town_supply(board, target.id),
+                        town_production(board, target.id),
+                        available(src),                     # the deepest source
+                        target.id,
+                        src,
+                    )
+                    if best_key is None or key > best_key:
+                        best, best_key = (src, target.id), key
+            if best is None or not commit(best[0], best[1], 1):
+                return
+
+    @staticmethod
+    def _starves(board: GameState, src: str, dst: str) -> bool:
+        """Whether moving one troop leaves the networks shorter than they are."""
+        before = _overage(board)
+        board.towns[src].troops -= 1
+        board.towns[dst].troops += 1
+        after = _overage(board)
+        board.towns[src].troops += 1
+        board.towns[dst].troops -= 1
+        return after > before
+
+
 # ---------------------------------------------------------------------------
 # The Insurgency that plays the map
 # ---------------------------------------------------------------------------
@@ -1439,6 +1564,7 @@ EMPIRE_BOTS = {
     "glob": GlobEmpire,
     "glob2": Glob2Empire,
     "monolith": ImperialMonolithBot,
+    "monoloc": MonoLocEmpire,
 }
 
 INSURGENCY_BOTS = {

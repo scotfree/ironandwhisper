@@ -49,12 +49,16 @@ class Game extends \Bga\GameFramework\Table
      * but suppresses how much it loses by. Monolith keeps one army and never
      * stands where a visible pile could beat it (Bots::monolithEmpireTurn); it
      * is the first Empire bot to take games off Mist2, about a third of them.
+     * MonoLoc is the Monolith playing for ground (Bots::monolocEmpireTurn),
+     * for location scoring (option 103), where the Monolith wins almost
+     * nothing: it claims every open location a single troop can hold.
      */
     public const OPT_BOT = 101;
     public const BOT_GLOB = 0;
     public const BOT_HEURISTIC = 1;
     public const BOT_GLOB2 = 2;
     public const BOT_MONOLITH = 3;
+    public const BOT_MONOLOC = 4;
 
     /**
      * Which Insurgency bot a solo game plays against.
@@ -963,6 +967,7 @@ class Game extends \Bga\GameFramework\Table
             self::BOT_HEURISTIC => Bots::empireTurn($this->scenario, $towns),
             self::BOT_GLOB2 => Bots::glob2EmpireTurn($this->scenario, $towns),
             self::BOT_MONOLITH => Bots::monolithEmpireTurn($this->scenario, $towns),
+            self::BOT_MONOLOC => Bots::monolocEmpireTurn($this->scenario, $towns),
             default => Bots::globEmpireTurn($this->scenario, $towns),
         };
 
