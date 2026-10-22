@@ -359,7 +359,10 @@ Done:
   build**, between `art:begin`/`art:end` markers — the hand-copied city had already drifted
   from the file. `tests/test_icons.php` lints both halves. The town and city icons are hard to
   tell apart at letter size; that is the real art, not a bug.
-- **`rules.html` is the player's manual** (2026-09-20, issue #6), split out of the old
+- **`rules.html` is the player's manual** (2026-09-20, issue #6), published at
+  https://scotfree.github.io/ironandwhisper/rules.html by GitHub Pages from `main`'s root
+  (2026-10-22) — every push to `main` updates it. `misc/gamehelp.wiki` is the condensed
+  version for BGA's `Gamehelpironandwhisper` wiki page, and links there, split out of the old
   `ironandwhisper.md` along with `design.md`. One file was the rules *and* the design
   rationale, and the player-facing half could not carry sentences like "an earlier version
   measured 99.7% Empire wins". Four sections: the idea, a board part-way through a game,
