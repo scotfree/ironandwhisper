@@ -122,16 +122,16 @@ class EmpireTurn extends GameState
     }
 
     /**
-     * A zombie Empire simply stands still. Standing still is always legal, and
-     * the stationary troops still look — that costs the absent player nothing
-     * and keeps the clock running.
+     * A zombie Empire plays MonoLoc's turn (Game::playZombieTurn): build,
+     * march, claim, and name where starvation falls. It used to stand still,
+     * which left the other player nothing to play against. The Resolve phase
+     * is already over, so the bot's own resolution is dropped.
      */
     public function zombie(int $playerId)
     {
-        // Nobody is there to choose where starvation falls, so it falls where
-        // the rules put it by default: largest garrisons first.
+        // A zombie never asks to end the game; BGA's guidance is to keep it going.
         $this->game->setOfferEnd(Rules::EMPIRE, false, $playerId);
-        $this->game->applyEmpireTurn([], [], null, [], $playerId);
+        $this->game->playZombieTurn(Rules::EMPIRE, $playerId, false);
 
         return NextTurn::class;
     }

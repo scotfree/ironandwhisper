@@ -105,11 +105,17 @@ class Resolve extends GameState
     }
 
     /**
-     * Resolving is optional, so a zombie simply declines. The turn state it
-     * hands on to has its own zombie handler for the part that is not.
+     * A zombie plays the bot's whole turn from here, resolution included —
+     * the turn has not started, so the bot's choice of resolution stands
+     * (Game::playZombieTurn). It used to decline and leave the rest to the
+     * turn state's handler.
      */
     public function zombie(int $playerId)
     {
-        return $this->actSkipResolve();
+        $side = $this->game->toMove();
+        $this->game->setOfferEnd($side, false, $playerId);
+        $this->game->playZombieTurn($side, $playerId, true);
+
+        return NextTurn::class;
     }
 }

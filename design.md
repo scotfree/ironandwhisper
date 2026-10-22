@@ -362,6 +362,9 @@ authoritative answer belongs to them and this is only the expected shape.
     the box transparent, not white.
   - **Caveat for the alpha email:** mobile. Since 2026-10-22 a phone shows the map and swipes
     to the side column (issue #17), but the game is built for a desktop.
+- ~~**Zombie mode level in the Metadata Manager**~~ — mandatory before the alpha request
+  (`zombieModeLevel`). Done 2026-10-22: zombies now play MonoLoc and Mist2, so level 2. They
+  used to stand still or dump the hand, which was level 0.
 - **Request PRIVATE alpha once** from the game management page after a successful build — the
   "Request PRIVATE ALPHA status" button the
   [walkthrough](https://en.doc.boardgamearena.com/Create_a_game_in_BGA_Studio:_Complete_Walkthrough)

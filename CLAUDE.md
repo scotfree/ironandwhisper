@@ -1181,6 +1181,14 @@ Constraints the port itself introduced:
   bug can be reproduced in a second rather than a deploy cycle.
 - **All player-visible filtering goes through `View::forSide`.** One function to get right
   and one function to test. Nothing else may assemble a payload for a client.
+- **A zombie plays the strongest bots: MonoLoc for the Empire, Mist2 for the Rebels**
+  (2026-10-22), whatever options 101/102 say, through `Game::playZombieTurn` — BGA's zombie
+  level 2, declared in the Metadata Manager (`zombieModeLevel`, mandatory for alpha). It
+  used to stand still as the Empire and dump the hand in one place as the Rebels. From the
+  Resolve phase the bot plays the whole turn; from a turn state its resolution is dropped,
+  since the person may already have resolved, and a Rebel bot's cards held back for a
+  resolution that would have closed the last open location go onto that location instead.
+  `tests/test_game.php` plays two-zombie games and resolve-then-leave games to the end.
 - **The bot is not a player row.** `Game::BOT_PLAYER_ID` (0) exists so everything keyed by
   player id keeps working, but the framework creates `player` rows only for real people, so
   the bot's score lives in a global and its name comes from its side. `getAllDatas` puts it

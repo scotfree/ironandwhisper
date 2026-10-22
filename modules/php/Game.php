@@ -947,36 +947,86 @@ class Game extends \Bga\GameFramework\Table
      */
     public function playBotTurn(string $side): void
     {
-        $botId = $this->playerIdForSide($side);
+        $this->applyBotTurn(
+            $side,
+            $this->botTurn($side, $this->empireBot(), $this->insurgencyBot()),
+            $this->playerIdForSide($side),
+        );
+    }
+
+    /**
+     * A zombie's turn: a player who has left is replaced by the strongest
+     * bots, MonoLoc and Mist2, whatever the solo options say (in a two-player
+     * game they are not shown). That is BGA's zombie level 2 — the best move
+     * on what that side may see, without planning ahead. A zombie that only
+     * stood still left the person still playing with nothing to play against.
+     *
+     * `$mayResolve` is false once the turn's Resolve phase is over: the
+     * player may already have resolved, and one resolution is all a turn
+     * allows, so the bot's own choice is dropped. The Empire's plan holds
+     * without it — it only resolves a certain win, which leaves the garrison
+     * where it was either way. The Rebels' needs one repair: Mist plans its
+     * placements on the board after its resolution, so when that resolution
+     * would close the last open location it places nothing at all. With the
+     * location left open, the whole hand must still go down, and the cards it
+     * kept back go onto the location it meant to resolve — still open, and one
+     * the Rebels are winning.
+     */
+    public function playZombieTurn(string $side, int $playerId, bool $mayResolve): void
+    {
+        $turn = $this->botTurn($side, self::BOT_MONOLOC, self::REBEL_MIST2);
+        if (!$mayResolve) {
+            $intended = $turn['resolve'];
+            $turn['resolve'] = null;
+
+            if ($side === Rules::INSURGENCY && $intended !== null) {
+                $placed = array_merge([], ...array_values($turn['placements']));
+                $left = array_values(array_diff($this->board->handCardIds(), $placed));
+                if ($left) {
+                    $turn['placements'][$intended] = array_merge($turn['placements'][$intended] ?? [], $left);
+                }
+            }
+        }
+        $this->applyBotTurn($side, $turn, $playerId);
+    }
+
+    /** The named bot's whole turn for this side, as plain data. */
+    private function botTurn(string $side, int $empireBot, int $insurgencyBot): array
+    {
+        $towns = $this->board->towns();
 
         if ($side === Rules::INSURGENCY) {
-            $towns = $this->board->towns();
             $hand = $this->board->hand();
-            $turn = match ($this->insurgencyBot()) {
+            return match ($insurgencyBot) {
                 self::REBEL_HEURISTIC => Bots::insurgencyTurn($this->scenario, $towns, $hand),
                 self::REBEL_MIST2 => Bots::mist2InsurgencyTurn($this->scenario, $towns, $hand),
                 default => Bots::mistInsurgencyTurn($this->scenario, $towns, $hand),
             };
-
-            $this->applyInsurgencyTurn($turn['placements'], $turn['resolve'], $botId);
-            return;
         }
 
-        $towns = $this->board->towns();
-        $turn = match ($this->empireBot()) {
+        return match ($empireBot) {
             self::BOT_HEURISTIC => Bots::empireTurn($this->scenario, $towns),
             self::BOT_GLOB2 => Bots::glob2EmpireTurn($this->scenario, $towns),
             self::BOT_MONOLITH => Bots::monolithEmpireTurn($this->scenario, $towns),
             self::BOT_MONOLOC => Bots::monolocEmpireTurn($this->scenario, $towns),
             default => Bots::globEmpireTurn($this->scenario, $towns),
         };
+    }
+
+    /** Apply a bot's turn through the same methods a person's goes through. */
+    private function applyBotTurn(string $side, array $turn, int $actorId): void
+    {
+        if ($side === Rules::INSURGENCY) {
+            $this->applyInsurgencyTurn($turn['placements'], $turn['resolve'], $actorId);
+            return;
+        }
 
         $this->applyEmpireTurn(
             $turn['produce'],
             $turn['moves'],
             $turn['resolve'],
             $turn['disband'] ?? [],
-            $botId,
+            $actorId,
         );
     }
 

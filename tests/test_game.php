@@ -1046,8 +1046,10 @@ function test_a_zombie_insurgency_still_empties_its_hand(): void
     assertSame(Rules::EMPIRE, $game->toMove());
 }
 
-function test_a_zombie_empire_stands_still(): void
+function test_a_zombie_empire_plays_monolocs_turn(): void
 {
+    // It used to stand still, which left the other player nothing to play
+    // against. Now it is the bot a solo game uses (BGA zombie level 2).
     $game = newGame();
     enterNextTurn($game);
     insurgencyTurn($game)->actCommitTurn(
@@ -1060,8 +1062,81 @@ function test_a_zombie_empire_stands_still(): void
     empireTurn($game)->zombie($game->playerIdForSide(Rules::EMPIRE));
 
     $towns = $game->board->towns();
-    assertSame(startingGarrison($game), $towns['everlan']['troops'], 'nothing raised, nothing moved');
-    assertSame(2, $game->round(), 'but the turn passed and the clock advanced');
+    assertTrue($towns['everlan']['troops'] !== startingGarrison($game), 'it built, marched or claimed');
+    assertSame(2, $game->round(), 'and the turn passed and the clock advanced');
+}
+
+function test_a_zombie_in_the_resolve_phase_plays_the_whole_turn_resolution_included(): void
+{
+    // Nothing has happened yet this turn, so the bot's resolution stands:
+    // three troops against three cards worth at most one each is certain.
+    $game = newGame();
+    enterNextTurn($game);
+    insurgencyTurn($game)->actCommitTurn(
+        ['everlan' => $game->board->handCardIds()],
+        '0',
+        $game->playerIdForSide(Rules::INSURGENCY),
+    );
+    assertSame(Resolve::class, enterNextTurn($game));
+
+    $next = resolvePhase($game)->zombie($game->playerIdForSide(Rules::EMPIRE));
+
+    assertSame(NextTurn::class, $next, 'the whole turn is played, not just the phase');
+    assertSame(Rules::EMPIRE, $game->board->towns()['everlan']['winner']);
+    assertSame(Rules::INSURGENCY, $game->toMove());
+}
+
+function test_a_game_of_two_zombies_plays_out_to_the_end(): void
+{
+    // Every zombie path, end to end, against the real validation: if a bot
+    // planned something the rules refuse, applying it would throw here.
+    $game = newGame();
+    for ($guard = 0; $guard < 200; $guard++) {
+        $state = enterNextTurn($game);
+        if ($state === EndScore::class) {
+            break;
+        }
+        $player = $game->playerIdForSide($game->toMove());
+        match ($state) {
+            Resolve::class => resolvePhase($game)->zombie($player),
+            InsurgencyTurn::class => insurgencyTurn($game)->zombie($player),
+            EmpireTurn::class => empireTurn($game)->zombie($player),
+        };
+    }
+    assertSame(EndScore::class, $state, 'the game ended');
+    foreach ($game->board->towns() as $townId => $town) {
+        assertTrue($town['resolved'] || Rules::townIsUncontested($town), "{$townId} settled");
+    }
+}
+
+function test_a_player_who_resolves_and_then_leaves_is_finished_off_by_the_zombie(): void
+{
+    // A person takes every other resolution phase (resolving or skipping) and
+    // the zombie finishes the turn. Seed 1 with this pattern reaches the case
+    // that broke: the rebel bot's dropped resolution would have closed the
+    // last open location, so it planned to place nothing, and the rules
+    // refused a turn that kept the hand back.
+    $game = newGame(seed: 1);
+    for ($guard = 0; $guard < 200; $guard++) {
+        $state = enterNextTurn($game);
+        if ($state === EndScore::class) {
+            break;
+        }
+        $side = $game->toMove();
+        $player = $game->playerIdForSide($side);
+        if ($state === Resolve::class) {
+            $legal = Rules::legalResolutions($game->board->towns(), $side);
+            $state = $guard % 2 === 0
+                ? resolvePhase($game)->actResolve($legal[0])
+                : resolvePhase($game)->actSkipResolve();
+        }
+        match ($state) {
+            InsurgencyTurn::class => insurgencyTurn($game)->zombie($player),
+            EmpireTurn::class => empireTurn($game)->zombie($player),
+            NextTurn::class => null,
+        };
+    }
+    assertSame(EndScore::class, $state, 'the game ended');
 }
 
 function test_declining_to_resolve_is_an_action_of_its_own(): void

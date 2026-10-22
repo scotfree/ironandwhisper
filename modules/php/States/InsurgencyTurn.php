@@ -82,25 +82,22 @@ class InsurgencyTurn extends GameState
     }
 
     /**
-     * A zombie Insurgency still has to empty its hand — the deck is the clock,
-     * and skipping would stop it. Dumping everything into one open town is the
-     * simplest legal turn.
+     * A zombie Rebel plays Mist2's turn (Game::playZombieTurn), which places
+     * the whole hand — the deck is the clock, and skipping would stop it. The
+     * Resolve phase is already over, so the bot's own resolution is dropped.
      */
     public function zombie(int $playerId)
     {
         $towns = $this->game->board->towns();
-        $open = Rules::unresolvedTownIds($towns);
-        $hand = $this->game->board->handCardIds();
-
-        if (!$open || !$hand) {
+        if (!Rules::unresolvedTownIds($towns) || !$this->game->board->handCardIds()) {
             $this->game->setToMove(Rules::EMPIRE);
             return NextTurn::class;
         }
 
-        return $this->actCommitTurn(
-            [$this->getRandomZombieChoice($open) => $hand],
-            '0',
-            $playerId,
-        );
+        // A zombie never asks to end the game; BGA's guidance is to keep it going.
+        $this->game->setOfferEnd(Rules::INSURGENCY, false, $playerId);
+        $this->game->playZombieTurn(Rules::INSURGENCY, $playerId, false);
+
+        return NextTurn::class;
     }
 }
