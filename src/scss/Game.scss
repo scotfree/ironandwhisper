@@ -16,14 +16,19 @@
 
 @use "sass:color";
 
-// Blackletter for the town names, and nothing else. Neither macOS nor Windows
-// ships a blackletter face, so this has to come from somewhere — Google Fonts
-// is the cheapest thing that works, and if BGA ever blocks the request the
-// stack below falls back to a serif and the board still reads.
-//
-// TO UNDO: delete this @import and the font-family/font-size lines in
-// .iaw-town-name. Nothing else depends on it.
-@import url('https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap');
+// Blackletter for the town names and frame titles. Neither macOS nor Windows
+// ships a blackletter face, so it ships with the game: fonts/ holds the file
+// and its licence (SIL Open Font License), which is where BGA's pre-release
+// checklist says fonts go. It used to be an @import from Google Fonts, which
+// BGA's build refuses. The path is relative to this stylesheet, which is
+// served from the project root. If the font fails to load, every stack that
+// names it falls back to a serif and the board still reads.
+@font-face {
+    font-family: 'UnifrakturCook';
+    src: url('fonts/UnifrakturCook-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-display: swap;
+}
 
 // Purple is the Empire, green the Insurgency. Troops carry the Empire's
 // colour, cards the Insurgency's, and a resolved town takes the winner's at

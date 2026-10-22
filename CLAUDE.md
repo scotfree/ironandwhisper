@@ -90,7 +90,10 @@ tuning work transfers. **The PHP reads them compiled, not as files** (2026-10-22
 pre-release check forbids `file_get_contents`, so `tools/build-material.mjs` turns the JSON
 into `modules/php/Material.php` on every `npm run build`, keyed by path. The JSON stays the
 source of truth; edit it, never `Material.php`. `tests/test_material.php` fails if the two
-disagree, and also fails on any file-reading function in `modules/php`.
+disagree. **`tests/test_bga_checks.php` lints for what the Studio's build checker refuses**
+— file-reading functions, `@import` in the CSS or the manual, a font without its licence —
+each found by a dry-run build first. The blackletter ships in `fonts/` with its SIL OFL
+licence and loads by `@font-face`; it used to come from Google Fonts by `@import`.
 
 **`baseline` is currently set for feel, not for balance.** Cards are 0 or 1, a troop is
 presence 1 and costs 1 supply, every town supplies 2 — deliberately minimal, at the

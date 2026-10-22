@@ -30,7 +30,14 @@
 -->
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap');
+/* The blackletter ships with the game in fonts/, beside this file, so the
+   manual reads and prints the same with no network. */
+@font-face {
+    font-family: 'UnifrakturCook';
+    src: url('fonts/UnifrakturCook-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-display: swap;
+}
 
 :root {
     --empire: #6b3fa0;

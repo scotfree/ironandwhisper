@@ -14,7 +14,12 @@
  * The board is drawn from the map's coordinates rather than from a background
  * image, so a new map in maps/*.json needs no art and no CSS.
  */
-@import url("https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap");
+@font-face {
+  font-family: "UnifrakturCook";
+  src: url("fonts/UnifrakturCook-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
 #iaw-table {
   display: flex;
   flex-wrap: nowrap;

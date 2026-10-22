@@ -31,24 +31,3 @@ function test_material_is_exactly_the_json_it_was_built_from(): void
         assertSame($decoded, Material::FILES[$path], "{$path} has changed since Material.php was built: run npm run build");
     }
 }
-
-function test_nothing_the_game_ships_reads_a_file_at_runtime(): void
-{
-    // BGA's pre-release check refuses these outright; catching them here is
-    // cheaper than a Studio build.
-    $forbidden = ['file_get_contents', 'fopen', 'file_put_contents', 'readfile', 'scandir', 'glob('];
-    $found = [];
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__) . '/modules/php')) as $file) {
-        if ($file->getExtension() !== 'php') {
-            continue;
-        }
-        foreach (file($file->getPathname()) as $number => $line) {
-            foreach ($forbidden as $name) {
-                if (str_contains($line, $name)) {
-                    $found[] = basename($file->getPathname()) . ':' . ($number + 1) . " {$name}";
-                }
-            }
-        }
-    }
-    assertSame([], $found);
-}
