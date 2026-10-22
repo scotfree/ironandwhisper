@@ -86,7 +86,11 @@ but its framework idioms are obsolete.
 
 **`data/`, `maps/` and `scenarios/` are shared config, read by both the simulator and the
 PHP.** Changing their shape means changing both. That sharing is the whole reason the
-tuning work transfers.
+tuning work transfers. **The PHP reads them compiled, not as files** (2026-10-22): BGA's
+pre-release check forbids `file_get_contents`, so `tools/build-material.mjs` turns the JSON
+into `modules/php/Material.php` on every `npm run build`, keyed by path. The JSON stays the
+source of truth; edit it, never `Material.php`. `tests/test_material.php` fails if the two
+disagree, and also fails on any file-reading function in `modules/php`.
 
 **`baseline` is currently set for feel, not for balance.** Cards are 0 or 1, a troop is
 presence 1 and costs 1 supply, every town supplies 2 — deliberately minimal, at the
@@ -686,7 +690,7 @@ information has exactly one gate.
 | `modules/php/Rules.php` | the rules, as pure functions over plain arrays | nothing |
 | `modules/php/Bots.php` | the heuristics, also pure | Rules and Scenario |
 | `modules/php/BoardView.ts` | drawing only; computes networks from the board itself | nothing server-side |
-| `modules/php/Scenario.php` | loads `data/`, `maps/`, `scenarios/` | the JSON |
+| `modules/php/Scenario.php` | loads `data/`, `maps/`, `scenarios/` via the generated `Material.php` | the JSON, compiled |
 | `modules/php/Board.php` | every read and write of `iaw_town` and `iaw_card` | the database |
 | `modules/php/View.php` | what each side may see | Rules' shape |
 | `modules/php/Game.php` | setup, sides, scoring, `getAllDatas` | all of the above |

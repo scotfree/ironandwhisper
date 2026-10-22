@@ -35,7 +35,7 @@ class EndScore extends \Bga\GameFramework\States\GameState
      * Scores are kept live, so there is nothing to compute — only the result
      * to state.
      *
-     * A two-player game ranks itself from `player_score`. A solo game cannot:
+     * A two-player game ranks itself from the players' scores. A solo game cannot:
      * the bot has no player row, so BGA would see one player and call it a win
      * whatever the bot scored. `GameResult::solo` is BGA's documented way for a
      * solo game to say whether the person won, while keeping their real score.
@@ -45,7 +45,7 @@ class EndScore extends \Bga\GameFramework\States\GameState
     {
         $this->game->announceResult();
 
-        // The tie-breaker as BGA reads it: player_score_aux, split by
+        // The tie-breaker as BGA reads it: the auxiliary score, split by
         // tie_breaker_split in gameinfos.jsonc. Only people have a row.
         foreach (array_keys($this->game->sides()) as $playerId) {
             if (!$this->game->isBot($playerId)) {

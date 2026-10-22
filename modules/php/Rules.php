@@ -569,7 +569,7 @@ final class Rules
     }
 
     /**
-     * The tie-breaker as one number for `player_score_aux`, which BGA splits
+     * The tie-breaker as one number for the auxiliary score, which BGA splits
      * back into its parts with `tie_breaker_split` [10000, 100, 1] in
      * gameinfos.jsonc. Presence stays under 100: the whole deck is 36 and the
      * map feeds 24 troops.

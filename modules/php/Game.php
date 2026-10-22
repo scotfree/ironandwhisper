@@ -312,7 +312,7 @@ class Game extends \Bga\GameFramework\Table
      * Who won: on points, then on the tie-breaker. Never a draw — the
      * tie-breaker's last step always decides.
      *
-     * Needed because BGA ranks a game from `player_score` alone, and in a solo
+     * Needed because BGA ranks a game from the players' scores alone, and in a solo
      * game only the person has a row — the bot's score is a global. Left to
      * the framework, every solo game ended as a win for the person, whatever
      * the bot had scored (table 974986: the Rebels won 14-12 and BGA reported

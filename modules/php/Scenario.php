@@ -22,9 +22,6 @@ namespace Bga\Games\IronAndWhisper;
 
 final class Scenario
 {
-    /** Directory holding data/, maps/ and scenarios/ — the project root. */
-    private const ROOT = __DIR__ . '/../..';
-
     /**
      * @param array<string, array{id: string, label: string, x: float, y: float, neighbors: string[]}> $towns
      * @param array{id: string, label: string, presence: int, movement: int, peek: int} $unit
@@ -61,10 +58,10 @@ final class Scenario
 
     public static function load(string $scenarioId): self
     {
-        $scenario = self::readJson(self::ROOT . "/scenarios/{$scenarioId}.json");
-        $map = self::readJson(self::ROOT . "/maps/{$scenario['map']}.json");
-        $units = self::readJson(self::ROOT . '/data/units.json');
-        $cards = self::readJson(self::ROOT . '/data/cards.json');
+        $scenario = self::material("scenarios/{$scenarioId}.json");
+        $map = self::material("maps/{$scenario['map']}.json");
+        $units = self::material('data/units.json');
+        $cards = self::material('data/cards.json');
 
         $towns = [];
         foreach ($map['towns'] as $town) {
@@ -236,17 +233,19 @@ final class Scenario
         return intdiv($this->deckSize(), $this->handSize);
     }
 
-    /** @return array<string, mixed> */
-    private static function readJson(string $path): array
+    /**
+     * One of the shared JSON files, as `json_decode` would return it.
+     *
+     * BGA forbids reading files at runtime, so the JSON is compiled into
+     * Material by tools/build-material.mjs, keyed by its path from the root.
+     *
+     * @return array<string, mixed>
+     */
+    private static function material(string $path): array
     {
-        $raw = @file_get_contents($path);
-        if ($raw === false) {
-            throw new \RuntimeException("cannot read {$path}");
+        if (!isset(Material::FILES[$path])) {
+            throw new \RuntimeException("no {$path} in Material; is it a new file? run npm run build");
         }
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            throw new \RuntimeException("cannot parse {$path}: " . json_last_error_msg());
-        }
-        return $decoded;
+        return Material::FILES[$path];
     }
 }

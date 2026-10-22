@@ -9,6 +9,7 @@ require_once __DIR__ . '/framework.php';
 
 $root = dirname(__DIR__, 2);
 require_once $root . '/modules/php/IllegalMove.php';
+require_once $root . '/modules/php/Material.php';
 require_once $root . '/modules/php/Scenario.php';
 require_once $root . '/modules/php/Rules.php';
 require_once $root . '/modules/php/Board.php';
