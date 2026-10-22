@@ -342,19 +342,38 @@ authoritative answer belongs to them and this is only the expected shape.
     `Game.js` and CSS through the build.
   - ~~Game progression that means something~~ — done 2026-10-09: the further along of the
     deck and the board, since games usually end on the board around turn 10 of 20.
-  - **Studio control panel:** "Reload game informations" with no warnings, "Dry run build",
-    "Check project", then a real build with a clean log.
+  - ~~**Studio control panel:** "Reload game informations" with no warnings, "Dry run build",
+    then a real build with a clean log~~ — done 2026-10-22. The dry run found three things,
+    all fixed: `file_get_contents` in `Scenario` (the shared JSON is now compiled into
+    `modules/php/Material.php`), an `@import` of Google Fonts (the font ships in `fonts/`),
+    and a stale `ironandwhisper.original.css` the Studio had kept from minified testing
+    (deleted on the server). `tests/test_bga_checks.php` catches the first two locally now.
+    There was no "Check project" button to press.
   - **Testing:** ~~a spectator account; replay from a log entry and a full replay~~ (done
     2026-10-11 — the resolution card waited for a click nobody in a replay makes, and is now
     skipped there; "replay from here" showed NaN% in BGA's own progress bar, which nothing
-    of ours draws and `getGameProgression` cannot produce, so it is left alone); minified
-    JS/CSS; Chrome, Firefox, Safari and Edge; dark mode; real-time mode.
-  - **Exceptions to explain in the alpha email:** mobile (issue #17 — the board needs 740px),
-    and the 3D game box image, which the checklist lists and the art docs say can come later.
-- **Request alpha once** from the game management page after a successful build; it costs BGA
-  staff time, so it is not a request to make twice. The reply to BGA's confirmation email
-  wants the production BGA username, any other admins, and the license or publisher approval
-  (see Beta, below). **[ask BGA]**
+    of ours draws and `getGameProgression` cannot produce, so it is left alone); ~~minified
+    JS/CSS; Chrome, Firefox, Safari; dark mode; real-time mode~~ (done 2026-10-22 — dark
+    mode barely changes anything, since the board sets its own backgrounds; real time now
+    gives 90/120/150s per top-up, at each turn and again after resolving). Edge untested:
+    it shares Chrome's engine.
+  - **Exceptions to explain in the alpha email:** the 3D game box image, which the checklist
+    lists and the art docs say can come later. Mobile is no longer an exception so much as a
+    caveat: since 2026-10-22 a phone shows the map and swipes to the side column (issue #17),
+    but the game is built for a desktop.
+- **Request PRIVATE alpha once** from the game management page after a successful build — the
+  "Request PRIVATE ALPHA status" button the
+  [walkthrough](https://en.doc.boardgamearena.com/Create_a_game_in_BGA_Studio:_Complete_Walkthrough)
+  describes, after which "admins will check your game starts, has something to show, and push
+  it to private alpha". It costs BGA staff time, so it is not a request to make twice. Private
+  alpha is the route for an unpublished game: the
+  [licenses page](https://en.doc.boardgamearena.com/BGA_Game_licenses) lets "prototypes,
+  self-published, print-n-play" reach it and no further, playable by invited friends. The
+  checklist's "license … even to alpha" reads as the *public* alpha. Keep ready anyway: the
+  production BGA username, any other admins, and a line authorising BGA as designer and sole
+  rights holder. *Corrected 2026-10-22: this said a license gated alpha.* **[ask BGA]** for
+  the form that authorisation takes; studio@boardgamearena.com is the address BGA gives for
+  license questions.
 
 **Not needed for alpha:** the box, banner and title images. BGA's art documentation says those
 are "no longer stored in project directory" — they live in the Metadata Manager, and it says
