@@ -372,7 +372,9 @@ authoritative answer belongs to them and this is only the expected shape.
   project is `ironandwhisper`. Ignored for private alpha with a note in the request offering to
   move to a correctly named project before release, rather than migrating the namespace and
   every identifier now. **[ask BGA]** whether that move is needed.
-- **Request PRIVATE alpha once** from the game management page after a successful build — the
+- ~~**Request PRIVATE alpha once**~~ — requested 2026-10-22; the confirmation email asked for
+  nothing. Ping after two weeks of silence.
+  Originally: **Request PRIVATE alpha once** from the game management page after a successful build — the
   "Request PRIVATE ALPHA status" button the
   [walkthrough](https://en.doc.boardgamearena.com/Create_a_game_in_BGA_Studio:_Complete_Walkthrough)
   describes, after which "admins will check your game starts, has something to show, and push

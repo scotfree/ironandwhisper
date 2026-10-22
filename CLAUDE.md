@@ -166,10 +166,14 @@ and carry their own value. A bluff is a card worth 0.
 
 ## Current state
 
-**Ready for private alpha** (2026-10-22). Every item on BGA's pre-release checklist that
-applies is done — dry run and committed build clean, Chrome, Firefox and Safari, minified
-files, dark mode, real time, spectator and replay, box art in the Metadata Manager — and
-the request is the next step. Path to Release in `design.md` has the detail. The rules have
+**Private alpha requested 2026-10-22**, and BGA's confirmation email asked for nothing; now
+waiting. BGA's checklist says to ping after two weeks of silence (about 2026-11-05). Every
+item on the pre-release checklist that applies is done — dry run and committed build clean,
+Chrome, Firefox and Safari, minified files, dark mode, real time, spectator and replay, box
+art in the Metadata Manager, zombie level 2. The request itself raised two warnings that were
+deliberately ignored: no game BGG id (unpublished), and the project folder `ironandwhisper`
+not matching `ironandwhispers` from the display name — the request carried a note offering to
+move to a correctly named project before release rather than migrating every identifier now. Path to Release in `design.md` has the detail. The rules have
 moved a long way since the first port; several sessions of real play have driven that.
 
 **The rebel side is called "Rebels" to the player** (2026-09-23), in every display string in
@@ -615,6 +619,14 @@ and `NextTurn` — leaving them there means duplicate state ids.
 `./tools/deploy.sh` runs `npm run build` first, because `src/` is excluded from the upload
 and what actually ships is the compiled `modules/js/Game.js` and `ironandwhisper.css`.
 
+**The deploy syncs the working tree, not git** — an untracked file in the root or `img/` goes
+to BGA. Box art, a `.xcf` and the title image went up that way on 2026-10-22 and had to be
+deleted over SFTP. Art and anything else that is not part of the running game lives in
+`misc/` (`misc/art/` has the box and title art and the scripts that render them). Run
+`git status` before a deploy. Never `--delete` blindly either: the server also holds BGA's
+own `_ide_helper.php` and `bga-framework.d.ts`, and `.original` copies the Studio makes when
+testing minified files, which a pruning deploy would remove.
+
 - Host `1.studio.boardgamearena.com`, port **2022**, user `scotfree`, remote dir
   `/ironandwhisper`.
 - **Password lives in the macOS Keychain**, service `bga-studio-sftp`, account `scotfree`.
@@ -1028,6 +1040,8 @@ php tests/run.php rules        # only files matching "rules"
 php tests/selfplay.php 1000                   # bots against each other, for the win rate
 php tests/selfplay.php 1000 heuristic         # the old Empire bot, for comparison
 php tests/selfplay.php 1000 glob heuristic    # the old rebel bot, for comparison
+php tests/selfplay.php 500 monoloc mist2 locations   # with option 103 on
+php tests/zombie_sweep.php                    # zombie vs zombie, seeds x options 103/104
 ```
 
 `tests/selfplay.php` is the check the unit tests cannot give. They prove the PHP does what
