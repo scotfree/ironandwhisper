@@ -430,8 +430,12 @@ namespace Bga\GameFramework {
             return (int) Db::value('SELECT COUNT(*) FROM `player`');
         }
 
+        /** Every player given extra time, in order — real time has no clock here. */
+        public array $extraTimeGiven = [];
+
         public function giveExtraTime(int $playerId, ?int $seconds = null): void
         {
+            $this->extraTimeGiven[] = $playerId;
         }
 
         public function activeNextPlayer(): int

@@ -42,13 +42,18 @@
     "estimated_duration": 25,
 
     // Time in second add to a player when "giveExtraTime" is called (speed profile = fast)
-    "fast_additional_time": 30,
+    // Three times the skeleton's 30/40/50 (2026-10-22). It is called as each turn
+    // starts and again after the Resolve phase. Logged play had a resolve take 18s
+    // at the median and 44s at the 90th percentile, a rebel placement 26s and
+    // 104s, and that was a practised player; strangers will be slower. Retune
+    // from BGA's own statistics once alpha has real-time games in it.
+    "fast_additional_time": 90,
 
     // Time in second add to a player when "giveExtraTime" is called (speed profile = medium)
-    "medium_additional_time": 40,
+    "medium_additional_time": 120,
 
     // Time in second add to a player when "giveExtraTime" is called (speed profile = slow)
-    "slow_additional_time": 50,
+    "slow_additional_time": 150,
 
     // If you are using a tie breaker in your game (using "player_score_aux"), you must describe here
     // the formula used to compute "player_score_aux". This description will be used as a tooltip to explain

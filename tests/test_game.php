@@ -1351,3 +1351,20 @@ function test_a_bot_still_loses_troops_by_the_default_order(): void
     $ceiling = intdiv($game->scenario->towns['everlan']['supply'], $game->scenario->supplyPerTroop);
     assertSame($ceiling, $game->board->towns()['everlan']['troops']);
 }
+
+
+function test_the_clock_is_topped_up_as_a_turn_starts_and_again_after_resolving(): void
+{
+    // Real-time tables run out of time on BGA's defaults unless each turn
+    // gives some back. Resolving keeps the same player active for a second
+    // decision, which is the case BGA's docs single out.
+    $game = lastTownGame();
+    $empire = $game->playerIdForSide(Rules::EMPIRE);
+    $game->extraTimeGiven = [];
+
+    assertSame(Resolve::class, enterNextTurn($game));
+    assertSame([$empire], $game->extraTimeGiven, 'as the turn starts');
+
+    resolvePhase($game)->actResolve('everlan');
+    assertSame([$empire, $empire], $game->extraTimeGiven, 'and again after resolving');
+}

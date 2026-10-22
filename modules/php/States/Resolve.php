@@ -93,6 +93,12 @@ class Resolve extends GameState
             return NextTurn::class;
         }
 
+        // The same player stays active for the turn proper, which is the case
+        // BGA's docs single out for extra time: an action that does not end
+        // the turn. NextTurn tops the clock up as the turn starts; this tops it
+        // up again for the second decision. Real-time tables only.
+        $this->game->giveExtraTime($this->game->playerIdForSide($this->game->toMove()));
+
         return $this->game->toMove() === Rules::INSURGENCY
             ? InsurgencyTurn::class
             : EmpireTurn::class;
