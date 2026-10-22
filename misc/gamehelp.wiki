@@ -1,0 +1,72 @@
+'''Iron and Whispers''' is a game of occupation and sedition for two players. One player is the '''Empire''', marching troops in the open. The other is the '''Rebels''', placing agents face down. Both build up '''presence''' in a location, and when the location resolves, the side with more presence takes it.
+
+In the game, '''How to play''' in the side column opens the full illustrated manual, and the '''?''' in the title bar opens a legend of every mark on the board.
+
+== The idea ==
+
+* The board is twelve '''locations''' joined by roads. Two of them, Everlan and Kirn, are '''cities''', which can build troops.
+* The Empire's '''troops''' are worth 1 presence each, move one road a turn, and must be fed with supply.
+* The Rebels' '''agents''' are cards worth 1 or 0 presence. A 0 is a decoy. The Rebels see their own cards; the Empire sees only how many are in a pile until it turns them over.
+* When a location '''resolves''', the side with more presence takes it and the loser's commitment is removed. The Empire wins ties.
+* '''You score what your opponent loses''': the Empire scores the real agents it captures, the Rebels score the troops they destroy, in battle or by starvation.
+
+== Setting up ==
+
+* The Empire starts with 3 troops in Everlan and 1 in Belmar.
+* The deck is 60 agents: 36 worth 1 and 24 worth 0. It is never reshuffled.
+* The Rebels draw a hand of 3 and take the first turn. The players then alternate.
+
+== A turn ==
+
+'''Resolution always comes first''', and it is judged on the board as your opponent left it. You cannot march in and cash a location on arrival, or place exactly enough agents and collect in the same turn: whatever you commit has to survive a reply before it pays.
+
+=== The Rebels ===
+
+# '''Resolve''' (optional): one location where you have at least one agent. It settles on the pile as it stands; this turn's cards do not count.
+# '''Place your whole hand''' face down, into any open locations, any number to a location. The last card placed is the top of that pile. A location you resolved this turn takes none.
+# '''Draw''' back up to 3.
+
+=== The Empire ===
+
+# '''Resolve''' (optional): one location where you have at least one troop.
+# '''Build''': up to one troop in each city you hold.
+# '''March''': any troops may move one road. A garrison that just won its location may march straight out.
+# '''Look''': every troop that did not move turns one agent in its location face up.
+# '''Starve''': see ''Supply'' below.
+
+== Resolving a location ==
+
+Each side may resolve '''one location per turn''', and only one it is actually in: the Empire needs a troop there, the Rebels need an agent there.
+
+# Turn the whole pile face up.
+# Add up the Rebels' presence: every agent there, face up or down.
+# Add up the Empire's presence: 1 for each troop there.
+# The higher total takes the location; the Empire wins ties. The location is closed for the rest of the game.
+
+'''The winner scores the presence the loser had committed.''' The loser's pieces are removed; the winner's stay. A winning garrison keeps standing, keeps carrying supply, and may march on later. Taking an empty location scores nothing, but it still closes the ground.
+
+== Supply and starvation ==
+
+* Every location the Empire occupies gives '''2 supply''', and occupied locations that touch pool their supply into one '''network'''. Each troop costs 1 supply to keep, so a network of four locations feeds eight troops.
+* Supply limits what the Empire can '''keep''', not what it can build: building past it is legal, so long as the troops march out to ground that will feed them.
+* At the end of the Empire's turn, a network holding more troops than it can feed is '''warned''', and its troops pulse red. If it is still short at the end of the Empire's next turn, the Empire chooses which of its troops starve, and the Rebels score each one.
+* A location the Rebels have won gives no supply, ever. Cutting the ground out from under an army is the Rebels' second way of destroying troops.
+
+== How the game ends ==
+
+The game ends when the deck runs out, when every location has been resolved, when the Empire has no troops and no city left to build any, or when both players have offered to end. An offer to end is not a pass: you still play your turn.
+
+At the end, every location still open resolves at once, by the normal rules. A location nobody ever entered stays open.
+
+'''Most points wins.''' If the scores are level, the winner is whoever won more locations, then whoever has more presence still on the board, then the Empire.
+
+== Game options ==
+
+* '''Locations score''': the winner of a resolution also scores 1 point for the location itself, whichever side wins. Starvation never scores a location.
+* '''Rebels may hold cards''': the Rebels may place any part of their hand, or none, and draw 3 every turn whatever they kept. The Empire always sees how many cards they hold. The game still ends when the deck runs out.
+* '''Solo play''': against an Empire bot or a Rebels bot. The option list describes how each bot plays.
+
+== Tips ==
+
+* '''For the Empire''': nothing standing where a visible pile could beat it scores the Rebels anything. Move as one army, build in every city every turn, and let lone troops claim empty ground rather than hold contested ground.
+* '''For the Rebels''': a lead only pays if it survives the Empire's reply, and the Empire can always walk away from a pile. The best targets are garrisons the Empire cannot easily abandon or reinforce. A pile of decoys costs the Empire a whole army to find out it was worth nothing.
