@@ -365,6 +365,13 @@ authoritative answer belongs to them and this is only the expected shape.
 - ~~**Zombie mode level in the Metadata Manager**~~ — mandatory before the alpha request
   (`zombieModeLevel`). Done 2026-10-22: zombies now play MonoLoc and Mist2, so level 2. They
   used to stand still or dump the hand, which was level 0.
+- **The alpha request's own checks** (2026-10-22), found only by pressing the button:
+  ~~publisher BGG id~~ — set to 4, BGG's "(Self-Published)", as the warning itself says to;
+  **game BGG id** unset — ignored, since there is no BGG entry before publication; **project
+  name** — BGA expects `ironandwhispers` from the display name "Iron and Whispers", and the
+  project is `ironandwhisper`. Ignored for private alpha with a note in the request offering to
+  move to a correctly named project before release, rather than migrating the namespace and
+  every identifier now. **[ask BGA]** whether that move is needed.
 - **Request PRIVATE alpha once** from the game management page after a successful build — the
   "Request PRIVATE ALPHA status" button the
   [walkthrough](https://en.doc.boardgamearena.com/Create_a_game_in_BGA_Studio:_Complete_Walkthrough)

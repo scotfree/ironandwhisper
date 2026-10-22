@@ -6,8 +6,9 @@
  *
  * Audited 2026-10-09 against that page. Designer, artist, year, tags and the
  * presentation text are no longer read from here — they live in the Metadata
- * Manager — and none of them is in this file. Publisher and BGG ids stay empty
- * until the game is published and listed (design.md, Path to Release).
+ * Manager — and none of them is in this file. The game's BGG id stays empty
+ * until it is published and listed (design.md, Path to Release); the publisher's
+ * is BGG's "(Self-Published)", as BGA's alpha request asks.
 */
 {
     // Name of the game in English (will serve as the basis for translation)
@@ -21,8 +22,9 @@
     // Url of game publisher website
     "publisher_website": "",
 
-    // Board Game Geek ID of the publisher
-    "publisher_bgg_id": 0,
+    // Board Game Geek ID of the publisher. 4 is BGG's "(Self-Published)", which
+    // BGA's alpha request asks for in a self-published game (2026-10-22).
+    "publisher_bgg_id": 4,
 
     // Board game geek ID of the game
     "bgg_id": 0,
