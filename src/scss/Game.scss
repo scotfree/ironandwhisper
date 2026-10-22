@@ -1650,3 +1650,49 @@ $board: #e6e6e8;
     color: #999;
     text-decoration: line-through;
 }
+
+/********* narrow screens: swipe between the map and everything else *********/
+
+// The board is 440px wide; the side column beside it makes the game too wide
+// for a phone (issue #17). Squeezing both in shrinks everything past use, so
+// below the width they need side by side, the table becomes two full-width
+// panels in a horizontal scroller — the map, then the column — snapping to
+// each. The map's panel is exactly the board's width and the column's is 30px
+// short of full, so whichever is not in view peeks in from the edge — the
+// column's green or purple band on the right, the board's edge on the left —
+// and says there is something to swipe to. gameinfos' game_interface_width.min
+// (520) leaves room for the board, the gap and the peek.
+//
+// A container query on #iaw-shell, not a media query: what matters is the game
+// area BGA gives us, which is not the window — BGA lays a phone out at
+// gameinfos' game_interface_width.min and scales it to fit.
+#iaw-shell {
+    container-type: inline-size;
+}
+
+@container (max-width: 700px) {
+    #iaw-table {
+        gap: 12px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        overscroll-behavior-x: contain;
+        padding-bottom: 8px;
+    }
+
+    #iaw-board-area {
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+    }
+
+    #iaw-side-area {
+        flex: 0 0 calc(100% - 30px);
+        min-width: 0;
+        max-width: none;
+    }
+
+    // The last panel can never be scrolled to its start, so it snaps by its
+    // end, leaving the map peeking in from the left instead.
+    #iaw-side-area {
+        scroll-snap-align: end;
+    }
+}

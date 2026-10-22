@@ -458,6 +458,14 @@ Done:
   both engines.
 - `#iaw-table` is `flex-wrap: nowrap`. It wrapped, which silently dropped the whole side
   column — turn state, armies, hand — below the board whenever the play area was narrow.
+- **On a narrow screen the map and the side column are two panels you swipe between**
+  (2026-10-22, issue #17). A container query on `#iaw-shell` — the game area's width, not the
+  window's — turns `#iaw-table` into a snapping horizontal scroller below 700px: the map panel
+  exactly the board's 440px, the column 30px short of full width, so whichever is out of view
+  peeks in from the edge. `gameinfos.jsonc`'s `game_interface_width.min` dropped from 740 to
+  520 to match, so BGA scales a phone to about three quarters rather than half. Squeezing
+  both side by side was rejected: everything shrinks past use. Selecting a card and then a
+  location now spans the two panels on a phone; that is the accepted cost.
 - **128 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 - **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,

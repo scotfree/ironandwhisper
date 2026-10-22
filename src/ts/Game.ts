@@ -86,7 +86,11 @@ export class Game {
         this.side = gamedatas.you;
         this.hand = gamedatas.hand ?? [];
 
+        // #iaw-shell exists only to be measured: the narrow-screen layout is a
+        // container query on it, so it follows the game area's width rather
+        // than the window's.
         this.bga.gameArea.getElement().insertAdjacentHTML('beforeend', `
+            <div id="iaw-shell">
             <div id="iaw-table">
                 <div id="iaw-board-area"></div>
                 <div id="iaw-side-area">
@@ -110,6 +114,7 @@ export class Game {
                     <div id="iaw-last-turn"></div>
                     <div id="iaw-primer"></div>
                 </div>
+            </div>
             </div>
         `);
 

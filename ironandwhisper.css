@@ -1295,3 +1295,30 @@
   color: #999;
   text-decoration: line-through;
 }
+
+/********* narrow screens: swipe between the map and everything else *********/
+#iaw-shell {
+  container-type: inline-size;
+}
+
+@container (max-width: 700px) {
+  #iaw-table {
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    padding-bottom: 8px;
+  }
+  #iaw-board-area {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+  #iaw-side-area {
+    flex: 0 0 calc(100% - 30px);
+    min-width: 0;
+    max-width: none;
+  }
+  #iaw-side-area {
+    scroll-snap-align: end;
+  }
+}

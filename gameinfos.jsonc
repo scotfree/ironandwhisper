@@ -96,7 +96,12 @@
         //  default: 740
         //  maximum possible value: 740 (ie: your game interface should fit with a 740px width (correspond to a 1024px screen)
         //  minimum possible value: 320 (the lowest value you specify, the better the display is on mobile)
-        "min": 740
+        // 520 is the board (440px), the gap, and a strip of the next panel
+        // peeking in. Below 700px the side column stops sitting beside the
+        // board and becomes a panel you swipe to (see the container query at
+        // the end of src/scss/Game.scss), so only the board has to fit. Was
+        // 740, which scaled a phone to about half.
+        "min": 520
     },
 
     // Trigger an exception when PHP detect warnings.
