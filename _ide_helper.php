@@ -478,6 +478,28 @@ namespace Bga\GameFramework {
         }
 
         /**
+         * Retrieve tournament information.
+         *
+         * Returns an empty array when the table is not part of a tournament.
+         *
+         * Note: `parent tournament` refer to the main tournament of Groups Stage tournaments (tournaments of either of the two stages, will reference the same "parent")
+         *
+         * @return array{
+         *   id?: int,
+         *   name?: string,
+         *   championship_name?: string,
+         *   oot_options?: string,
+         *   tournament_group?: int,
+         *   tournament_parent_id?: int|null,
+         *   avatar?: string
+         * }
+         */
+        public function getInfo(): array
+        {
+            return [];
+        }
+
+        /**
          * Retrieve tournament seeds for deterministic randomness.
          *
          * Returns an empty array when the table is not part of a tournament.
@@ -557,13 +579,24 @@ namespace Bga\GameFramework {
         public function get(int $optionId): ?int {
             return 0;
         }
+
+        /**
+         * Set the value of a table option.
+         *
+         * Call this only for Random options, to update the table with the selected value.
+         *
+         * @param int $optionId the option id as in the gameoptions.json file
+         * @param int $value the value to set the option to
+         */
+        public function set(int $optionId, int $value): void {
+        }
     
         /**
          * Indicates if the table is Turn-based.
          * 
          * @return bool if the table is Turn-based.
          */
-        function isTurnBased(): bool {
+        public function isTurnBased(): bool {
             return false;
         }
     
@@ -572,8 +605,26 @@ namespace Bga\GameFramework {
          * 
          * @return bool if the table is Real-time.
          */
-        function isRealTime(): bool {
+        public function isRealTime(): bool {
             return false;
+        }
+
+        /**
+         * Returns the current game version.
+         * 
+         * @return int the game version
+         */
+        public function getGameVersion(): int {
+            return 0;
+        }
+
+        /**
+         * Get the selected language index as defined in the gameinfos file.
+         *
+         * @return int|null the selected language index, or null if the game has no game languages.
+         */
+        public function getGameLanguage(): ?int {
+            return 0;
         }
     }
 
@@ -633,6 +684,12 @@ namespace Bga\GameFramework {
 
     abstract class PlayerStats {
         /**
+         * Set whether player arguments use player numbers (true) or player IDs (false).
+         */
+        public function setUseNo(bool $useNo): void {
+        }
+
+        /**
          * Create a statistic entry with a default value.
          *
          * @param string|array $nameOrNames Statistic identifier(s) defined in `stats.json`.
@@ -647,9 +704,9 @@ namespace Bga\GameFramework {
          *
          * @param string $name Statistic identifier defined in `stats.json`.
          * @param int|float|bool $value Value to persist.
-         * @param int $player_id Target player id.
+         * @param int $playerIdOrNo Target player ID, or player number when useNo is true.
          */
-        public function set(string $name, int|float|bool $value, int $player_id): void {
+        public function set(string $name, int|float|bool $value, int $playerIdOrNo): void {
         }
 
         /**
@@ -666,10 +723,10 @@ namespace Bga\GameFramework {
          *
          * @param string $name Statistic identifier defined in `stats.json`.
          * @param int|float $delta Signed difference to apply.
-         * @param int $player_id Target player id.
+         * @param int $playerIdOrNo Target player ID, or player number when useNo is true.
          * @param bool $updateTableStat if there is a table stat of the same name to update at the same time (for example, for a turnNumber counter that would store the turns played by each player but also the total of turns for the table)
          */
-        public function inc(string $name, int|float $delta, int $player_id, bool $updateTableStat = false): void {
+        public function inc(string $name, int|float $delta, int $playerIdOrNo, bool $updateTableStat = false): void {
         }
 
         /**
@@ -685,20 +742,20 @@ namespace Bga\GameFramework {
          * Fetch a player statistic.
          *
          * @param string $name Statistic identifier defined in `stats.json`.
-         * @param int $player_id Target player id.
+         * @param int $playerIdOrNo Target player ID, or player number when useNo is true.
          *
          * @return int|float|bool The statistic value.
          */
-        public function get(string $name, int $player_id): int|float|bool {
+        public function get(string $name, int $playerIdOrNo): int|float|bool {
             return 0;
         }
 
         /**
-         * Retrieve the statistic for all players, keyed by player id.
+         * Retrieve the statistic for all players, keyed by player ID or player number.
          *
          * @param string $name Statistic identifier defined in `stats.json`.
          *
-         * @return array<int, int|float|bool> Player id keyed map of the statistic values.
+         * @return array<int, int|float|bool> Statistic values keyed by player number when useNo is true, or player ID otherwise.
          */
         public function getAll(string $name): array {
             return [];
@@ -1528,11 +1585,13 @@ namespace Bga\GameFramework {
         }
 
         /**
-         * Returns an index of the selected language as defined in gameinfos.inc.php.
+         * Returns an index of the selected language as defined in gameinfos.
+         * 
+         * @deprecated use $this->bga->tableOptions->getGameLanguage()
          */
-        final public function getGameLanguage(): string
+        final public function getGameLanguage(): int
         {
-            return '';
+            return 0;
         }
 
         /**
@@ -1556,6 +1615,8 @@ namespace Bga\GameFramework {
          *
          * NOTE: this method use globals "cache" if you directly manipulated globals table OR call this function after
          * `undoRestorePoint()` - it won't work as expected.
+         * 
+         * @deprecated use $this->bga->globals API instead. It's not the same DB table as GameStateValue, so if your game is in production and using it, keep it, except if you want to migrate the data to the new table too.
          * 
          * @param string $label the label
          * @param ?int $default a default value if the label doesn't have an associated value
@@ -1814,6 +1875,8 @@ namespace Bga\GameFramework {
          * NOTE: this method use globals "cache" if you directly manipulated globals table OR call this function after
          * `undoRestorePoint()` - it won't work as expected.
          * 
+         * @deprecated use $this->bga->globals API instead. It's not the same DB table as GameStateValue, so if your game is in production and using it, keep it, except if you want to migrate the data to the new table too.
+         * 
          * @param string $label the label
          * @param int $increment the increment to add to the current value
          * @return int the new value 
@@ -2014,6 +2077,8 @@ namespace Bga\GameFramework {
          * Initialize global value. This is not required if you ok with default value if 0. This should be called from
          * `Table::setupNewGame()` function.
          * 
+         * @deprecated use $this->bga->globals API instead. It's not the same DB table as GameStateValue, so if your game is in production and using it, keep it, except if you want to migrate the data to the new table too.
+         * 
          * @param string $label the label
          * @param int $value the initial value
          * @return void
@@ -2025,6 +2090,8 @@ namespace Bga\GameFramework {
 
         /**
          * Set the current value of a global.
+         * 
+         * @deprecated use $this->bga->globals API instead. It's not the same DB table as GameStateValue, so if your game is in production and using it, keep it, except if you want to migrate the data to the new table too.
          * 
          * @param string $label the label
          * @param int $value the value to store
@@ -2207,6 +2274,8 @@ namespace Bga\GameFramework {
          * this method to access value of game options Game_options_and_preferences:_gameoptions.inc.php, in that case,
          * IDs need to be between 100 and 199. You must not use globals outside the range defined above, as those values
          * are used by other components of the framework.
+         * 
+         * @deprecated use $this->bga->globals API instead. It's not the same DB table as GameStateValue, so if your game is in production and using it, keep it, except if you want to migrate the data to the new table too.
          *
          * @param array<string, int> $labels
          */
@@ -3159,8 +3228,19 @@ namespace Bga\GameFramework\Helpers {
      * @template T
      * @extends \ArrayObject<int|string, T>
      */
-    abstract class Collection extends \ArrayObject
+    class Collection extends \ArrayObject
     {
+      /**
+       * Create a collection from an array or object.
+       *
+       * @param array<int|string, T>|object $array Items used to initialize the collection.
+       * @param int $flags Flags controlling the behavior of the underlying ArrayObject.
+       * @param class-string<\ArrayIterator> $iteratorClass Iterator class used when iterating over the collection.
+       */
+      public function __construct(array|object $array = [], int $flags = 0, string $iteratorClass = \ArrayIterator::class)
+      {
+      }
+
       /**
        * Return the keys used by this collection.
        *
@@ -3550,16 +3630,50 @@ namespace Bga\GameFramework\GameResult {
         /**
          * Score all players separately (no-team game).
          *
-         * @param Player[] $players The players at this table. Currently, real players only.
+         * @param array<int, Player|int|null>|null $players The players or their IDs.
          * @param bool $reverseScore Whether negative scores should be rewarded
          * @param bool $reverseScoreAux Whether auxiliary score ordering is reversed
          *
          * @return self
          */
         public static function individualRanking(
-            array $players,
+            ?array $players = null,
             bool $reverseScore = false,
             bool $reverseScoreAux = false,
+        ) {
+            return new self();
+        }
+
+        /**
+         * Build a solo game result (internally treated as a cooperative result).
+         *
+         * @param Player|int|null $player The player or player ID at this table. Null finds the only player.
+         * @param int $score The solo score. For display only, the outcome is decided by $win.
+         * @param bool $win indicates if the coop game is won or lost
+         *
+         * @return self
+         */
+        public static function solo(
+            Player|int|null $player = null,
+            int $score = 0,
+            bool $win = true,
+        ) {
+            return new self();
+        }
+
+        /**
+         * Build a cooperative result with a single team representing all players.
+         *
+         * @param array<int, Player|int|null>|null $players The players or their IDs. Null uses all players.
+         * @param int $score The team score. For display only, the outcome is decided by $win.
+         * @param bool $win indicates if the coop game is won or lost
+         *
+         * @return self
+         */
+        public static function coop(
+            ?array $players = null,
+            int $score = 0,
+            bool $win = true,
         ) {
             return new self();
         }

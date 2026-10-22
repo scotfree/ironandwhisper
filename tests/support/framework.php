@@ -465,7 +465,11 @@ namespace Bga\GameFramework\GameResult {
         ) {
         }
 
-        public static function solo(int $score, bool $win): self
+        /**
+         * BGA's signature as of 2026-10-21 (_ide_helper.php): the player comes
+         * first and defaults to the only one at the table.
+         */
+        public static function solo(mixed $player = null, int $score = 0, bool $win = true): self
         {
             return new self('solo', $score, $win);
         }
