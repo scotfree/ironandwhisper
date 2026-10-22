@@ -25,7 +25,7 @@ every scenario file for. See *Vocabulary* in `design.md`.
 
 
 **The rules are settled and encoded in `sim/`. Port from the simulator, not from memory.**
-`sim/engine.py` is the executable specification and `sim/test_engine.py` has 50 tests, each
+`sim/engine.py` is the executable specification and `sim/test_engine.py` has 68 tests, each
 named for the design decision it pins down. If the PHP disagrees with the simulator, the
 PHP is wrong. `tests/test_rules.php` mirrors those cases in PHP — when you change a rule,
 change it in both places, in `rules.html` and in `design.md`.
@@ -166,8 +166,11 @@ and carry their own value. A bluff is a card worth 0.
 
 ## Current state
 
-**Deployed, playable on the Studio, and being played.** The rules have moved a long way
-since the first port; several sessions of real play have driven that.
+**Ready for private alpha** (2026-10-22). Every item on BGA's pre-release checklist that
+applies is done — dry run and committed build clean, Chrome, Firefox and Safari, minified
+files, dark mode, real time, spectator and replay, box art in the Metadata Manager — and
+the request is the next step. Path to Release in `design.md` has the detail. The rules have
+moved a long way since the first port; several sessions of real play have driven that.
 
 **The rebel side is called "Rebels" to the player** (2026-09-23), in every display string in
 the client and the PHP, and in `rules.html`. `Insurgency` survives as the *identifier*
@@ -183,7 +186,7 @@ failure the Vocabulary decision exists to prevent.
 
 Done:
 - BGA Studio project `ironandwhisper`, deploying cleanly over SFTP with a client build.
-- Full rules simulator, bots, 87 tests, an exploration notebook, and a batch runner.
+- Full rules simulator, bots, 185 tests, an exploration notebook, and a batch runner.
 - **The PHP port**: `dbmodel.sql`, `Scenario`, `Rules`, `Bots`, `Board`, `View`, `Game`,
   and the game states. See *How the port is put together* below.
 - **TypeScript client**: board from the map JSON, drag-and-drop placement, staged turns,
@@ -466,7 +469,7 @@ Done:
   520 to match, so BGA scales a phone to about three quarters rather than half. Squeezing
   both side by side was rejected: everything shrinks past use. Selecting a card and then a
   location now spans the two panels on a phone; that is the accepted cost.
-- **128 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
+- **169 PHP tests** against SQLite, plus `tests/selfplay.php` for cross-engine comparison.
 - **Heuristic bots** on both sides, and a solo game against one.
 - **`GlobEmpire`, the bot that plays the way the game is played well** (`sim/bots.py`,
   `Bots::globEmpireTurn`), and game option 101 to choose between it and the heuristic bot
@@ -490,18 +493,19 @@ Not done, in rough order of how much it hurts:
   The old bot is kept as the weaker opponent and as the port's reference implementation,
   but every figure in this file measured against it is "how well does the Empire do
   against a mediocre rebel", not balance.
-- **The Empire is losing badly at the table, and the bots now agree.** `GlobEmpire`
-  winning 64% said more about the heuristic rebels than about the Empire: against
-  `MistBot` it takes 0%, which is what real play has been saying all along. Hand size and
-  the starting garrison are both spent as levers (see the notes above each). The next
-  moves are still **graded cards** and **troop presence above 1** — open question 2, and
-  there is now a rebel bot good enough to measure them against.
+- **The Empire is still the weaker side, though less than it was.** Under capture-only
+  scoring `GlobEmpire` takes 0% against `MistBot`, and real play agreed. With location value
+  on (option 103) MonoLoc takes 39% against Mist2. Of four human-against-human option-103
+  games (October 2026) the Empire won one. Hand size and the starting garrison are both
+  spent as levers (see the notes above each); the next are still **graded cards** and
+  **troop presence above 1** — open question 2.
 - **`GlobEmpire`'s certainty test does not survive graded cards.** It resolves when troops
   beat `revealed + pile height x the best card in the deck`, which is exact at baseline
   where cards are 0 or 1 and useless at `graded36`, where every face-down card is assumed to
   be a 3 and almost nothing is ever certain. It plays legally there and wins 0%. Putting
   graded cards back means giving it a quantile or expected-value test instead.
-- No animations, no art.
+- No animations. The box art is in the Metadata Manager (2026-10-22); the in-game art is
+  the SVG silhouettes in `img/`.
 
 **The tie-breaker** (2026-10-09): locations won, then presence still on the board, then the
 Empire — so no game is a draw. `Rules::tiebreak` / `engine.tiebreak`, written to
@@ -525,6 +529,13 @@ from random init reaches −0.12, worse than a random rebel. The finding worth c
 back to any future bot work is that reward alone farmed the *weakest* opponent in the
 pool. `gpt/RESULTS.md` has the tables. The trained weights are gitignored and exist only
 on the machine that made them.
+
+**An Empire GPT lives on the `gpt-empire` branch** (2026-10-12), branched from `main` with
+`gpt/` brought over. It makes MonoLoc's two strategic choices — which certain win to resolve
+and where the army goes — with MonoLoc doing the rest. `notebooks/gpt_empire.ipynb` walks
+through the encoding and both losses and trains it: a clone agrees with MonoLoc on about 80%
+of choices and wins 30% against Mist2 where MonoLoc wins 41%; short policy-gradient runs have
+not moved it. `main`'s `.gitignore` hides `gpt/`; that branch lifts the rule.
 
 **Not new mechanics, for now** (2026-09-23). The game reads as close to playable, and the
 balance hole five logged games keep showing — a human Empire that concentrates and declines
@@ -674,7 +685,7 @@ duplicating the graph.
 ## The simulator
 
 ```bash
-sim/.venv/bin/python -m pytest sim -q            # 87 tests
+sim/.venv/bin/python -m pytest sim -q            # 185 tests (4 skip: two-person logs)
 sim/.venv/bin/python -m sim.run --games 500      # batch runner
 sim/.venv/bin/python -m sim.run --games 500 --bots glob   # the good Empire bot
 sim/.venv/bin/python -m sim.run --games 500 --bots glob --insurgency mist   # both good bots

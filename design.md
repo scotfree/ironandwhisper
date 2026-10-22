@@ -357,10 +357,11 @@ authoritative answer belongs to them and this is only the expected shape.
     mode barely changes anything, since the board sets its own backgrounds; real time now
     gives 90/120/150s per top-up, at each turn and again after resolving). Edge untested:
     it shares Chrome's engine.
-  - **Exceptions to explain in the alpha email:** the 3D game box image, which the checklist
-    lists and the art docs say can come later. Mobile is no longer an exception so much as a
-    caveat: since 2026-10-22 a phone shows the map and swipes to the side column (issue #17),
-    but the game is built for a desktop.
+  - ~~**3D game box image**~~ — uploaded through the Metadata Manager 2026-10-22, which is
+    where BGA keeps it now; nothing goes in the repo. The checklist wants the space around
+    the box transparent, not white.
+  - **Caveat for the alpha email:** mobile. Since 2026-10-22 a phone shows the map and swipes
+    to the side column (issue #17), but the game is built for a desktop.
 - **Request PRIVATE alpha once** from the game management page after a successful build — the
   "Request PRIVATE ALPHA status" button the
   [walkthrough](https://en.doc.boardgamearena.com/Create_a_game_in_BGA_Studio:_Complete_Walkthrough)
