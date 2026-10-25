@@ -1,0 +1,1 @@
+**Before anything else happens, you may arrange your deck.** Click anywhere to continue to that screen: put your decoys where you like, or shuffle again, then play when you are ready. The Empire is never told whether you changed anything.

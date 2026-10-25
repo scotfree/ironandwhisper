@@ -142,5 +142,27 @@
       }
     },
     "default": 0
+  },
+
+  // A bucket for rules beyond the base game (issue #6). Currently adds one
+  // thing: before anything else happens, a human Rebel player may arrange
+  // their deck in any order, or shuffle it again. The Empire is never told
+  // whether this ran or what came of it — it never sees the deck either way,
+  // arranged or not. Does nothing in a game where a bot plays the Rebels.
+  "105": {
+    "name": "Advanced rules",
+    "values": {
+      "0": {
+        "name": "Off",
+        "description": "The deck is shuffled once and play begins immediately."
+      },
+      "1": {
+        "name": "On",
+        "description": "A human Rebel player may arrange the deck, or shuffle it again, before play begins.",
+        "tmdisplay": "Advanced rules",
+        "nobeginner": true
+      }
+    },
+    "default": 0
   }
 }

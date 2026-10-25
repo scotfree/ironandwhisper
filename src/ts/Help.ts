@@ -9,7 +9,7 @@
  */
 import { BoardView } from "./BoardView";
 import { presenceHtml } from "./presence";
-import { primerEmpire, primerHold, primerLocations, primerRebels } from "./primers.generated";
+import { primerArrange, primerEmpire, primerHold, primerLocations, primerRebels } from "./primers.generated";
 
 /**
  * The player's manual, served from the game's own folder.
@@ -57,6 +57,14 @@ export class Help {
         private locationValue: boolean = false,
         /** Game option 104: whether the rebels may keep cards in hand. */
         private rebelsHold: boolean = false,
+        /**
+         * Advanced rules (option 105): whether the deck is still the Rebels'
+         * to arrange. True only for the Rebel player, only at the very start
+         * of a game, and only until they submit an order — read once from
+         * `gamedatas.deck !== null` at setup, which is exactly as long as it
+         * needs to last: the start card is shown once per page load too.
+         */
+        private advancedDeckOpen: boolean = false,
     ) {
     }
 
@@ -428,7 +436,10 @@ export class Help {
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
             : primerEmpire())
             + (this.locationValue ? primerLocations() : '')
-            + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : ''));
+            + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : '')
+            // Only on the start card: by the time a player reads the column's
+            // persistent copy, arrangement has already happened or is moot.
+            + (rebel && where === 'start' && this.advancedDeckOpen ? primerArrange() : ''));
 
         return `
             <div class="iaw-primer ${side ?? 'spectator'}">

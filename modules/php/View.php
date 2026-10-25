@@ -36,6 +36,9 @@ final class View
     /**
      * @param array<string, array> $towns    board in Rules shape
      * @param array<int, array> $hand        the Insurgency's hand
+     * @param array<int, array> $deck        the deck, in draw order
+     * @param bool $deckArrangementOpen      whether the deck is still the Rebels'
+     *                                       to arrange (advanced rules, issue #6)
      * @param array<int, string> $sides      player id => side
      * @param string|null $viewerSide        null for a spectator
      * @return array<string, mixed>
@@ -44,6 +47,8 @@ final class View
         Scenario $scenario,
         array $towns,
         array $hand,
+        array $deck,
+        bool $deckArrangementOpen,
         int $deckCount,
         int $round,
         array $sides,
@@ -61,6 +66,12 @@ final class View
             // always known anyway: the whole hand is placed every turn, so it
             // refills to hand_size until the deck runs dry.
             'hand' => $viewerSide === Rules::INSURGENCY ? array_values($hand) : null,
+            // The deck itself is never public, and not even the Insurgency's to
+            // see once arrangement has closed — a draw afterwards is a surprise
+            // exactly as it always was. The Empire gets null either way: it
+            // never sees the deck, arranged or not.
+            'deck' => ($viewerSide === Rules::INSURGENCY && $deckArrangementOpen)
+                ? array_values($deck) : null,
             'handCount' => count($hand),
             'deckCount' => $deckCount,
             'round' => $round,

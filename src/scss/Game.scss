@@ -1397,6 +1397,114 @@ $board: #e6e6e8;
     opacity: 0.85;
 }
 
+/********* advanced rules: arranging the deck *********/
+
+// Same family as the start card and the resolution announcement — a
+// one-time moment that needs the whole screen — but this one does not
+// dismiss on a stray click: there is a real decision here, so only Play
+// closes it. Sits below the start card's z-index, so dismissing that
+// reveals this one already built underneath.
+#iaw-arrange-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+#iaw-arrange-card {
+    width: 100%;
+    max-width: 720px;
+    max-height: calc(100% - 48px);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 28px;
+    border-radius: 6px;
+    background: $paper;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+
+    .iaw-frame-title {
+        margin-top: 0;
+    }
+}
+
+#iaw-arrange-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 14px;
+}
+
+.iaw-arrange-preset {
+    padding: 6px 12px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+        background: #f2f2f2;
+    }
+}
+
+#iaw-arrange-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 6px;
+    padding: 10px;
+    border: 1px dashed #bbb;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.iaw-arrange-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    border: 1px solid color.adjust($insurgency, $lightness: -20%);
+    background: color.mix($insurgency, #fff, 22%);
+    cursor: grab;
+
+    &.decoy {
+        background: color.mix($insurgency, #fff, 55%);
+        border-style: dashed;
+    }
+
+    &.dragging {
+        opacity: 0.35;
+    }
+}
+
+#iaw-arrange-submit {
+    margin-top: 16px;
+    text-align: center;
+}
+
+#iaw-arrange-play {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 4px;
+    background: $insurgency;
+    color: #fff;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+
+    &:hover {
+        background: color.adjust($insurgency, $lightness: -8%);
+    }
+}
+
 #iaw-help-button {
     width: 26px;
     height: 26px;

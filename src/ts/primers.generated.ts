@@ -15,6 +15,9 @@
  * BGA has installed the translator.
  */
 
+/** From `src/text/primer-arrange.md`. Edit that file, not this one. */
+export const primerArrange = (): string => _('<p><b>Before anything else happens, you may arrange your deck.</b> Click anywhere to continue to that screen: put your decoys where you like, or shuffle again, then play when you are ready. The Empire is never told whether you changed anything.</p>');
+
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
 export const primerEmpire = (): string => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
 

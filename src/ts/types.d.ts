@@ -108,11 +108,27 @@ interface IronAndWhisperGamedatas extends Gamedatas<IronAndWhisperPlayer> {
     towns: Record<string, TownView>;
     /** The Insurgency's hand. Null for the Empire — it is not entitled to it. */
     hand: CardView[] | null;
+    /**
+     * The deck, in draw order, while the Rebels may still arrange it
+     * (advanced rules, option 105, issue #6) — index 0 drawn next. Null once
+     * arrangement is closed, and always null for the Empire: it never sees
+     * the deck, arranged or not.
+     */
+    deck: CardView[] | null;
     handCount: number;
     deckCount: number;
     round: number;
     /** The town resolved most recently, or '' before any has been. */
     lastResolved: string;
+}
+
+/**
+ * Advanced rules only (option 105): the Rebels' one-time deck arrangement.
+ * Empty — the deck itself travels through `gamedatas.deck`, not through
+ * state args, which are visible to every viewer of this state and the deck
+ * is not (View::forSide).
+ */
+interface ArrangeDeckArgs {
 }
 
 /** The resolution phase, which both sides pass through before their turn. */

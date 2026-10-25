@@ -774,4 +774,32 @@ final class Rules
             array_slice(array_values($pile), 0, max(0, $lookCount)),
         );
     }
+
+    /**
+     * Whether a proposed deck order is legal: advanced rules (option 105,
+     * issue #6), the one-time arrangement before play begins. It must name
+     * exactly the cards currently in the deck, each once — nothing more,
+     * nothing missing, no repeats.
+     *
+     * @param int[] $deckCardIds the deck's current card ids, any order
+     * @param int[] $order       the Rebels' proposed order, index 0 drawn next
+     */
+    public static function validateDeckOrder(array $deckCardIds, array $order): void
+    {
+        $current = array_map('intval', $deckCardIds);
+        $proposed = array_map('intval', $order);
+
+        $sortedCurrent = $current;
+        $sortedProposed = $proposed;
+        sort($sortedCurrent);
+        sort($sortedProposed);
+
+        if ($sortedCurrent !== $sortedProposed) {
+            throw new IllegalMove(sprintf(
+                'deck order must name exactly the cards in the deck, once each: got [%s], deck is [%s]',
+                implode(',', $proposed),
+                implode(',', $current),
+            ));
+        }
+    }
 }

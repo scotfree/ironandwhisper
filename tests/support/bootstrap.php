@@ -22,10 +22,12 @@ require_once $root . '/modules/php/States/NextTurn.php';
 require_once $root . '/modules/php/States/Resolve.php';
 require_once $root . '/modules/php/States/InsurgencyTurn.php';
 require_once $root . '/modules/php/States/EmpireTurn.php';
+require_once $root . '/modules/php/States/ArrangeDeck.php';
 
 use Bga\GameFramework\Db;
 use Bga\Games\IronAndWhisper\Game;
 use Bga\Games\IronAndWhisper\Rules;
+use Bga\Games\IronAndWhisper\States\ArrangeDeck;
 use Bga\Games\IronAndWhisper\States\EmpireTurn;
 use Bga\Games\IronAndWhisper\States\InsurgencyTurn;
 use Bga\Games\IronAndWhisper\States\NextTurn;
@@ -44,7 +46,8 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
                  int $botOption = Game::BOT_GLOB,
                  int $rebelOption = Game::REBEL_MIST,
                  int $locationValue = Game::LOCATION_VALUE_OFF,
-                 int $rebelsHold = Game::REBELS_HOLD_OFF): Game
+                 int $rebelsHold = Game::REBELS_HOLD_OFF,
+                 int $advancedRules = Game::ADVANCED_RULES_OFF): Game
 {
     Db::reset();
     Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
@@ -56,6 +59,7 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
     $game->bga->tableOptions->values[Game::OPT_REBEL_BOT] = $rebelOption;
     $game->bga->tableOptions->values[Game::OPT_LOCATION_VALUE] = $locationValue;
     $game->bga->tableOptions->values[Game::OPT_REBELS_HOLD] = $rebelsHold;
+    $game->bga->tableOptions->values[Game::OPT_ADVANCED_RULES] = $advancedRules;
 
     $players = [
         P_ONE => ['player_name' => 'One'],
@@ -67,6 +71,45 @@ function newGame(int $sideOption = Game::SIDES_FIRST_IS_EMPIRE, int $seed = 1,
     $setup->invoke($game, $players, []);
 
     return $game;
+}
+
+/**
+ * Like newGame, but returns [$game, $startState] — the state class
+ * setupNewGame handed off to, ArrangeDeck when advanced rules put a human
+ * Rebel there and NextTurn otherwise. Every other test uses newGame, which
+ * discards that return value because it has never mattered before.
+ *
+ * @return array{0: Game, 1: string}
+ */
+function newGameWithStartState(
+    int $advancedRules,
+    int $sideOption = Game::SIDES_FIRST_IS_EMPIRE,
+    int $seed = 1,
+    int $botOption = Game::BOT_GLOB,
+    int $rebelOption = Game::REBEL_MIST,
+    bool $solo = false,
+): array {
+    Db::reset();
+    Db::loadSchema(dirname(__DIR__, 2) . '/dbmodel.sql');
+    mt_srand($seed);
+
+    $game = new Game();
+    $game->bga->tableOptions->values[Game::OPT_SIDE_ASSIGNMENT] = $sideOption;
+    $game->bga->tableOptions->values[Game::OPT_BOT] = $botOption;
+    $game->bga->tableOptions->values[Game::OPT_REBEL_BOT] = $rebelOption;
+    $game->bga->tableOptions->values[Game::OPT_ADVANCED_RULES] = $advancedRules;
+
+    // Solo: one real player, the bot on whichever side they did not take —
+    // for testing that this state never applies to a bot (Game::sides()).
+    $players = $solo
+        ? [P_ONE => ['player_name' => 'One']]
+        : [P_ONE => ['player_name' => 'One'], P_TWO => ['player_name' => 'Two']];
+
+    $setup = new ReflectionMethod($game, 'setupNewGame');
+    $setup->setAccessible(true);
+    $state = $setup->invoke($game, $players, []);
+
+    return [$game, $state];
 }
 
 /**
@@ -120,6 +163,12 @@ function empireTurn(Game $game): EmpireTurn
 function resolvePhase(Game $game): Resolve
 {
     return new Resolve($game);
+}
+
+/** Advanced rules only (option 105): the Rebels' one-time deck arrangement. */
+function arrangeDeckPhase(Game $game): ArrangeDeck
+{
+    return new ArrangeDeck($game);
 }
 
 function playerFor(Game $game, string $side): int

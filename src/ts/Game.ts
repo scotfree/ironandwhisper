@@ -8,6 +8,7 @@
  * -----
  */
 import { BoardView } from "./BoardView";
+import { ArrangeDeck } from "./States/ArrangeDeck";
 import { EmpireTurn } from "./States/EmpireTurn";
 import { InsurgencyTurn } from "./States/InsurgencyTurn";
 import { Resolve } from "./States/Resolve";
@@ -76,6 +77,7 @@ export class Game {
         this.bga.states.register('Resolve', new Resolve(this, bga));
         this.bga.states.register('InsurgencyTurn', new InsurgencyTurn(this, bga));
         this.bga.states.register('EmpireTurn', new EmpireTurn(this, bga));
+        this.bga.states.register('ArrangeDeck', new ArrangeDeck(this, bga));
     }
 
     setup(gamedatas: IronAndWhisperGamedatas) {
@@ -161,7 +163,8 @@ export class Game {
         }
 
         this.help = new Help(gamedatas.scenario, this.board,
-            gamedatas.locationValue ?? false, gamedatas.rebelsHold ?? false);
+            gamedatas.locationValue ?? false, gamedatas.rebelsHold ?? false,
+            gamedatas.deck != null);
         this.help.install();
         this.renderPrimer();
 

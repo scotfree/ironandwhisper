@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace Bga\Games\IronAndWhisper;
 
 use Bga\GameFramework\UserException;
+use Bga\Games\IronAndWhisper\States\ArrangeDeck;
 use Bga\Games\IronAndWhisper\States\NextTurn;
 
 class Game extends \Bga\GameFramework\Table
@@ -101,12 +102,33 @@ class Game extends \Bga\GameFramework\Table
     public const REBELS_HOLD_OFF = 0;
     public const REBELS_HOLD_ON = 1;
 
+    /**
+     * Advanced rules (issue #6): currently the one thing this adds is that a
+     * human Rebel player may arrange the deck, or shuffle it again, before
+     * play begins. Does nothing when a bot plays the Rebels — it has no
+     * reason to want anything but the shuffle it was already dealt — and the
+     * Empire is never told whether this ran: it never sees the deck either
+     * way. A bucket rather than its own option per rule, so whatever advanced
+     * rule comes next belongs beside this one rather than as option 106.
+     */
+    public const OPT_ADVANCED_RULES = 105;
+    public const ADVANCED_RULES_OFF = 0;
+    public const ADVANCED_RULES_ON = 1;
+
     /** Global variable names. */
     public const G_TO_MOVE = 'to_move';
     public const G_ROUND = 'round';
     public const G_BOT_SCORE = 'bot_score';
     public const G_END_OFFERED_EMPIRE = 'end_offered_empire';
     public const G_END_OFFERED_INSURGENCY = 'end_offered_insurgency';
+    /**
+     * Whether the deck is still the Rebels' to arrange (advanced rules,
+     * option 105). Set once, at setup, only when ArrangeDeck is the starting
+     * state, and cleared for good the moment they submit an order — a draw
+     * after that is a surprise exactly as it always was. Absent (0) means
+     * either advanced rules were off or a bot plays the Rebels.
+     */
+    public const G_DECK_ARRANGEMENT_OPEN = 'deck_arrangement_open';
     /**
      * The town resolved most recently, or '' before any has been. The board
      * keeps the result of that one resolution on screen, for whoever missed the
@@ -1076,6 +1098,8 @@ class Game extends \Bga\GameFramework\Table
             scenario: $this->scenario,
             towns: $this->board->towns(),
             hand: $this->board->hand(),
+            deck: $this->board->deckCards(),
+            deckArrangementOpen: $this->deckArrangementOpen(),
             deckCount: $this->board->deckCount(),
             round: $this->round(),
             sides: $this->sides(),
@@ -1160,7 +1184,51 @@ class Game extends \Bga\GameFramework\Table
         // exist before the first state is entered.
         $this->activeNextPlayer();
 
+        // Advanced rules (option 105, issue #6): a human Rebel may arrange the
+        // deck before anything else happens. A bot has no reason to want
+        // anything but the shuffle it was already dealt, so this never
+        // applies to one. ArrangeDeck activates the Rebel player itself.
+        $insurgencyId = $this->playerIdForSide(Rules::INSURGENCY);
+        if ($this->advancedRules() && !$this->isBot($insurgencyId)) {
+            $this->bga->globals->set(self::G_DECK_ARRANGEMENT_OPEN, 1);
+            return ArrangeDeck::class;
+        }
+
         return NextTurn::class;
+    }
+
+    /** Whether advanced rules are on at this table, from game option 105. */
+    public function advancedRules(): bool
+    {
+        return (int) ($this->bga->tableOptions->get(self::OPT_ADVANCED_RULES) ?? self::ADVANCED_RULES_OFF)
+            === self::ADVANCED_RULES_ON;
+    }
+
+    /** Whether the deck is still the Rebels' to arrange. See G_DECK_ARRANGEMENT_OPEN. */
+    public function deckArrangementOpen(): bool
+    {
+        return (int) $this->bga->globals->get(self::G_DECK_ARRANGEMENT_OPEN, 0) === 1;
+    }
+
+    /**
+     * Set the deck's order from the Rebels' arrangement and close
+     * arrangement for the rest of the game (advanced rules, option 105,
+     * issue #6).
+     *
+     * @param int[] $order the chosen draw order, index 0 drawn next
+     */
+    public function arrangeDeck(array $order): void
+    {
+        $order = array_map('intval', $order);
+
+        try {
+            Rules::validateDeckOrder($this->board->deckCardIds(), $order);
+        } catch (IllegalMove $e) {
+            throw new UserException($e->getMessage());
+        }
+
+        $this->board->reorderDeck($order);
+        $this->bga->globals->set(self::G_DECK_ARRANGEMENT_OPEN, 0);
     }
 
     /**

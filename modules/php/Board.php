@@ -180,6 +180,34 @@ final class Board
         );
     }
 
+    /**
+     * Every card still in the deck, in draw order (index 0 drawn next). Used
+     * only while a human Rebel may see it — advanced rules (option 105,
+     * issue #6), before play begins. The rest of the game this is never
+     * called: a draw is a surprise exactly as it always was.
+     *
+     * @return array<int, array{id: int, type: string, presence: int}>
+     */
+    public function deckCards(): array
+    {
+        $rows = Game::getObjectListFromDB(
+            "SELECT `card_id`, `card_type` FROM `iaw_card`
+             WHERE `card_location` = '" . self::DECK . "' ORDER BY `location_order`"
+        );
+
+        return array_map(fn(array $row) => [
+            'id' => (int) $row['card_id'],
+            'type' => $row['card_type'],
+            'presence' => $this->scenario->presenceOf($row['card_type']),
+        ], $rows);
+    }
+
+    /** @return int[] the deck's current card ids, in draw order */
+    public function deckCardIds(): array
+    {
+        return array_column($this->deckCards(), 'id');
+    }
+
     // -- writing ------------------------------------------------------------
 
     /**
@@ -246,6 +274,26 @@ final class Board
                 $location,
                 $count - 1 - $offset,
                 (int) $cardId,
+            ));
+        }
+    }
+
+    /**
+     * Set the deck's draw order from the Rebels' arrangement (advanced rules,
+     * option 105, issue #6). The caller validates that `$cardIds` names
+     * exactly the cards already in the deck, once each — this just writes
+     * the positions.
+     *
+     * @param int[] $cardIds in the new draw order, index 0 drawn next
+     */
+    public function reorderDeck(array $cardIds): void
+    {
+        foreach (array_values($cardIds) as $order => $cardId) {
+            Game::DbQuery(sprintf(
+                "UPDATE `iaw_card` SET `location_order` = %d WHERE `card_id` = %d AND `card_location` = '%s'",
+                $order,
+                (int) $cardId,
+                self::DECK,
             ));
         }
     }

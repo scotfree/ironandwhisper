@@ -579,6 +579,24 @@ yet. Simulate with `--set rebels_hold_cards=true`.
 is rate-limiting, not a mechanism — but it would accelerate board-shrinking, which already ends
 games around turn 8 of 20, so measure game length and not just win rate.
 
+**Advanced rules (game option 105) opens with one thing: the Rebels may arrange their deck
+before play begins** (2026-10-25, issue #6's "deck order as a mechanic"). A bucket option
+rather than its own, so whatever advanced rule comes next joins this one instead of becoming
+option 106. Off is the game as it has always played — the deck shuffles once and nobody
+touches it again. On, and only when a human plays the Rebels (a bot has no opinion worth
+asking for), `ArrangeDeck` is the state `setupNewGame` hands off to before `NextTurn` ever
+runs: a full-screen screen listing the deck top to bottom, four presets (decoys first, decoys
+last, spread evenly, shuffle) and plain drag-and-drop for anything a preset does not cover,
+then Play. **No sim/engine.py port** — this is not a rule either engine needs: both have
+always drawn top-to-bottom from whatever the deck held, and nothing about *how* a draw works
+changes here. Whether the Empire can tell is also moot rather than solved: it never sees the
+deck's order, arranged or not, so there is nothing new to hide. `View::forSide` gates the
+deck itself behind `viewerSide === insurgency && deckArrangementOpen` — visible only to the
+one player it belongs to, and only until they submit, the same two gates the hand itself
+goes through, stacked. `tests/test_arrange_deck.php` covers who it applies to, who may see
+the deck and for how long, and that a bad order (not exactly the deck's own cards) is
+rejected.
+
 **Deferred work lives in GitHub Issues**, not in this file:
 https://github.com/scotfree/ironandwhisper/issues, labelled `design`, `balance`, `ui`,
 `bots`, `playtest`, `deferred`. This document and `design.md` record decisions and

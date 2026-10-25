@@ -908,6 +908,175 @@ class BoardView {
 }
 
 /**
+ * Distribute `minor` as evenly as the arithmetic allows among `major`,
+ * keeping each group's own relative order. Used for "Spread Decoys Evenly" —
+ * the general form so it works whichever group happens to be larger.
+ */
+function interleaveEvenly(major, minor) {
+    if (minor.length === 0) {
+        return [...major];
+    }
+    if (major.length === 0) {
+        return [...minor];
+    }
+    const result = [];
+    const ratio = major.length / minor.length;
+    let minorIndex = 0;
+    for (let i = 0; i < major.length; i++) {
+        result.push(major[i]);
+        while (minorIndex < minor.length && i + 1 >= Math.round((minorIndex + 1) * ratio)) {
+            result.push(minor[minorIndex]);
+            minorIndex++;
+        }
+    }
+    while (minorIndex < minor.length) {
+        result.push(minor[minorIndex]);
+        minorIndex++;
+    }
+    return result;
+}
+/**
+ * Advanced rules only (game option 105, issue #6): before anything else
+ * happens, the Rebels may arrange their deck in any order, or shuffle it
+ * again.
+ *
+ * A full-screen takeover rather than a side-column box, in the family of
+ * `Help.showStartOverlay` and `Help.showResolution` — a one-time moment that
+ * needs the whole screen, not a panel competing with the board for 300px.
+ * Unlike those two it does not dismiss on a stray click: there is a real
+ * decision here, so only the Play button ends it.
+ *
+ * The deck arrives via `gamedatas.deck`, not through this state's args:
+ * args are visible to every viewer of a state and the deck is not
+ * (View::forSide) — the Empire's client never even requests this file's
+ * data because its own `isCurrentPlayerActive` is always false here.
+ */
+class ArrangeDeck {
+    constructor(game, bga) {
+        this.game = game;
+        this.bga = bga;
+        this.order = [];
+        this.dragFrom = null;
+        this.overlay = null;
+    }
+    onEnteringState(_args, isCurrentPlayerActive) {
+        if (!isCurrentPlayerActive) {
+            this.bga.statusBar.setTitle(_('${actplayer} is arranging the deck'));
+            this.game.setStagingText(`<div class="iaw-hint">${_('The Rebels may arrange their deck before play begins.')}</div>`);
+            return;
+        }
+        this.bga.statusBar.setTitle(_('${you} may arrange the deck before play begins'));
+        const deck = this.bga.gameui.gamedatas.deck ?? [];
+        this.order = deck.map(card => ({ id: card.id, presence: card.presence ?? 0 }));
+        this.renderOverlay();
+    }
+    onLeavingState() {
+        this.overlay?.remove();
+        this.overlay = null;
+        this.game.setStagingText('');
+    }
+    // -- the overlay ----------------------------------------------------------
+    renderOverlay() {
+        this.overlay?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'iaw-arrange-overlay';
+        overlay.innerHTML = `
+            <div id="iaw-arrange-card">
+                <div class="iaw-frame-title">${_('Arrange Your Deck')}</div>
+                <p class="iaw-hint">
+                    ${_('The top of the list is drawn first. Drag an agent to move it, or use a button below.')}
+                </p>
+                <div id="iaw-arrange-presets"></div>
+                <div id="iaw-arrange-list"></div>
+                <div id="iaw-arrange-submit"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        this.overlay = overlay;
+        this.renderPresets();
+        this.renderList();
+        this.renderSubmit();
+    }
+    renderPresets() {
+        const el = this.overlay.querySelector('#iaw-arrange-presets');
+        el.innerHTML = '';
+        const preset = (label, run) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'iaw-arrange-preset';
+            button.textContent = label;
+            button.addEventListener('click', () => {
+                run();
+                this.renderList();
+            });
+            el.appendChild(button);
+        };
+        preset(_('Decoys First'), () => this.partitionByValue(true));
+        preset(_('Decoys Last'), () => this.partitionByValue(false));
+        preset(_('Spread Decoys Evenly'), () => this.spreadEvenly());
+        preset(_('Shuffle'), () => this.shuffle());
+    }
+    renderList() {
+        const el = this.overlay.querySelector('#iaw-arrange-list');
+        el.innerHTML = this.order.map((card, index) => `
+            <div class="iaw-arrange-card${card.presence === 0 ? ' decoy' : ''}"
+                 draggable="true" data-index="${index}">
+                ${presenceHtml(`+${card.presence}`)}
+            </div>
+        `).join('');
+        el.querySelectorAll('.iaw-arrange-card').forEach(node => {
+            node.addEventListener('dragstart', () => {
+                this.dragFrom = Number(node.dataset.index);
+                node.classList.add('dragging');
+            });
+            node.addEventListener('dragend', () => node.classList.remove('dragging'));
+            node.addEventListener('dragover', event => event.preventDefault());
+            node.addEventListener('drop', event => {
+                event.preventDefault();
+                const to = Number(node.dataset.index);
+                if (this.dragFrom === null || this.dragFrom === to) {
+                    return;
+                }
+                const [moved] = this.order.splice(this.dragFrom, 1);
+                this.order.splice(to, 0, moved);
+                this.dragFrom = null;
+                this.renderList();
+            });
+        });
+    }
+    renderSubmit() {
+        const el = this.overlay.querySelector('#iaw-arrange-submit');
+        el.innerHTML = `<button type="button" id="iaw-arrange-play">${_('Play')}</button>`;
+        el.querySelector('#iaw-arrange-play').addEventListener('click', () => {
+            this.bga.actions.performAction('actArrangeDeck', {
+                order: JSON.stringify(this.order.map(card => card.id)),
+            });
+        });
+    }
+    // -- the presets ------------------------------------------------------------
+    /** All decoys to one end, all real agents to the other, each group's own
+     * relative order kept. */
+    partitionByValue(decoysFirst) {
+        const decoys = this.order.filter(card => card.presence === 0);
+        const reals = this.order.filter(card => card.presence !== 0);
+        this.order = decoysFirst ? [...decoys, ...reals] : [...reals, ...decoys];
+    }
+    spreadEvenly() {
+        const decoys = this.order.filter(card => card.presence === 0);
+        const reals = this.order.filter(card => card.presence !== 0);
+        this.order = reals.length >= decoys.length
+            ? interleaveEvenly(reals, decoys)
+            : interleaveEvenly(decoys, reals);
+    }
+    shuffle() {
+        for (let i = this.order.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.order[i], this.order[j]] = [this.order[j], this.order[i]];
+        }
+    }
+}
+
+/**
  *------
  * BGA framework: Gregory Isabelli & Emmanuel Colin & BoardGameArena
  * IronAndWhisper implementation : © Scot Free Kennedy
@@ -1714,6 +1883,8 @@ class Resolve {
  * the text is needed rather than when this module is imported, which is before
  * BGA has installed the translator.
  */
+/** From `src/text/primer-arrange.md`. Edit that file, not this one. */
+const primerArrange = () => _('<p><b>Before anything else happens, you may arrange your deck.</b> Click anywhere to continue to that screen: put your decoys where you like, or shuffle again, then play when you are ready. The Empire is never told whether you changed anything.</p>');
 /** From `src/text/primer-empire.md`. Edit that file, not this one. */
 const primerEmpire = () => _('<p>You build ${troop} troops in ${city} cities, march them along roads, and keep them supplied by networks of occupied ${town} locations. When you think a ${troop} garrison outweighs the rebels\' ${presence} presence in a ${town} location, <b>resolve</b> it and find out: you score the ${presence} presence you capture, if you win.</p><p><b>You win ties.</b> A ${troop} garrison only has to match the ${presence} presence against it.</p>');
 /** From `src/text/primer-hold.md`. Edit that file, not this one. */
@@ -1761,11 +1932,20 @@ class Help {
     /** Game option 103: whether winning a location scores its value. */
     locationValue = false, 
     /** Game option 104: whether the rebels may keep cards in hand. */
-    rebelsHold = false) {
+    rebelsHold = false, 
+    /**
+     * Advanced rules (option 105): whether the deck is still the Rebels'
+     * to arrange. True only for the Rebel player, only at the very start
+     * of a game, and only until they submit an order — read once from
+     * `gamedatas.deck !== null` at setup, which is exactly as long as it
+     * needs to last: the start card is shown once per page load too.
+     */
+    advancedDeckOpen = false) {
         this.scenario = scenario;
         this.board = board;
         this.locationValue = locationValue;
         this.rebelsHold = rebelsHold;
+        this.advancedDeckOpen = advancedDeckOpen;
         this.dialog = null;
     }
     /**
@@ -2097,7 +2277,10 @@ class Help {
             ? primerRebels().replace('${hand}', String(this.scenario.handSize))
             : primerEmpire())
             + (this.locationValue ? primerLocations() : '')
-            + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : ''));
+            + (this.rebelsHold ? primerHold().replace('${hand}', String(this.scenario.handSize)) : '')
+            // Only on the start card: by the time a player reads the column's
+            // persistent copy, arrangement has already happened or is moot.
+            + (rebel && where === 'start' && this.advancedDeckOpen ? primerArrange() : ''));
         return `
             <div class="iaw-primer ${side ?? 'spectator'}">
                 <div class="iaw-frame-title">${title}</div>
@@ -2206,6 +2389,7 @@ class Game {
         this.bga.states.register('Resolve', new Resolve(this, bga));
         this.bga.states.register('InsurgencyTurn', new InsurgencyTurn(this, bga));
         this.bga.states.register('EmpireTurn', new EmpireTurn(this, bga));
+        this.bga.states.register('ArrangeDeck', new ArrangeDeck(this, bga));
     }
     setup(gamedatas) {
         this.gamedatas = gamedatas;
@@ -2277,7 +2461,7 @@ class Game {
                 <div class="iaw-player-side">${sideLabel(this.bot.side)}</div>
             `);
         }
-        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false, gamedatas.rebelsHold ?? false);
+        this.help = new Help(gamedatas.scenario, this.board, gamedatas.locationValue ?? false, gamedatas.rebelsHold ?? false, gamedatas.deck != null);
         this.help.install();
         this.renderPrimer();
         // The same reminder, blown up and shown once at the start of the game:
